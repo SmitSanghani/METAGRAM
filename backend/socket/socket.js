@@ -1,0 +1,95 @@
+import { Server } from "socket.io";
+import express from "express";
+import http from "http";
+
+const app = express();
+const server = http.createServer(app);
+
+const io = new Server(server, {
+    cors: {
+        origin: 'http://localhost:5173',
+        methods: ['GET', 'POST'],
+        credentials: true
+    }
+});
+
+const userSocketMap = {}; // Maps userId to an ARRAY of socketIds [id1, id2, ...]
+
+io.on('connection', (socket) => {
+    const userId = socket.handshake.query.userId;
+    if (userId) {
+        if (!userSocketMap[userId]) userSocketMap[userId] = [];
+        userSocketMap[userId].push(socket.id);
+    }
+
+    // Emit to ALL connected clients the array of online users (keys)
+    io.emit('getOnlineUsers', Object.keys(userSocketMap));
+
+    // Helper to emit to a specific user (all their tabs)
+    const emitToUser = (receiverId, event, data) => {
+        const socketIds = userSocketMap[receiverId];
+        if (socketIds) {
+            socketIds.forEach(id => io.to(id).emit(event, data));
+        }
+    };
+
+    // 1. Chat logic events:
+    socket.on("typing", ({ receiverId }) => {
+        emitToUser(receiverId, "user_typing", { senderId: userId });
+    });
+
+    socket.on("stop_typing", ({ receiverId }) => {
+        emitToUser(receiverId, "user_stopped_typing", { senderId: userId });
+    });
+
+    socket.on("message_seen", ({ messageId, senderId }) => {
+        emitToUser(senderId, "message_seen_update", { messageId, receiverId: userId });
+    });
+
+    socket.on("message_reaction", ({ messageId, receiverId, emoji, reactions }) => {
+        emitToUser(receiverId, "message_reaction_update", { messageId, senderId: userId, emoji, reactions });
+    });
+
+    socket.on("message_delete", ({ messageId, receiverId }) => {
+        emitToUser(receiverId, "message_deleted", { messageId });
+    });
+
+    // 2. Stories logic events:
+    socket.on("story_like", ({ storyId, receiverId }) => {
+        if (receiverId !== userId) {
+            emitToUser(receiverId, "notification_new_story_like", { storyId, senderId: userId });
+        }
+    });
+
+    socket.on("story_comment", ({ storyId, receiverId, commentText }) => {
+        if (receiverId !== userId) {
+            emitToUser(receiverId, "notification_new_story_comment", { storyId, senderId: userId, text: commentText });
+        }
+    });
+
+    socket.on('disconnect', () => {
+        if (userId && userSocketMap[userId]) {
+            userSocketMap[userId] = userSocketMap[userId].filter(id => id !== socket.id);
+            if (userSocketMap[userId].length === 0) {
+                delete userSocketMap[userId];
+            }
+        }
+        io.emit('getOnlineUsers', Object.keys(userSocketMap));
+    });
+});
+
+export const getReceiverSocketId = (receiverId) => {
+    const id = String(receiverId);
+    return userSocketMap[id] ? userSocketMap[id][0] : null;
+};
+
+// New helper for broadcasting to all tabs
+export const broadcastToUser = (receiverId, event, data) => {
+    const id = String(receiverId);
+    const socketIds = userSocketMap[id];
+    if (socketIds) {
+        socketIds.forEach(sid => io.to(sid).emit(event, data));
+    }
+};
+
+export { app, io, server };

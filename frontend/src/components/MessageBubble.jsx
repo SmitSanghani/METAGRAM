@@ -1,0 +1,290 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { motion, useMotionValue, useTransform } from 'framer-motion';
+import { Reply, Trash2, Heart, Smile, X, Loader2, Play } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
+import { useNavigate } from 'react-router-dom';
+
+const MessageBubble = ({ msg, isSender, onReply, onDelete, onReact, onScrollTo, onStoryClick, isHighlighted, currentUser, otherUser }) => {
+    const navigate = useNavigate();
+    const [showReactions, setShowReactions] = useState(false);
+    const [showReactionInfo, setShowReactionInfo] = useState(false);
+    const pickerRef = useRef(null);
+
+    const x = useMotionValue(0);
+    const replyOpacity = useTransform(x, isSender ? [-80, 0] : [0, 80], [1, 0]);
+    const replyScale = useTransform(x, isSender ? [-80, 0] : [0, 80], [1, 0.5]);
+
+    // Click outside listener for emoji picker
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (pickerRef.current && !pickerRef.current.contains(event.target)) {
+                setShowReactions(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    if (msg.isDeleted) {
+        return (
+            <div className={`flex mb-4 ${isSender ? 'justify-end' : 'justify-start'}`}>
+                <div className="max-w-[70%] px-4 py-2 rounded-2xl text-[13px] italic text-gray-400 border border-gray-100 bg-white/50 backdrop-blur-sm">
+                    Message unsent
+                </div>
+            </div>
+        );
+    }
+
+    const handleDragEnd = (_, info) => {
+        if (!isSender && info.offset.x > 50) onReply(msg);
+        else if (isSender && info.offset.x < -50) onReply(msg);
+    };
+
+    const reactionsList = ["❤️", "😂", "🔥", "👍", "😮", "😢"];
+    const avatarUser = isSender ? currentUser : otherUser;
+
+    return (
+        <div id={`msg-${msg._id}`} className={`group flex flex-col mb-4 ${isSender ? 'items-end' : 'items-start'} transition-all duration-500`}>
+            <div className={`flex items-end gap-1.5 max-w-[85%] ${isSender ? 'flex-row-reverse' : 'flex-row'}`}>
+                <Avatar className="w-8 h-8 shrink-0 border border-white shadow-sm mb-0.5">
+                    <AvatarImage src={avatarUser?.profilePicture} className="object-cover" />
+                    <AvatarFallback className="bg-indigo-50 text-indigo-500 text-[11px] font-black uppercase">
+                        {avatarUser?.username?.charAt(0) || '?'}
+                    </AvatarFallback>
+                </Avatar>
+
+                {/* Message Content Container */}
+                <div className="relative flex flex-col">
+                    {/* Reply Preview inside bubble - Now Clickable */}
+                    {msg.replyTo && (
+                        <div
+                            onClick={() => onScrollTo(msg.replyTo._id)}
+                            className={`mb-[-15px] pb-5 pt-2.5 px-3.5 rounded-t-[20px] text-[12px] opacity-70 flex items-center gap-2 border-x border-t cursor-pointer hover:opacity-100 transition-all ${isSender ? 'bg-indigo-700/40 border-white/5 text-white/80' : 'bg-gray-100/80 border-gray-200 text-gray-500'}`}
+                        >
+                            <div className="w-1 self-stretch bg-current opacity-20 rounded-full"></div>
+                            <div className="truncate max-w-[200px]">
+                                <span className="font-black block text-[9px] uppercase tracking-wider mb-0.5">
+                                    Replying to {msg.replyTo.senderId?.toString() === currentUser?._id?.toString() ? "yourself" : "them"}
+                                </span>
+                                <span className="italic">
+                                    {msg.replyTo.message || (msg.replyTo.messageType === 'image' ? 'photo' : 'video')}
+                                </span>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Draggable Bubble with Highlight Motion */}
+                    <motion.div
+                        drag="x"
+                        dragConstraints={{ left: 0, right: 0 }}
+                        dragElastic={0.8}
+                        onDragEnd={handleDragEnd}
+                        style={{ x }}
+                        initial={false}
+                        animate={isHighlighted ? {
+                            scale: [1, 1.05, 1],
+                            backgroundColor: isSender ? ["#4F46E5", "#818CF8", "#4F46E5"] : ["#ffffff", "#EEF2FF", "#ffffff"],
+                            boxShadow: isHighlighted ? "0 0 25px rgba(79,70,229,0.5)" : "none"
+                        } : {}}
+                        transition={{ duration: 0.8, ease: "easeInOut" }}
+                        className={`relative z-10 px-4 py-2.5 rounded-[20px] text-[14.5px] leading-[1.4] shadow-sm cursor-grab active:cursor-grabbing transition-colors ${isSender
+                            ? 'bg-gradient-to-br from-[#4F46E5] to-[#6366F1] text-white rounded-br-sm'
+                            : 'bg-white border border-[#efefef] text-[#262626] rounded-bl-sm font-medium shadow-[0_1px_2px_rgba(0,0,0,0.05)]'
+                            } ${isHighlighted ? 'ring-2 ring-indigo-400 ring-offset-2' : ''}`}
+                    >
+                        {msg.messageType === 'image' ? (
+                            <div className="relative">
+                                <img src={msg.mediaUrl} alt="media" className={`rounded-xl max-w-[220px] h-auto mb-1 border border-white/10 ${msg.isLoading ? 'opacity-40 grayscale blur-[2px]' : ''}`} />
+                                {msg.isLoading && (
+                                    <div className="absolute inset-0 flex items-center justify-center">
+                                        <div className="bg-black/20 backdrop-blur-md p-3 rounded-full shadow-lg">
+                                            <Loader2 size={24} className="text-white animate-spin" />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        ) : msg.messageType === 'video' ? (
+                            <div className="relative">
+                                <video src={msg.mediaUrl} controls className={`rounded-xl max-w-[220px] h-auto mb-1 ${msg.isLoading ? 'opacity-40 blur-[2px]' : ''}`} />
+                                {msg.isLoading && (
+                                    <div className="absolute inset-0 flex items-center justify-center">
+                                        <div className="bg-black/20 backdrop-blur-md p-3 rounded-full shadow-lg">
+                                            <Loader2 size={24} className="text-white animate-spin" />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        ) : msg.messageType === 'story_reply' || msg.messageType === 'story_reaction' ? (
+                            <div 
+                                className="flex flex-col gap-2 min-w-[160px] max-w-[220px] cursor-pointer"
+                                onClick={() => onStoryClick(msg.storyId)}
+                            >
+                                <div className="relative aspect-[9/16] w-[120px] rounded-xl overflow-hidden bg-black/10 border border-white/20 shadow-inner group/story">
+                                    {msg.storyId?.mediaType === 'video' ? (
+                                        <video src={msg.storyId?.mediaUrl} className="w-full h-full object-cover opacity-80" />
+                                    ) : (
+                                        <img src={msg.storyId?.mediaUrl} className="w-full h-full object-cover opacity-80" />
+                                    )}
+                                    <div className="absolute inset-0 bg-black/20 group-hover/story:bg-black/10 transition-all flex items-center justify-center">
+                                        <span className="text-[10px] text-white/80 font-black uppercase tracking-widest bg-black/20 px-2 py-1 rounded backdrop-blur-sm border border-white/10">Story</span>
+                                    </div>
+                                </div>
+                                <div className="flex flex-col gap-1 px-1">
+                                    <span className="text-[10px] font-black uppercase tracking-tighter opacity-50">
+                                        {isSender ? "You replied to their story" : `${otherUser?.username} replied to your story`}
+                                    </span>
+                                    <span className="text-[14px]">
+                                        {msg.message}
+                                    </span>
+                                </div>
+                            </div>
+                        ) : msg.messageType === 'reel' ? (
+                            <div 
+                                className="flex flex-col min-w-[200px] max-w-[260px] cursor-pointer group/reel shadow-xl rounded-[26px]"
+                                onClick={() => navigate(`/reels/${msg.reelId?._id || ''}`)}
+                            >
+                                <div className={`bg-[#5B51D8] ${isSender ? '-mx-4 -my-2.5' : '-mx-4 -my-2.5'} p-4 rounded-[26px] overflow-hidden transition-all hover:brightness-110 active:scale-[0.98]`}>
+                                    {/* Header Section */}
+                                    <div className="flex items-center gap-2.5 mb-3 px-1">
+                                        <Avatar className="w-8 h-8 border-2 border-white/50 shadow-md">
+                                            <AvatarImage src={msg.reelId?.author?.profilePicture} className="object-cover" />
+                                            <AvatarFallback className="bg-white text-[#5B51D8] font-black">{msg.reelId?.author?.username?.charAt(0)}</AvatarFallback>
+                                        </Avatar>
+                                        <div className="flex flex-col">
+                                            <span className="text-[11px] font-black text-white leading-none">
+                                                {msg.reelId?.author?.username}
+                                            </span>
+                                            <span className="text-[9px] font-black text-white/70 uppercase tracking-[0.1em] mt-0.5">
+                                                @{msg.reelId?.author?.username?.toUpperCase()}'S REEL
+                                            </span>
+                                        </div>
+                                    </div>
+                                    
+                                    {/* Video Container */}
+                                    <div className="relative aspect-[10/13] rounded-2xl overflow-hidden bg-black shadow-inner ring-1 ring-white/10">
+                                        <video 
+                                            src={msg.reelId?.videoUrl} 
+                                            className="w-full h-full object-cover"
+                                            muted 
+                                            playsInline
+                                            preload="metadata"
+                                            disablePictureInPicture
+                                        />
+                                        
+                                        {/* Realistic Play Overlay removed as per request */}
+                                        <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/80 via-black/20 to-transparent">
+                                            <p className="text-[12px] text-white font-bold leading-tight drop-shadow-lg line-clamp-1">
+                                                {msg.reelId?.caption || "Watch Reel"}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            msg.message
+                        )}
+
+                        {/* Reaction Display - Clickable */}
+                        {msg.reactions?.length > 0 && (
+                            <div
+                                onClick={() => setShowReactionInfo(true)}
+                                className={`absolute -bottom-2 ${isSender ? 'right-2' : 'left-2'} flex -space-x-1 cursor-pointer hover:scale-110 transition-transform`}
+                            >
+                                {msg.reactions.map((r, i) => (
+                                    <div key={i} className="bg-white rounded-full px-1 py-0.5 text-[12px] shadow-md border border-gray-100 animate-in zoom-in-50">
+                                        {r.emoji}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </motion.div>
+
+                    {/* Action Buttons (Visible on Hover) */}
+                    <div className={`absolute top-1/2 -translate-y-1/2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity z-20 ${isSender ? 'left-[-85px] mr-3 flex-row-reverse' : 'right-[-75px]'}`}>
+                        <button onClick={() => setShowReactions(!showReactions)} className="p-1.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-indigo-500 transition-colors cursor-pointer">
+                            <Smile size={14} />
+                        </button>
+                        <button onClick={() => onReply(msg)} className="p-1.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-indigo-500 transition-colors cursor-pointer">
+                            <Reply size={14} />
+                        </button>
+                        {isSender && (
+                            <button onClick={() => onDelete(msg._id)} className="p-1.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-red-500 transition-colors cursor-pointer">
+                                <Trash2 size={14} />
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Emoji Picker Overlay */}
+                    {showReactions && (
+                        <div ref={pickerRef} className={`absolute z-30 -bottom-10 ${isSender ? 'right-0' : 'left-0'} bg-white shadow-xl border border-gray-100 rounded-full p-1.5 flex gap-1 animate-in slide-in-from-bottom-2`}>
+                            {reactionsList.map(emoji => (
+                                <button
+                                    key={emoji}
+                                    onClick={() => {
+                                        onReact(msg._id, emoji);
+                                        setShowReactions(false);
+                                    }}
+                                    className="hover:scale-125 transition-transform p-1 cursor-pointer"
+                                >
+                                    {emoji}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Reactions Info Dialog */}
+            <Dialog open={showReactionInfo} onOpenChange={setShowReactionInfo}>
+                <DialogContent className="max-w-[400px] p-0 overflow-hidden bg-white border-none shadow-2xl rounded-2xl">
+                    <DialogHeader className="p-4 border-b border-gray-100">
+                        <DialogTitle className="text-[16px] font-black text-[#262626] text-center">Reactions</DialogTitle>
+                    </DialogHeader>
+                    <div className="max-h-[300px] overflow-y-auto p-2">
+                        {msg.reactions?.map((r, i) => {
+                            const isMine = r.userId?._id?.toString() === currentUser?._id?.toString();
+                            return (
+                                <div key={i} className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 transition-colors">
+                                    <div className="flex items-center gap-3">
+                                        <Avatar className="w-10 h-10">
+                                            <AvatarImage src={r.userId?.profilePicture} />
+                                            <AvatarFallback className="bg-indigo-100 text-indigo-600 font-bold uppercase text-xs">{r.userId?.username?.charAt(0)}</AvatarFallback>
+                                        </Avatar>
+                                        <div className="flex flex-col">
+                                            <span className="text-[14px] font-black text-[#262626] leading-none mb-1">{r.userId?.username} {isMine && "(You)"}</span>
+                                            <span className="text-[12px] text-gray-400 font-medium">Reacted {r.emoji}</span>
+                                        </div>
+                                    </div>
+                                    {isMine && (
+                                        <button
+                                            onClick={() => {
+                                                onReact(msg._id, r.emoji); // Toggle off
+                                                setShowReactionInfo(false);
+                                            }}
+                                            className="text-red-500 font-black text-[12px] hover:bg-red-50 px-4 py-2 rounded-full transition-colors cursor-pointer"
+                                        >
+                                            REMOVE
+                                        </button>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Seen Indicator (Show only for last sender message) */}
+            {isSender && msg.seen && (
+                <span className="text-[10px] text-gray-400 font-bold mt-1 mr-1 animate-in fade-in transition-all">Seen</span>
+            )}
+
+            {/* Timestamp - Always Visible */}
+            <span className="text-[9px] text-gray-400 font-medium mt-1 mx-1.5 opacity-70">
+                {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </span>
+        </div>
+    );
+};
+
+export default MessageBubble;

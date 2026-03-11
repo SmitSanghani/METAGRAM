@@ -1,0 +1,25 @@
+import mongoose from "mongoose";
+
+const messageSchema = new mongoose.Schema({
+    senderId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    receiverId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    message: { type: String, default: "" },
+    messageType: { type: String, enum: ['text', 'image', 'video', 'gif', 'story_reply', 'story_reaction', 'reel'], default: 'text' },
+    mediaUrl: { type: String, default: "" },
+    storyId: { type: mongoose.Schema.Types.ObjectId, ref: 'Story' },
+    reelId: { type: mongoose.Schema.Types.ObjectId, ref: 'Reel' },
+    replyTo: { type: mongoose.Schema.Types.ObjectId }, // Reference by ID within the array
+    seen: { type: Boolean, default: false },
+    reactions: [{ userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, emoji: String }],
+    isDeleted: { type: Boolean, default: false }
+}, { timestamps: true });
+
+const conversationschema = new mongoose.Schema({
+    participants: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    }],
+    messages: [messageSchema]
+}, { timestamps: true });
+
+export const Conversation = mongoose.model('Conversation', conversationschema);
