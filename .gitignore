@@ -1,0 +1,20 @@
+# Common ignores
+node_modules/
+.DS_Store
+*.log
+
+# Environment variables (CRITICAL)
+.env
+.env.local
+.env.*.local
+
+# Backend specific
+backend/node_modules/
+backend/dist/
+backend/*.log
+
+# Frontend specific
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/*.log
