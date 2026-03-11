@@ -2,6 +2,7 @@ import express, { urlencoded } from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
+import path from "path";
 import connectDB from "./utils/db.js";
 import userRoute from "./routes/user.route.js";
 import postroute from "./routes/post.route.js";
@@ -34,11 +35,12 @@ app.use(cookieParser());
 app.use(urlencoded({ extended: true }));
 
 const corsOptions = {
-    origin: 'http://localhost:5173',
+    origin: process.env.URL || 'http://localhost:5173',
     credentials: true
 }
 app.use(cors(corsOptions));
 
+const __dirname = path.resolve();
 
 // All APIs Are Show Here :
 app.use("/api/v1/user", userRoute);
@@ -47,6 +49,11 @@ app.use("/api/v1/message", messageRoute);
 app.use("/api/v1/story", storyRoute);
 app.use("/api/v1/notification", notificationRoute);
 app.use("/api/v1/reels", reelRoute);
+
+app.use(express.static(path.join(__dirname, "/frontend/dist")));
+app.get("*", (req, res) => {
+    res.sendFile(path.resolve(__dirname, "frontend", "dist", "index.html"));
+});
 
 // Cron job to clean up expired stories every hour
 cron.schedule('0 * * * *', async () => {
