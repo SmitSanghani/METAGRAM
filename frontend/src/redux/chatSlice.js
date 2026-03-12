@@ -18,7 +18,7 @@ const chatSlice = createSlice({
             const userId = action.payload;
             const index = state.chatUsers.findIndex(u => String(u._id) === String(userId));
             if (index !== -1) {
-                const user = state.chatUsers[index];
+                const user = { ...state.chatUsers[index] }; // deep copy to ensure reactivity triggers properly
                 const others = state.chatUsers.filter(u => String(u._id) !== String(userId));
                 state.chatUsers = [user, ...others];
             }
@@ -43,12 +43,14 @@ const chatSlice = createSlice({
             }
         },
         removeTempMessage: (state, action) => {
-            state.messages = state.messages.filter(m => m.tempId !== action.payload);
+            const { tempId } = action.payload;
+            state.messages = state.messages.filter(m => m.tempId !== tempId);
         },
         updateLastMessage: (state, action) => {
             const { userId, message } = action.payload;
+            const sId = String(userId);
             if (!state.lastMessages) state.lastMessages = {};
-            state.lastMessages[userId] = message;
+            state.lastMessages[sId] = message;
         },
         setUnreadCount: (state, action) => {
             const { userId, count } = action.payload;
@@ -59,12 +61,12 @@ const chatSlice = createSlice({
             state.unreadCounts = action.payload || {};
         },
         incrementUnreadCount: (state, action) => {
-            const userId = action.payload;
+            const userId = String(action.payload);
             if (!state.unreadCounts) state.unreadCounts = {};
             state.unreadCounts[userId] = (state.unreadCounts[userId] || 0) + 1;
         },
         clearUnreadCount: (state, action) => {
-            const userId = action.payload;
+            const userId = String(action.payload);
             if (!state.unreadCounts) state.unreadCounts = {};
             state.unreadCounts[userId] = 0;
         },
@@ -103,6 +105,13 @@ const chatSlice = createSlice({
                     msg.isDeleted = true;
                 }
             });
+        },
+        updateChatUserConversation: (state, action) => {
+            const { userId, conversationId } = action.payload;
+            const index = state.chatUsers.findIndex(u => String(u._id) === String(userId));
+            if (index !== -1) {
+                state.chatUsers[index].conversationId = conversationId;
+            }
         }
     }
 });
@@ -123,7 +132,8 @@ export const {
     incrementUnreadCount,
     clearUnreadCount,
     updateLastMessage,
-    removeTempMessage
+    removeTempMessage,
+    updateChatUserConversation
 } = chatSlice.actions;
 
 export default chatSlice.reducer;

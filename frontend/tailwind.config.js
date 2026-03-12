@@ -2,12 +2,17 @@ import tailwindAnimate from "tailwindcss-animate";
 
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: ['selector', '.dark-theme'],
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
     extend: {
+      fontFamily: {
+        'space-grotesk': ['"Space Grotesk"', 'sans-serif'],
+        'inter': ['Inter', 'sans-serif'],
+      },
       borderRadius: {
         sm: 'calc(var(--radius) - 4px)',
         md: 'calc(var(--radius) - 2px)',
@@ -73,8 +78,5 @@ export default {
   },
   plugins: [
     tailwindAnimate,
-    function ({ addVariant }) {
-      addVariant('dark', '&:is(.dark *)');
-    }
   ],
 }

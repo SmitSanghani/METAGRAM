@@ -36,7 +36,7 @@ const StoryAvatar = ({ user, currentUser, stories = [], size = 66, isYourStory =
     // Determine stroke color
     let strokeColor = "#d1d1d1"; // Default viewed grey
     if (isUnseen) {
-        strokeColor = isCF ? "#2ecc71" : "url(#instagram-ring-gradient)";
+        strokeColor = isCF ? "#2ecc71" : "url(#metagram-ring-gradient)";
     }
 
     return (
@@ -48,7 +48,7 @@ const StoryAvatar = ({ user, currentUser, stories = [], size = 66, isYourStory =
                 className="absolute inset-0 transform -rotate-90 pointer-events-none"
             >
                 <defs>
-                    <linearGradient id="instagram-ring-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <linearGradient id="metagram-ring-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
                         <stop offset="0%" stopColor="#feda75" />
                         <stop offset="25%" stopColor="#fa7e1e" />
                         <stop offset="50%" stopColor="#d62976" />

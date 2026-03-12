@@ -1,11 +1,16 @@
 @import "tailwindcss";
 
+/* Light only Theme System */
 body {
+    transition: background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1), color 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     font-family: 'Inter', 'DM Sans', sans-serif;
-    background-color: #FFFFFF;
+    background-color: #edf6f5; /* Light Cyan/Blue background from the second image */
     color: #1a1a1a;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Ensure common UI elements transition smoothly */
+input, button, .card, div {
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
 }
 
 .brand-font {

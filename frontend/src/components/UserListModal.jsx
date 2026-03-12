@@ -58,7 +58,7 @@ const UserListItem = ({ user: targetUser, currentAuthUser, onClose }) => {
                 </Avatar>
                 <div className="flex flex-col">
                     <span className="font-bold text-[13px] text-gray-900 group-hover:underline">{targetUser.username}</span>
-                    <span className="text-[12px] text-gray-500 font-medium truncate max-w-[150px]">{targetUser.bio || 'Instagram user'}</span>
+                    <span className="text-[12px] text-gray-500 font-medium truncate max-w-[150px]">{targetUser.bio || 'Metagram user'}</span>
                 </div>
             </div>
 

@@ -1,30 +1,46 @@
-import React, { useState } from 'react'
-import { motion } from 'framer-motion'
-import { Input } from './ui/input'
-import { Button } from './ui/button'
-import axios from 'axios';
-import { toast } from 'sonner';
+import React, { useState } from 'react';
+import { Mail, Lock, Loader2, Eye, EyeOff } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Loader2 } from 'lucide-react';
-import { setAuthUser } from '@/redux/authSlice';
+import AuthLayout from './AuthLayout';
+import { toast } from 'sonner';
+import axios from 'axios';
 import { useDispatch } from 'react-redux';
+import { setAuthUser } from '../redux/authSlice';
 
 const Login = () => {
     const [input, setInput] = useState({
-        email: '',
-        password: ''
+        email: "",
+        password: ""
     });
     const [loading, setLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+    const [errors, setErrors] = useState({});
     const navigate = useNavigate();
     const dispatch = useDispatch();
 
+    const validate = () => {
+        let newErrors = {};
+        if (!input.email) newErrors.email = "Identity email is required";
+        else if (!/\S+@\S+\.\S+/.test(input.email)) newErrors.email = "Please enter a valid email address";
 
-    const changeEventhandler = (e) => {
-        setInput({ ...input, [e.target.name]: e.target.value })
+        if (!input.password) newErrors.password = "Secured key is required";
+        else if (input.password.length < 4) newErrors.password = "Key must be at least 4 characters";
+
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+
+    const changeEventHandler = (e) => {
+        setInput({ ...input, [e.target.name]: e.target.value });
+        if (errors[e.target.name]) {
+            setErrors({ ...errors, [e.target.name]: null });
+        }
     }
 
-    const signupHandler = async (e) => {
+    const loginHandler = async (e) => {
         e.preventDefault();
+        if (!validate()) return;
+
         try {
             setLoading(true);
             const res = await axios.post('http://localhost:8000/api/v1/user/login', input, {
@@ -35,98 +51,88 @@ const Login = () => {
             });
             if (res.data.success) {
                 dispatch(setAuthUser(res.data.user));
-                navigate('/');
+                navigate("/");
                 toast.success(res.data.message);
-                setInput({
-                    email: '',
-                    password: ''
-                })
             }
         } catch (error) {
-            console.log(error);
-            toast.error(error.response.data.message);
+            toast.error(error.response?.data?.message || "Something went wrong");
         } finally {
             setLoading(false);
         }
-
     }
 
     return (
-        <div className='flex items-center w-screen h-screen justify-center bg-[rgb(218,242,242)] relative overflow-hidden'>
-            {/* Minimalist subtle grain or glow could go here, but keeping it pure black for now */}
-
-            <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.5, ease: "circOut" }}
-                className='relative z-10 w-full max-w-sm mx-4'
-            >
-                <form
-                    onSubmit={signupHandler}
-                    className='bg-black flex flex-col gap-8 p-12 rounded-[2rem] border border-zinc-800 shadow-[0_0_50px_rgba(255,255,255,0.02)]'
-                >
-                    <div className='text-center space-y-2'>
-                        <h1 className='text-4xl font-black tracking-tighter text-white'>
-                            METAGRAM
-                        </h1>
-                        <p className='text-zinc-500 text-[10px] font-bold uppercase tracking-[0.3em]'>
-                            Digital Identity
-                        </p>
-                    </div>
-
-                    <div className="space-y-5">
-                        <div className="space-y-1">
-                            <label className='text-[10px] font-bold uppercase tracking-widest text-zinc-100 ml-1'>Identity</label>
-                            <Input
-                                type="email"
-                                name="email"
-                                value={input.email}
-                                onChange={changeEventhandler}
-                                placeholder="Email address"
-                                className="h-12 bg-transparent border-zinc-800 focus:border-white focus:ring-0 text-white rounded-xl transition-all placeholder:text-zinc-700 text-sm"
-                            />
+        <AuthLayout>
+            <form onSubmit={loginHandler} className="space-y-4">
+                <div className="space-y-2">
+                    <label className="text-[11px] font-bold text-gray-500 tracking-wider uppercase ml-1">IDENTITY</label>
+                    <div className="relative group">
+                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                            <Mail className="h-5 w-5 text-[#9ca3af] group-focus-within:text-[#32b096] transition-colors" />
                         </div>
-
-                        <div className="space-y-1">
-                            <label className='text-[10px] font-bold uppercase tracking-widest text-zinc-100 ml-1'>Key</label>
-                            <Input
-                                type="password"
-                                name="password"
-                                value={input.password}
-                                onChange={changeEventhandler}
-                                placeholder="Password"
-                                className="h-12 bg-transparent border-zinc-800 focus:border-white focus:ring-0 text-white rounded-xl transition-all placeholder:text-zinc-700 text-sm"
-                            />
-                        </div>
+                        <input
+                            type="email"
+                            name="email"
+                            value={input.email}
+                            onChange={changeEventHandler}
+                            placeholder="name@metagram.io"
+                            className={`block w-full pl-12 pr-4 py-3 bg-[#1c1c1c] border ${errors.email ? 'border-red-500/50 focus:border-red-500' : 'border-white/10 focus:border-[#32b096]'} rounded-xl text-white placeholder-gray-600 focus:outline-none focus:ring-2 ${errors.email ? 'focus:ring-red-500/25' : 'focus:ring-[#32b096]/25'} transition-all shadow-lg text-sm`}
+                        />
                     </div>
+                    {errors.email && <p className="text-[10px] text-red-500 font-bold tracking-wide mt-1 ml-1 uppercase">{errors.email}</p>}
+                </div>
 
-                    {loading ? (
-                        <Button disabled className="h-12 bg-zinc-900 border border-zinc-800 text-white rounded-xl flex items-center justify-center">
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin text-white" />
-                            Verifying
-                        </Button>
-                    ) : (
-                        <Button
-                            type="submit"
-                            className="h-12 bg-white text-black hover:bg-zinc-200 font-black rounded-xl transition-all active:scale-[0.97]"
+                <div className="space-y-2">
+                    <div className="flex justify-between items-center ml-1">
+                        <label className="text-[11px] font-bold text-gray-500 tracking-wider uppercase">KEY</label>
+                        <Link to="/forgot-password" size="sm" className="text-[11px] font-bold text-gray-500 hover:text-white transition-colors">
+                            Forgot your key?
+                        </Link>
+                    </div>
+                    <div className="relative group">
+                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                            <Lock className="h-5 w-5 text-[#9ca3af] group-focus-within:text-[#32b096] transition-colors" />
+                        </div>
+                        <input
+                            type={showPassword ? "text" : "password"}
+                            name="password"
+                            value={input.password}
+                            onChange={changeEventHandler}
+                            placeholder="••••••••••••"
+                            className={`block w-full pl-12 pr-12 py-3 bg-[#1c1c1c] border ${errors.password ? 'border-red-500/50 focus:border-red-500' : 'border-white/10 focus:border-[#32b096]'} rounded-xl text-white placeholder-gray-600 focus:outline-none focus:ring-2 ${errors.password ? 'focus:ring-red-500/25' : 'focus:ring-[#32b096]/25'} transition-all shadow-lg text-sm`}
+                        />
+                        <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-500 hover:text-white transition-colors"
                         >
-                            Sign In
-                        </Button>
-                    )}
+                            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                    </div>
+                    {errors.password && <p className="text-[10px] text-red-500 font-bold tracking-wide mt-1 ml-1 uppercase">{errors.password}</p>}
+                </div>
 
-                    <div className='flex items-center gap-4'>
-                        <div className='h-[1px] bg-zinc-900 flex-1'></div>
-                        <span className='text-[9px] font-bold text-zinc-100 uppercase tracking-widest'>Encryption active</span>
-                        <div className='h-[1px] bg-zinc-900 flex-1'></div>
+                <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full py-3 bg-white hover:bg-gray-100 text-black font-bold rounded-xl transition-all shadow-xl active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center text-sm"
+                >
+                    {loading ? <Loader2 className="animate-spin h-5 w-5" /> : "Sign In"}
+                </button>
+
+                <div className="mt-8 flex flex-col items-center gap-4">
+                    <div className="flex items-center gap-2 text-[10px] text-gray-600 font-bold uppercase tracking-widest">
+                        <Lock className="w-3 h-3" />
+                        <span>Encryption Active</span>
                     </div>
 
-                    <p className='text-center text-zinc-100 text-xs font-medium'>
-                        Don't have an account? <Link to="/signup" className="text-white hover:underline transition-all">Join us</Link>
+                    <p className="text-gray-500 text-xs font-medium">
+                        Don't have an account? <Link to="/signup" className="text-[#32b096] hover:underline font-bold">Join us</Link>
                     </p>
-                </form>
-            </motion.div>
-        </div>
+                </div>
+            </form>
+        </AuthLayout>
     );
-}
+};
 
-export default Login
+export default Login;

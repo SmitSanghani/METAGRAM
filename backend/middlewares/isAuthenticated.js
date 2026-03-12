@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import { User } from "../models/user.model.js";
 
 const isAuthenticated = async (req, res, next) => {
     try {
@@ -18,6 +19,16 @@ const isAuthenticated = async (req, res, next) => {
             });
         }
         req.id = decode.userId;
+
+        // If role is in the token, use it directly (fast path)
+        // Otherwise, fetch from the database (fallback for old tokens)
+        if (decode.role) {
+            req.role = decode.role;
+        } else {
+            const user = await User.findById(decode.userId).select("role");
+            req.role = user?.role || "user";
+        }
+
         next();
 
     } catch (error) {

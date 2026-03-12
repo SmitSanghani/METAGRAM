@@ -9,9 +9,9 @@ import { broadcastToUser, io } from "../socket/socket.js";
 export const sendMessage = async (req, res) => {
     try {
         const senderId = req.id;
-        const sender = await User.findById(senderId).select("username");
+        const sender = await User.findById(senderId).select("username profilePicture");
         const receiverId = req.params.id;
-        const { message, messageType = 'text', storyId = null, reelId = null, replyTo = null } = req.body;
+        const { message, messageType = 'text', storyId = null, reelId = null, replyTo = null, tempId } = req.body;
 
         // Validation to prevent 500 errors if ID is malformed
         if (!receiverId || receiverId.length !== 24) {
@@ -107,15 +107,24 @@ export const sendMessage = async (req, res) => {
         const newMessage = conversation.messages.id(savedMessage._id);
         const messageObj = newMessage.toObject();
         messageObj.senderUsername = sender.username;
+        messageObj.senderProfilePicture = sender.profilePicture;
 
         // Add the manually populated reply info
         if (replyToPopulated) {
             messageObj.replyTo = replyToPopulated;
         }
 
-        // Broadcast to both participants
-        broadcastToUser(receiverId, "message_received", messageObj);
-        broadcastToUser(senderId, "message_received", messageObj);
+        // Include metadata for frontend tracking/room logic
+        messageObj.tempId = tempId;
+        messageObj.conversationId = conversation._id.toString();
+
+        // 1. Broadcast to the conversation room (Primary for participants currently in chat)
+        io.to(conversation._id.toString()).emit("receive_message", messageObj);
+
+        // 2. Also notify receiver directly (for toasts and sidebar updates when NOT directly in room)
+        if (String(receiverId) !== String(senderId)) {
+            broadcastToUser(receiverId, "new_message_notification", messageObj);
+        }
 
         if (messageType === 'story_reply') broadcastToUser(receiverId, "story_reply_receive", messageObj);
         else if (messageType === 'story_reaction') broadcastToUser(receiverId, "story_reaction_receive", messageObj);
@@ -139,7 +148,7 @@ export const getMessages = async (req, res) => {
             { path: 'messages.reactions.userId', select: 'username profilePicture' }
         ]);
 
-        if (!conversation) return res.status(200).json({ success: true, messages: [] });
+        if (!conversation) return res.status(200).json({ success: true, messages: [], conversationId: null });
 
         // Populate replyTo content manually for all messages
         const populatedMessages = conversation.messages.map(msg => {
@@ -158,7 +167,7 @@ export const getMessages = async (req, res) => {
             return msgObj;
         });
 
-        res.status(200).json({ success: true, messages: populatedMessages });
+        res.status(200).json({ success: true, messages: populatedMessages, conversationId: conversation._id.toString() });
     } catch (error) {
         console.error(error);
         res.status(500).json({ success: false, message: "Internal server error" });

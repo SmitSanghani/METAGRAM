@@ -100,18 +100,18 @@ const StoryFeature = () => {
                         />
                         {/* Blue Plus Button */}
                         <div 
-                            className="absolute bottom-[6px] right-[6px] p-[2px] bg-white dark:bg-zinc-950 rounded-full shadow-sm cursor-pointer hover:scale-110 active:scale-90 transition-transform z-10"
+                            className="absolute bottom-[6px] right-[6px] p-[2px] bg-white rounded-full shadow-sm cursor-pointer hover:scale-110 active:scale-90 transition-transform z-10"
                             onClick={(e) => {
                                 e.stopPropagation();
                                 setIsUploadModalOpen(true);
                             }}
                         >
-                            <div className="bg-[#0095F6] rounded-full p-[3px] flex items-center justify-center border-[2px] border-white dark:border-zinc-950">
+                            <div className="bg-[#0095F6] rounded-full p-[3px] flex items-center justify-center border-[2px] border-white">
                                 <Plus size={12} strokeWidth={5} className="text-white" />
                             </div>
                         </div>
                     </div>
-                    <span className="text-[12px] font-normal text-center truncate w-[74px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                    <span className="text-[12px] font-bold text-center truncate w-[74px] text-zinc-400 mt-0.5">
                         Your story
                     </span>
                 </SwiperSlide>
@@ -129,7 +129,7 @@ const StoryFeature = () => {
                             stories={group.stories}
                             size={64}
                         />
-                        <span className="text-[12px] font-normal text-center truncate w-[74px] text-[#262626] dark:text-gray-200">
+                        <span className="text-[12px] font-bold text-center truncate w-[74px] text-gray-800">
                             {group.userId.username}
                         </span>
                     </SwiperSlide>

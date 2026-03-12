@@ -35,7 +35,7 @@ const Profile = () => {
   const requestPending = userProfile?.followRequests?.some(f => (f._id || f) === user?._id) || storeRequestPending;
   const isPrivateAndNotFollowing = userProfile?.isPrivate && !isFollowing && !isLoggedInUserProfile;
 
-  // Instagram button logic cases:
+  // Metagram button logic cases:
   let buttonState = 'Follow';
   if (isFollowing) {
     buttonState = 'Following';

@@ -154,7 +154,7 @@ const CommentDialog = ({ open, setOpen }) => {
     }
 
     return (
-        <Dialog open={open}>
+        <Dialog open={open} onOpenChange={setOpen}>
             <DialogContent onInteractOutside={() => { setOpen(false); setReplyingTo(null); }} className='max-w-5xl p-0 flex flex-col bg-white overflow-hidden rounded-[15px] border-none shadow-[0_32px_64px_-15px_rgba(0,0,0,0.2)] sm:max-h-[88vh] max-h-[95vh] w-[98vw] sm:w-[90vw] transition-all duration-500'>
                 <div className='flex flex-col sm:flex-row flex-1 overflow-hidden'>
                     {/* Media Section */}
@@ -203,9 +203,6 @@ const CommentDialog = ({ open, setOpen }) => {
                                         <DialogClose className='w-full py-4 hover:bg-gray-100 font-black text-gray-400 transition-colors'>Cancel</DialogClose>
                                     </DialogContent>
                                 </Dialog>
-                                <button onClick={() => setOpen(false)} className='sm:hidden p-2 hover:bg-gray-50 rounded-full'>
-                                    <X size={20} />
-                                </button>
                             </div>
                         </div>
 

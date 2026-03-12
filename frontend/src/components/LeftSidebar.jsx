@@ -1,4 +1,4 @@
-import { Heart, Home, LogOut, MessageCircle, PlusSquare, Search, TrendingUp, Video } from 'lucide-react'
+import { Heart, Home, LogOut, MessageCircle, PlusSquare, Search, TrendingUp, Video, Sun, Moon } from 'lucide-react'
 import React, { useState } from 'react'
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar'
 import { toast } from 'sonner'
@@ -10,9 +10,9 @@ import CreatePost from './CreatePost'
 import ReelUploadModal from './ReelUploadModal'
 import { setPosts, setSelectedPost } from '@/redux/postSlice'
 import NotificationDropdown from './NotificationDropdown'
+import useTheme from '../hooks/useTheme'
 
 const LeftSidebar = () => {
-
     const navigate = useNavigate();
     const location = useLocation();
     const { user } = useSelector(store => store.auth);
@@ -94,36 +94,40 @@ const LeftSidebar = () => {
     }
 
     return (
-        <div className='fixed top-0 z-50 left-0 w-[240px] h-screen bg-[rgb(206,223,245)] flex flex-col justify-between pb-6'>
-            <div className='flex flex-col px-3'>
-                <div className='my-5 pl-2 flex items-center'>
-                    <h1 className='brand-font text-xl tracking-wide'>METAGRAM</h1>
-                    <span className='w-1 h-1 rounded-full bg-[#4F46E5] ml-0.5 mt-1'></span>
+        <div className='fixed top-0 z-50 left-0 w-[240px] h-screen bg-[#d6eef3] border-r border-[#efefef] flex flex-col justify-between pb-6 px-4 transition-colors duration-300'>
+            <div className='flex flex-col'>
+                <div className='my-8 pl-3 flex flex-col'>
+                    <h1 className='text-2xl font-bold tracking-tight text-[#3b82f6]' style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+                        METAGRAM
+                    </h1>
+                    <p className='text-[8px] tracking-[0.3em] text-gray-400 font-bold uppercase mt-0.5' style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+                        Digital Identity
+                    </p>
                 </div>
 
-                <div className='flex flex-col gap-0.5'>
+                <div className='flex flex-col gap-2'>
                     {
                         sidebarItems.map((item, index) => {
                             const active = isActive(item.text);
                             return (
                                 <div onClick={() => sidebarHandler(item.text)} key={index}
-                                    className={`relative flex items-center gap-2.5 cursor-pointer px-3 py-2 rounded-lg transition-all duration-300 group mb-0.5 shadow-[0_1px_4px_rgba(0,0,0,0.02)] active:scale-[0.96] border border-transparent ${active
-                                        ? 'bg-white text-[#4F46E5] font-bold shadow-sm'
-                                        : 'bg-white text-[#262626] hover:text-[#4F46E5] hover:shadow-sm hover:font-bold'
+                                    className={`flex items-center gap-4 cursor-pointer px-3 py-3 rounded-lg transition-all duration-200 group active:scale-[0.98] ${active
+                                        ? 'bg-white text-[#3b82f6] font-bold shadow-sm'
+                                        : 'text-[#262626] hover:bg-white/60'
                                         }`}>
-                                    <div className={`transition-colors duration-300 ${active ? 'text-[#4F46E5]' : 'text-current group-hover:text-[#4F46E5]'}`}>
-                                        {React.cloneElement(item.icon, { size: 16 })}
+                                    <div className={`transition-transform duration-200 group-hover:scale-110 ${active ? 'text-[#3b82f6]' : ''}`}>
+                                        {React.cloneElement(item.icon, { size: 24, strokeWidth: active ? 2.5 : 2 })}
                                     </div>
-                                    <span className='text-[12.5px] font-medium'>{item.text}</span>
+                                    <span className={`text-[15px] ${active ? 'font-bold' : 'font-medium'}`}>{item.text}</span>
 
                                     {item.text === 'Notifications' && unreadCount > 0 && (
-                                        <div className='ml-auto bg-red-500 text-white text-[9px] font-black min-w-[18px] h-[18px] flex items-center justify-center rounded-full px-1 shadow-sm border border-white/20'>
+                                        <div className='ml-auto bg-red-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] flex items-center justify-center rounded-full px-1'>
                                             {unreadCount > 9 ? '9+' : unreadCount}
                                         </div>
                                     )}
 
-                                    {item.text === 'Message' && totalUnreadMessages > 0 && (
-                                        <div className='ml-auto bg-red-500 text-white text-[9px] font-black min-w-[18px] h-[18px] flex items-center justify-center rounded-full px-1 shadow-sm border border-white/20'>
+                                    {item.text === 'Message' && totalUnreadMessages > 0 && location.pathname !== '/chat' && (
+                                        <div className='ml-auto bg-red-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] flex items-center justify-center rounded-full px-1'>
                                             {totalUnreadMessages > 9 ? '9+' : totalUnreadMessages}
                                         </div>
                                     )}
@@ -135,30 +139,31 @@ const LeftSidebar = () => {
             </div>
 
             {/* Bottom Actions */}
-            <div className='flex flex-col gap-1 px-3'>
+            <div className='flex flex-col gap-2'>
                 <div onClick={() => sidebarHandler('Profile')}
-                    className={`flex items-center gap-2.5 cursor-pointer px-3 py-2 rounded-xl transition-all duration-300 group shadow-[0_1px_4px_rgba(0,0,0,0.02)] active:scale-[0.96] border border-transparent ${isActive('Profile')
-                        ? 'bg-white text-[#4F46E5] font-bold shadow-sm'
-                        : 'bg-white text-[#262626] hover:text-[#4F46E5] hover:shadow-sm hover:font-bold'
+                    className={`flex items-center gap-4 cursor-pointer px-3 py-3 rounded-lg transition-all duration-200 group active:scale-[0.98] ${isActive('Profile')
+                        ? 'bg-white text-[#3b82f6] font-bold shadow-sm'
+                        : 'text-[#262626] hover:bg-white/60'
                         }`}>
-                    <Avatar className={`w-6 h-6 ${isActive('Profile') ? 'ring-2 ring-[#4F46E5] ring-offset-1' : ''}`}>
+                    <Avatar className={`w-6 h-6 border ${isActive('Profile') ? 'ring-2 ring-[#3b82f6] ring-offset-2' : 'border-gray-200'}`}>
                         <AvatarImage src={user?.profilePicture} alt="user" className="object-cover" />
-                        <AvatarFallback className='bg-gray-200 text-[8px] text-black'>{user?.username?.charAt(0)?.toUpperCase() || 'U'}</AvatarFallback>
+                        <AvatarFallback className='bg-gray-200 text-[10px] text-black'>{user?.username?.charAt(0)?.toUpperCase() || 'U'}</AvatarFallback>
                     </Avatar>
-                    <span className='text-[12.5px] font-medium'>Profile</span>
+                    <span className={`text-[15px] ${isActive('Profile') ? 'font-bold' : 'font-normal'}`}>Profile</span>
                 </div>
 
                 <div onClick={() => sidebarHandler('Logout')}
-                    className='flex items-center gap-2.5 cursor-pointer px-3 py-2 rounded-xl transition-all duration-300 bg-white text-[#262626] hover:text-red-500 hover:shadow-sm group shadow-[0_1px_4px_rgba(0,0,0,0.02)] active:scale-[0.96] mt-0.5 border border-transparent'>
-                    <div className='transition-transform duration-300 group-hover:scale-105'>
-                        <LogOut size={16} strokeWidth={1.5} />
+                    className='flex items-center gap-4 cursor-pointer px-3 py-3 rounded-lg transition-all duration-200 text-[#262626] hover:bg-white/60 group active:scale-[0.98]'>
+                    <div className='transition-transform duration-200 group-hover:scale-110'>
+                        <LogOut size={24} strokeWidth={2} />
                     </div>
-                    <span className='text-[12.5px] font-medium'>Logout</span>
+                    <span className='text-[15px] font-medium'>Logout</span>
                 </div>
             </div>
 
             <CreatePost open={open} setOpen={setOpen} />
             <ReelUploadModal open={reelOpen} setOpen={setReelOpen} />
+
 
             {/* Notifications Backdrop/Overlay */}
             {notificationOpen && (

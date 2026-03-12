@@ -65,6 +65,13 @@ export const login = async (req, res) => {
             });
         }
 
+        if (user.isActive === false) {
+            return res.status(403).json({
+                message: "Your account has been suspended. Please contact admin.",
+                success: false,
+            });
+        }
+
         const isPasswordMatch = await bcrypt.compare(password, user.password);
         if (!isPasswordMatch) {
             return res.status(401).json({
@@ -73,7 +80,7 @@ export const login = async (req, res) => {
             });
         };
 
-        const token = await jwt.sign({ userId: user._id }, process.env.SECRET_KEY, { expiresIn: '1d' });
+        const token = await jwt.sign({ userId: user._id, role: user.role }, process.env.SECRET_KEY, { expiresIn: '1d' });
 
         // populate each post if in the posts array :  
         const populatedPosts = await Promise.all(
@@ -96,7 +103,8 @@ export const login = async (req, res) => {
             following: user.following,
             posts: populatedPosts,
             isPrivate: user.isPrivate,
-            followRequests: user.followRequests
+            followRequests: user.followRequests,
+            role: user.role
         }
 
         return res.cookie("token", token, { httpOnly: true, sameSite: 'strict', maxAge: 1 * 24 * 60 * 60 * 1000 }).json({
@@ -264,7 +272,10 @@ export const editProfile = async (req, res) => {
 // Get Suggested Users :
 export const getSuggestedUsers = async (req, res) => {
     try {
-        const suggestedUsers = await User.find({ _id: { $ne: req.id } }).select("-password");
+        const suggestedUsers = await User.find({
+            _id: { $ne: req.id },
+            isActive: { $ne: false }
+        }).select("-password");
         if (!suggestedUsers) {
             return res.status(400).json({
                 message: "Currently do not have any users",
@@ -453,11 +464,21 @@ export const getChatUsers = async (req, res) => {
         }).sort({ updatedAt: -1 }).populate('participants', 'username profilePicture');
 
         const chattedUsers = conversations.map(conv => {
-            return conv.participants.find(p => p._id.toString() !== userId.toString());
+            const other = conv.participants.find(p => p._id.toString() !== userId.toString());
+            if (!other) return null;
+            return {
+                ...other.toObject(),
+                conversationId: conv._id
+            };
         }).filter(u => u != null);
 
-        // Get suggested users to fill the list if not enough chats
-        const allUsers = await User.find({ _id: { $ne: userId } }).select("-password");
+        // Get all active users except the current user
+        const allUsers = await User.find({
+            _id: { $ne: userId },
+            isActive: { $ne: false }
+        }).select("-password");
+
+        // Filter out users we've already chatted with to avoid duplicates in the final list
         const suggestedUsers = allUsers.filter(u => !chattedUsers.some(cu => cu._id.toString() === u._id.toString()));
 
         return res.status(200).json({
@@ -467,5 +488,65 @@ export const getChatUsers = async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ success: false });
+    }
+}
+
+export const toggleUserStatus = async (req, res) => {
+    try {
+        const userId = req.params.id;
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({
+                message: "User not found",
+                success: false
+            });
+        }
+
+        user.isActive = !user.isActive;
+        await user.save();
+
+        return res.status(200).json({
+            message: `User account ${user.isActive ? 'activated' : 'suspended'} successfully`,
+            success: true,
+            isActive: user.isActive
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({
+            message: "Internal server error",
+            success: false
+        });
+    }
+}
+
+// Change Password :
+export const changePassword = async (req, res) => {
+    try {
+        const userId = req.id;
+        const { currentPassword, newPassword } = req.body;
+
+        if (!currentPassword || !newPassword) {
+            return res.status(400).json({ message: "Both current and new password are required", success: false });
+        }
+
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ message: "User not found", success: false });
+
+        const isMatch = await bcrypt.compare(currentPassword, user.password);
+        if (!isMatch) {
+            return res.status(401).json({ message: "Current password is incorrect", success: false });
+        }
+
+        if (newPassword.length < 6) {
+            return res.status(400).json({ message: "New password must be at least 6 characters", success: false });
+        }
+
+        user.password = await bcrypt.hash(newPassword, 10);
+        await user.save();
+
+        return res.status(200).json({ message: "Password changed successfully", success: true });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Internal server error", success: false });
     }
 }

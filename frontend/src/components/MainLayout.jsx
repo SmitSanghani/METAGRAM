@@ -6,9 +6,9 @@ import useGetNotifications from '../hooks/useGetNotifications'
 const MainLayout = () => {
   useGetNotifications();
   return (
-    <div className="bg-[rgb(218,242,242)] min-h-screen">
+    <div className="bg-white min-h-screen">
       <LeftSidebar />
-      <div className="sm:ml-[280px] ml-0 transition-all duration-300">
+      <div className="sm:ml-[240px] ml-0 transition-all duration-300 px-4">
         <Outlet />
       </div>
     </div>

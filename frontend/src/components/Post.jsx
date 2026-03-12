@@ -141,146 +141,134 @@ const Post = ({ post }) => {
 
 
     return (
-        <div className='my-8 w-full max-w-lg mx-auto bg-white border border-gray-100 rounded-[28px] shadow-[0_10px_30px_rgba(0,0,0,0.03)] overflow-hidden transition-all hover:shadow-[0_15px_40px_rgba(0,0,0,0.06)] group'>
+        <div className='mb-16 w-full mx-auto bg-white border-b border-gray-100 pb-12 transition-colors duration-300'>
             {/* Header */}
-            <div className='flex items-center justify-between px-6 py-5 bg-white sm:bg-white/50 backdrop-blur-sm'>
-                <div className='flex items-center gap-3.5'>
-                    <div className="relative p-[1.5px] rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600 transition-transform hover:scale-110">
-                        <Avatar className="w-[38px] h-[38px] border-2 border-white ring-1 ring-gray-50 shadow-sm transition-all">
+            <div className='flex items-center justify-between py-4 bg-white px-2'>
+                <div className='flex items-center gap-4'>
+                    <div className="relative p-[1.5px] rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600">
+                        <Avatar className="w-[42px] h-[42px] border-2 border-white">
                             <AvatarImage src={post?.author?.profilePicture} alt="post_image" className="object-cover" />
-                            <AvatarFallback className="font-black text-xs bg-gray-100">{post?.author?.username?.charAt(0)?.toUpperCase()}</AvatarFallback>
+                            <AvatarFallback className="font-bold text-sm bg-gray-100">{post?.author?.username?.charAt(0)?.toUpperCase()}</AvatarFallback>
                         </Avatar>
                     </div>
-                    <div className='flex flex-col -gap-0.5 mt-0.5'>
-                        <div className="flex items-center gap-2">
-                            <h1 className='font-black text-[14px] text-gray-900 tracking-tight cursor-pointer hover:text-indigo-600 transition-colors'>{post?.author?.username}</h1>
-                            {user?._id === post?.author?._id && <Badge className="bg-indigo-600 text-white text-[9px] hover:bg-indigo-700 border-0 h-4 px-2 uppercase font-black tracking-widest">You</Badge>}
-                        </div>
-                        <span className="text-[10px] font-bold text-gray-400/80 uppercase tracking-wider">Tokyo, Japan</span>
+                    <div className='flex items-center gap-1.5'>
+                        <h1 className='font-bold text-[15px] text-gray-900 cursor-pointer hover:text-gray-500'>{post?.author?.username}</h1>
+                        {user?._id === post?.author?._id && <span className="text-[10px] text-zinc-400 font-medium">• You</span>}
                     </div>
                 </div>
                 <Dialog>
                     <DialogTrigger asChild>
-                        <div className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-50 cursor-pointer transition-all group/opt">
-                            <MoreHorizontal className='text-gray-400 group-hover/opt:text-black transition-colors' size={20} />
+                        <div className="flex items-center justify-center rounded-full hover:bg-gray-50 cursor-pointer p-1">
+                            <MoreHorizontal className='text-black' size={24} />
                         </div>
                     </DialogTrigger>
-                    <DialogContent className="p-0 bg-white border-none shadow-2xl sm:rounded-[24px] overflow-hidden max-w-[400px] animate-in zoom-in-95 duration-200">
+                    <DialogContent className="p-0 bg-white dark:bg-zinc-900 border-none sm:rounded-xl overflow-hidden max-w-[400px]">
                         <div className="flex flex-col items-center">
-                            <Button variant="ghost" className="w-full py-5 text-[13px] font-black text-[#ED4956] hover:bg-red-50 border-b border-gray-50 rounded-none h-auto transition-colors uppercase tracking-widest">Unfollow</Button>
-                            <Button variant="ghost" className="w-full py-5 text-[13px] font-bold text-gray-700 hover:bg-gray-50 border-b border-gray-50 rounded-none h-auto transition-colors uppercase tracking-widest">Add to favorites</Button>
-                            <Button variant="ghost" className="w-full py-5 text-[13px] font-bold text-gray-700 hover:bg-gray-50 border-b border-gray-50 rounded-none h-auto transition-colors uppercase tracking-widest">Copy link</Button>
+                            <Button variant="ghost" className="w-full py-4 text-[14px] font-bold text-[#ED4956] hover:bg-red-50 dark:hover:bg-red-900/10 border-b border-gray-50 dark:border-zinc-800 rounded-none h-auto">Unfollow</Button>
+                            <Button variant="ghost" className="w-full py-4 text-[14px] font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-800 border-b border-gray-50 dark:border-zinc-800 rounded-none h-auto">Go to post</Button>
                             {user && user?._id === post?.author._id && (
-                                <Button onClick={deletePostHandler} variant="ghost" className="w-full text-red-100 bg-red-500 py-5 text-[13px] font-black hover:bg-red-600 border-none rounded-none h-auto transition-colors uppercase tracking-widest">Delete Post</Button>
+                                <Button onClick={deletePostHandler} variant="ghost" className="w-full py-4 text-[14px] font-bold text-[#ED4956] hover:bg-red-50 dark:hover:bg-red-900/10 border-b border-gray-50 dark:border-zinc-800 rounded-none h-auto">Delete</Button>
                             )}
-                            <DialogClose className='w-full py-5 text-[13px] font-black text-gray-400 hover:bg-gray-100 uppercase tracking-widest transition-colors'>Cancel</DialogClose>
+                            <DialogClose className='w-full py-4 text-[14px] font-normal text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors'>Cancel</DialogClose>
                         </div>
                     </DialogContent>
                 </Dialog>
             </div>
 
-            {/* Content Section */}
-            <div className="w-full relative px-1">
-                <div className="w-full overflow-hidden rounded-[22px] transition-all duration-700 group-hover:shadow-[0_10px_40px_-15px_rgba(0,0,0,0.15)]">
-                    <img className='w-full h-auto max-h-[600px] object-cover transition-transform duration-1000 group-hover:scale-105'
-                        src={post.image} alt="post_img"
-                        onDoubleClick={likeOrDislikeHandler}
-                    />
-                </div>
+            {/* Media Content */}
+            <div className="w-full relative border border-gray-100 rounded-xl shadow-sm overflow-hidden">
+                <img className='w-full h-auto max-h-[700px] object-cover'
+                    src={post.image} alt="post_img"
+                    onDoubleClick={likeOrDislikeHandler}
+                />
             </div>
 
-            {/* Post Interaction Layer */}
-            <div className="px-7 py-6">
-                <div className='flex items-center justify-between mb-5'>
-                    <div className='flex items-center gap-4'>
-                        <div className="transition-transform active:scale-75 cursor-pointer">
+            {/* Post Interaction Row */}
+            <div className="py-4">
+                <div className='flex items-center justify-between mb-4 px-2'>
+                    <div className='flex items-center gap-5'>
+                        <div className="transition-transform active:scale-90 cursor-pointer">
                             {
                                 liked ?
-                                    <FaHeart onClick={likeOrDislikeHandler} size={25} className='text-red-500 drop-shadow-[0_4px_10px_rgba(239,68,68,0.3)]' /> :
-                                    <FaRegHeart onClick={likeOrDislikeHandler} size={25} className='text-gray-800 hover:text-red-400 transition-colors' />
+                                    <FaHeart onClick={likeOrDislikeHandler} size={28} className='text-red-500' /> :
+                                    <FaRegHeart onClick={likeOrDislikeHandler} size={28} className='text-black hover:text-gray-500' />
                             }
                         </div>
-                        <div className="transition-transform active:scale-75 cursor-pointer" onClick={() => { dispatch(setSelectedPost(post)); setOpen(true); }}>
-                            <MessageCircle size={25} className='text-gray-800 hover:text-indigo-600 transition-colors' strokeWidth={2} />
+                        <div className="transition-transform active:scale-90 cursor-pointer" onClick={() => { dispatch(setSelectedPost(post)); setOpen(true); }}>
+                            <MessageCircle size={28} className='text-black hover:text-gray-500' strokeWidth={2} />
                         </div>
-                        <div className="transition-transform active:scale-75 cursor-pointer">
-                            <Send size={25} className='text-gray-800 hover:text-indigo-600 transition-colors' strokeWidth={2} />
+                        <div className="transition-transform active:scale-90 cursor-pointer">
+                            <Send size={28} className='text-black hover:text-gray-500' strokeWidth={2} />
                         </div>
                     </div>
-                    <div className="transition-transform active:scale-75 cursor-pointer">
+                    <div className="transition-transform active:scale-90 cursor-pointer px-2">
                         <SaveButton
                             isSaved={user?.bookmarks?.some(item => (item._id || item) === post?._id)}
                             onClick={bookmarkHandler}
-                            size={25}
+                            size={28}
                         />
                     </div>
                 </div>
 
-                <div className="flex items-center gap-1.5 mb-2.5">
+                <div className="flex flex-col gap-1 px-2">
                     <span
                         onClick={() => setShowLikers(true)}
-                        className='font-black text-[14px] text-gray-900 cursor-pointer hover:underline'
+                        className='font-bold text-[15px] text-gray-900 cursor-pointer hover:opacity-70'
                     >
-                        {postLike.toLocaleString()}
+                        {postLike.toLocaleString()} likes
                     </span>
-                    <span className='font-bold text-[13px] text-gray-400 uppercase tracking-widest'>Likes</span>
-                </div>
 
-                <div className='flex flex-col gap-1 mb-4'>
-                    <p className='text-[14px] text-gray-700 leading-relaxed font-medium'>
-                        <span className='font-black mr-2 text-gray-900 group-hover:text-indigo-600 transition-colors'>{post?.author?.username}</span>
-                        {post.caption}
-                    </p>
-                </div>
-
-                {comment.length > 0 && (
-                    <button
-                        onClick={() => { dispatch(setSelectedPost(post)); setOpen(true); }}
-                        className='text-[12px] font-black text-gray-400/80 uppercase tracking-widest mb-6 block hover:text-indigo-500 transition-colors active:scale-95'
-                    >
-                        View all {comment.length} sentiments
-                    </button>
-                )}
-
-                <CommentDialog open={open} setOpen={setOpen} />
-
-                {showLikers && (
-                    <UserListModal
-                        isOpen={showLikers}
-                        onClose={() => setShowLikers(false)}
-                        title="Likes"
-                        users={post?.likes}
-                    />
-                )}
-
-                {/* Inline Comment Input */}
-                {post.allowComments ? (
-                    <form
-                        onSubmit={(e) => { e.preventDefault(); commentHandler(); }}
-                        className='flex items-center gap-3 bg-gray-50/50 p-1 rounded-full pl-5 border border-transparent focus-within:bg-white focus-within:border-indigo-100 transition-all duration-300'
-                    >
-                        <input
-                            type="text"
-                            placeholder='Add a comment...'
-                            value={text}
-                            onChange={changeEventHandler}
-                            className='bg-transparent text-[13px] font-medium w-full outline-none placeholder:text-gray-400 text-gray-700'
-                        />
-                        <button
-                            type="submit"
-                            disabled={!text.trim()}
-                            onClick={commentHandler}
-                            className='bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[10px] uppercase tracking-widest px-6 py-2.5 rounded-full shadow-lg shadow-indigo-100 active:scale-95 transition-all disabled:opacity-0 disabled:translate-x-2'
-                        >
-                            Send
-                        </button>
-                    </form>
-                ) : (
-                    <div className='bg-gray-50 rounded-full py-3 px-4 flex items-center justify-center gap-2'>
-                        <div className="w-1.5 h-1.5 bg-gray-300 rounded-full animate-pulse" />
-                        <p className='text-[11px] font-black text-gray-400 tracking-widest uppercase'>Public Discussion Paused</p>
+                    <div className='flex flex-wrap items-center gap-2'>
+                        <span className='font-bold text-[15px] text-gray-900 hover:opacity-70 cursor-pointer'>{post?.author?.username}</span>
+                        <p className='text-[15px] text-gray-800 font-medium'>
+                            {post.caption}
+                        </p>
                     </div>
-                )}
+
+                    {comment.length > 0 && (
+                        <button
+                            onClick={() => { dispatch(setSelectedPost(post)); setOpen(true); }}
+                            className='text-[14px] font-bold text-gray-400 mt-1 hover:opacity-70 text-left'
+                        >
+                            View all {comment.length} comments
+                        </button>
+                    )}
+
+                    <CommentDialog open={open} setOpen={setOpen} />
+
+                    {showLikers && (
+                        <UserListModal
+                            isOpen={showLikers}
+                            onClose={() => setShowLikers(false)}
+                            title="Likes"
+                            users={post?.likes}
+                        />
+                    )}
+
+                    {/* Inline Comment Input */}
+                    {post.allowComments && (
+                        <form
+                            onSubmit={(e) => { e.preventDefault(); commentHandler(); }}
+                            className='flex items-center gap-3 mt-2 border-none'
+                        >
+                             <input
+                                type="text"
+                                placeholder='Add a comment...'
+                                value={text}
+                                onChange={changeEventHandler}
+                                className='bg-transparent text-[14px] w-full outline-none placeholder:text-gray-300 text-gray-900 border-none font-medium'
+                            />
+                            {text.trim() && (
+                                <button
+                                    type="submit"
+                                    className='text-[#0095F6] font-semibold text-[14px] hover:text-black dark:hover:text-white transition-colors'
+                                >
+                                    Post
+                                </button>
+                            )}
+                        </form>
+                    )}
+                </div>
             </div>
         </div>
     )

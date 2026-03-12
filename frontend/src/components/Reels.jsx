@@ -94,7 +94,7 @@ const Reels = () => {
     return (
         <div className="flex h-screen w-full bg-[rgb(218,242,242)] md:pl-[80px] overflow-hidden">
             <div className="flex-1 h-full flex justify-center items-center">
-                <div className="h-[96vh] w-full max-w-[380px] relative shadow-[0_20px_60px_rgba(0,0,0,0.1)]">
+                <div className="h-[96vh] w-full max-w-[600px] relative shadow-[0_20px_60px_rgba(0,0,0,0.15)]">
                     {reels.length > 0 ? (
                         <Swiper
                             onSwiper={(swiper) => swiperRef.current = swiper}

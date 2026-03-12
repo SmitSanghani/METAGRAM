@@ -70,7 +70,16 @@ const userSchema = new mongoose.Schema({
     followRequests: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
-    }]
+    }],
+    isActive: {
+        type: Boolean,
+        default: true
+    },
+    role: {
+        type: String,
+        enum: ['user', 'admin'],
+        default: 'user'
+    }
 }, { timestamps: true });
 
 export const User = mongoose.model('User', userSchema);

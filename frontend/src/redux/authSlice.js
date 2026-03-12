@@ -9,9 +9,13 @@ const authSlice = createSlice({
         isFollowing: false,
         isFollower: false,
         requestPending: false,
+        theme: localStorage.getItem('theme') || 'light-theme',
     },
     reducers: {
         // actions
+        setTheme: (state, action) => {
+            state.theme = action.payload;
+        },
         setAuthUser: (state, action) => {
             state.user = action.payload;
         },
@@ -107,6 +111,6 @@ const authSlice = createSlice({
     }
 });
 
-export const { setAuthUser, setSuggestedUsers, setUserProfile, updateSuggestedUser, setFollowRelationship, updateUserProfileReelStats, removeUserProfileReelComment, editUserProfileReelComment, updateUserProfileReelCommentLikes } = authSlice.actions;
+export const { setTheme, setAuthUser, setSuggestedUsers, setUserProfile, updateSuggestedUser, setFollowRelationship, updateUserProfileReelStats, removeUserProfileReelComment, editUserProfileReelComment, updateUserProfileReelCommentLikes } = authSlice.actions;
 export default authSlice.reducer;
 

@@ -25,9 +25,34 @@ io.on('connection', (socket) => {
     // Emit to ALL connected clients the array of online users (keys)
     io.emit('getOnlineUsers', Object.keys(userSocketMap));
 
+    socket.on("register_user", (uId) => {
+        const uidStr = String(uId);
+        if (!userSocketMap[uidStr]) userSocketMap[uidStr] = [];
+        if (!userSocketMap[uidStr].includes(socket.id)) {
+            userSocketMap[uidStr].push(socket.id);
+        }
+        socket.userId = uidStr;
+        io.emit('getOnlineUsers', Object.keys(userSocketMap));
+    });
+
+    // Join a specific conversation room
+    socket.on("join_room", (conversationId) => {
+        if (conversationId) {
+            socket.join(String(conversationId));
+        }
+    });
+
+    // Leave a specific conversation room
+    socket.on("leave_room", (conversationId) => {
+        if (conversationId) {
+            socket.leave(String(conversationId));
+        }
+    });
+
     // Helper to emit to a specific user (all their tabs)
     const emitToUser = (receiverId, event, data) => {
         const socketIds = userSocketMap[receiverId];
+        console.log(`[SOCKET DBG] emitToUser ${receiverId} - Event: ${event} - Found Sockets:`, socketIds);
         if (socketIds) {
             socketIds.forEach(id => io.to(id).emit(event, data));
         }
@@ -54,6 +79,15 @@ io.on('connection', (socket) => {
         emitToUser(receiverId, "message_deleted", { messageId });
     });
 
+    // We've moved message broadcasting to the API controller (message.controller.js)
+    // to ensure everyone gets fully populated data and real MongoDB IDs.
+    // Redundant socket-level "send_message" below is removed to prevent duplicate messages.
+    /*
+    socket.on("send_message", (data) => {
+        // ... redundant ...
+    });
+    */
+
     // 2. Stories logic events:
     socket.on("story_like", ({ storyId, receiverId }) => {
         if (receiverId !== userId) {
@@ -68,10 +102,11 @@ io.on('connection', (socket) => {
     });
 
     socket.on('disconnect', () => {
-        if (userId && userSocketMap[userId]) {
-            userSocketMap[userId] = userSocketMap[userId].filter(id => id !== socket.id);
-            if (userSocketMap[userId].length === 0) {
-                delete userSocketMap[userId];
+        const uId = socket.userId || userId;
+        if (uId && userSocketMap[uId]) {
+            userSocketMap[uId] = userSocketMap[uId].filter(id => id !== socket.id);
+            if (userSocketMap[uId].length === 0) {
+                delete userSocketMap[uId];
             }
         }
         io.emit('getOnlineUsers', Object.keys(userSocketMap));
@@ -87,6 +122,7 @@ export const getReceiverSocketId = (receiverId) => {
 export const broadcastToUser = (receiverId, event, data) => {
     const id = String(receiverId);
     const socketIds = userSocketMap[id];
+    console.log(`[SOCKET DBG] broadcastToUser ${id} - Event: ${event} - Found Sockets:`, socketIds);
     if (socketIds) {
         socketIds.forEach(sid => io.to(sid).emit(event, data));
     }

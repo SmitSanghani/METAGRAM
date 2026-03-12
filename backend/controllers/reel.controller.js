@@ -239,8 +239,8 @@ export const deleteCommentFromReel = async (req, res) => {
 
         const reel = await Reel.findById(comment.reel);
 
-        // Authorization: Only the Comment author can delete
-        if (comment.author.toString() !== userId) {
+        // Authorization: Only the Comment author can delete OR admin
+        if (comment.author.toString() !== userId && req.role !== 'admin') {
             return res.status(403).json({ message: "Unauthorized. You can only delete your own comments.", success: false });
         }
 
@@ -339,7 +339,7 @@ export const deleteReel = async (req, res) => {
         const reel = await Reel.findById(reelId);
         if (!reel) return res.status(404).json({ message: "Reel not found", success: false });
 
-        if (reel.author.toString() !== userId) {
+        if (reel.author.toString() !== userId && req.role !== 'admin') {
             return res.status(403).json({ message: "Unauthorized to delete this reel", success: false });
         }
 
@@ -357,8 +357,8 @@ export const deleteReel = async (req, res) => {
         // Delete Reel
         await Reel.findByIdAndDelete(reelId);
 
-        // Remove from user's reel list
-        await User.findByIdAndUpdate(userId, { $pull: { reels: reelId } });
+        // Remove from the actual author's reel list
+        await User.findByIdAndUpdate(reel.author, { $pull: { reels: reelId } });
 
         return res.status(200).json({ message: "Reel deleted successfully", success: true });
     } catch (error) {

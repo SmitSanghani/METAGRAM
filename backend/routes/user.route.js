@@ -1,5 +1,5 @@
 import express from 'express';
-import { editProfile, followOrUnfollow, getProfile, getSuggestedUsers, getChatUsers, login, logout, register, acceptFollowRequest, deleteFollowRequest } from '../controllers/user.controller.js';
+import { editProfile, followOrUnfollow, getProfile, getSuggestedUsers, getChatUsers, login, logout, register, acceptFollowRequest, deleteFollowRequest, toggleUserStatus, changePassword } from '../controllers/user.controller.js';
 import isAuthenticated from '../middlewares/isAuthenticated.js';
 import upload from '../middlewares/multer.js';
 
@@ -15,5 +15,7 @@ router.route('/chatusers').get(isAuthenticated, getChatUsers);
 router.route('/followorunfollow/:id').post(isAuthenticated, followOrUnfollow);
 router.route('/follow/accept/:id').post(isAuthenticated, acceptFollowRequest);
 router.route('/follow/delete/:id').post(isAuthenticated, deleteFollowRequest);
+router.route('/admin/toggle-status/:id').post(isAuthenticated, toggleUserStatus);
+router.route('/change-password').post(isAuthenticated, changePassword);
 
 export default router;

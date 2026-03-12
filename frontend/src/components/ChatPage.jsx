@@ -4,7 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Button } from './ui/button';
 import { MessageCircle, Send, X, Image as ImageIcon, Smile, Reply, Trash2 } from 'lucide-react';
 import axios from 'axios';
-import { setMessages, addMessage, updateMessageStatus, updateReactions, markUnsent, markStoryUnsent, incrementUnreadCount, clearUnreadCount, updateLastMessage, removeTempMessage, setSelectedUser, setChatUsers, reorderUsers } from '../redux/chatSlice';
+import { setMessages, addMessage, updateMessageStatus, updateReactions, markUnsent, markStoryUnsent, incrementUnreadCount, clearUnreadCount, updateLastMessage, removeTempMessage, setSelectedUser, setChatUsers, reorderUsers, updateChatUserConversation } from '../redux/chatSlice';
 import ScrollToBottom from 'react-scroll-to-bottom';
 import MessageBubble from './MessageBubble';
 import useGetSuggestedUsers from '@/hooks/useGetSuggestedUsers';
@@ -21,27 +21,44 @@ const ChatPage = () => {
     const [replyTo, setReplyTo] = useState(null);
     const [storyToView, setStoryToView] = useState(null);
     const dispatch = useDispatch();
-    const notificationAudio = useRef(new Audio(NOTIFICATION_SOUND_URL));
 
     const [isTyping, setIsTyping] = useState(false);
     const [highlightedMessageId, setHighlightedMessageId] = useState(null);
     let typingTimeout = useRef(null);
 
-    // Initial sync of chat users if needed
+    // Initial sync of chat users if needed (filter out self)
     useEffect(() => {
-        if (suggestedUsers && suggestedUsers.length > 0 && chatUsers.length === 0) {
-            dispatch(setChatUsers([...suggestedUsers]));
+        if (suggestedUsers && suggestedUsers.length > 0) {
+            const filtered = suggestedUsers.filter(u => String(u._id) !== String(user?._id));
+            if (chatUsers.length === 0) {
+                dispatch(setChatUsers(filtered));
+            }
         }
-    }, [suggestedUsers, chatUsers.length, dispatch]);
+    }, [suggestedUsers, user?._id, chatUsers.length, dispatch]);
 
     // Clear unread count when chat selected
     const handleSelectUser = (targetUser) => {
+        if (!targetUser) return;
+
+        // Leave previous conversation room if any
+        if (socket && selectedUser?.conversationId) {
+            socket.emit("leave_room", String(selectedUser.conversationId));
+        }
+
         dispatch(setSelectedUser(targetUser));
         dispatch(setMessages([])); // Clear messages for new user immediately
-        dispatch(clearUnreadCount(targetUser._id));
+        dispatch(clearUnreadCount(String(targetUser._id)));
+
+        // Immediate sync with backend
+        axios.get(`http://localhost:8000/api/v1/message/seen/${targetUser._id}`, { withCredentials: true }).catch(() => { });
+
+        // Join conversation room immediately if we already know the conversationId
+        if (socket && targetUser.conversationId) {
+            socket.emit("join_room", String(targetUser.conversationId));
+        }
     };
 
-    // Cleanup when leaving ChatPage
+    // Cleanup ONLY when leaving the ChatPage component completely
     useEffect(() => {
         return () => {
             dispatch(setSelectedUser(null));
@@ -50,29 +67,39 @@ const ChatPage = () => {
 
     // Fetch messages when a user is selected
     useEffect(() => {
-        if (!selectedUser) return;
+        if (!selectedUser?._id) return;
+
+        console.log(`[ChatPage] Loading chat with ${selectedUser.username} (${selectedUser._id})`);
 
         const fetchMessages = async () => {
             try {
-                const res = await axios.get(`http://localhost:8000/api/v1/message/all/${selectedUser?._id}`, { withCredentials: true });
+                const res = await axios.get(`http://localhost:8000/api/v1/message/all/${selectedUser._id}`, { withCredentials: true });
                 if (res.data.success) {
                     dispatch(setMessages(res.data.messages || []));
                     markAsSeen();
+
+                    // Join the conversation socket room
+                    const conversationId = res.data.conversationId;
+                    if (conversationId && socket) {
+                        console.log(`[ChatPage] Joining room: ${conversationId}`);
+                        socket.emit("join_room", String(conversationId));
+                        // Update the conversationId in the chatUsers list
+                        dispatch(updateChatUserConversation({ userId: selectedUser._id, conversationId }));
+                    }
                 }
             } catch (error) {
-                console.error(error);
+                console.error("[ChatPage] Error fetching messages:", error);
             }
-        }
+        };
         fetchMessages();
-    }, [selectedUser, dispatch]);
+    }, [selectedUser?._id, dispatch, socket]);
 
-    // Mark as seen when messages change or user is selected
     useEffect(() => {
         if (selectedUser && messages.length > 0) {
             const lastMsg = messages[messages.length - 1];
             if (lastMsg.senderId === selectedUser._id && !lastMsg.seen) {
                 markAsSeen();
-                dispatch(clearUnreadCount(selectedUser._id));
+                dispatch(clearUnreadCount(String(selectedUser._id)));
             }
         }
     }, [messages, selectedUser]);
@@ -97,9 +124,24 @@ const ChatPage = () => {
         if (!textMessage.trim() && !replyTo) return;
 
         try {
+            const tempId = Date.now().toString();
+
+            // Optimistic socket emit as requested
+            if (socket) {
+                socket.emit("send_message", {
+                    conversationId: selectedUser.conversationId,
+                    senderId: user._id,
+                    receiverId: selectedUser._id,
+                    text: textMessage,
+                    messageType: 'text',
+                    tempId: tempId
+                });
+            }
+
             const res = await axios.post(`http://localhost:8000/api/v1/message/send/${selectedUser?._id}`, {
                 message: textMessage,
-                replyTo: replyTo?._id
+                replyTo: replyTo?._id,
+                tempId: tempId
             }, {
                 headers: { 'Content-Type': 'application/json' },
                 withCredentials: true
@@ -110,9 +152,21 @@ const ChatPage = () => {
                     ...res.data.newMessage,
                     replyTo: replyTo ? { ...replyTo } : null
                 };
+
+                dispatch(removeTempMessage({ tempId })); // Ensure duplicate not kept
                 dispatch(addMessage(populatedNewMsg));
                 dispatch(updateLastMessage({ userId: selectedUser._id, message: populatedNewMsg }));
                 dispatch(reorderUsers(selectedUser._id));
+
+                // If this message initialized the conversation, update selectedUser with the ID
+                if (!selectedUser.conversationId && res.data.newMessage.conversationId) {
+                    const updatedUser = { ...selectedUser, conversationId: res.data.newMessage.conversationId };
+                    dispatch(setSelectedUser(updatedUser)); // Update in redux
+                    if (socket) {
+                        socket.emit("join_room", res.data.newMessage.conversationId);
+                    }
+                }
+
                 setTextMessage("");
                 setReplyTo(null);
             }
@@ -164,49 +218,61 @@ const ChatPage = () => {
     };
 
     useEffect(() => {
-        if (socket) {
-            const handleIncomingMessage = (newMessage) => {
-                // Background tasks (lastMessage, unread, sound) are handled in App.jsx
-                // We just need to stop typing indicator here
-                setIsTyping(false);
-            };
+        if (!socket || !selectedUser) return;
 
-            const handleReactionUpdate = ({ messageId, reactions }) => {
-                dispatch(updateReactions({ messageId, reactions }));
-            };
+        const handleIncomingMessage = (newMessage) => {
+            setIsTyping(false);
 
-            const handleDeletedMessage = ({ messageId }) => {
-                dispatch(markUnsent({ messageId }));
-            };
+            // ✅ KEY FIX: Accept messages that belong to the current conversation
+            // This means: senderId is the other user OR receiverId is the other user
+            // (covers both: messages they send to us AND our own messages echoed back from the room)
+            const messageInvolvesSender = String(newMessage.senderId) === String(selectedUser._id);
+            const messageInvolvesReceiver = String(newMessage.receiverId) === String(selectedUser._id);
 
-            const handleStoryDeleted = (storyId) => {
-                dispatch(markStoryUnsent({ storyId }));
-            };
-
-            const handleUserTyping = ({ senderId }) => { 
-                if (selectedUser && String(senderId) === String(selectedUser._id)) setIsTyping(true); 
-            };
-
-            const handleUserStoppedTyping = ({ senderId }) => { 
-                if (selectedUser && String(senderId) === String(selectedUser._id)) setIsTyping(false); 
-            };
-
-            socket.on('message_received', handleIncomingMessage);
-            socket.on('message_reaction_update', handleReactionUpdate);
-            socket.on('message_deleted', handleDeletedMessage);
-            socket.on('story_deleted_from_chat', handleStoryDeleted);
-            socket.on('user_typing', handleUserTyping);
-            socket.on('user_stopped_typing', handleUserStoppedTyping);
-
-            return () => {
-                socket.off('message_received', handleIncomingMessage);
-                socket.off('message_reaction_update', handleReactionUpdate);
-                socket.off('message_deleted', handleDeletedMessage);
-                socket.off('story_deleted_from_chat', handleStoryDeleted);
-                socket.off('user_typing', handleUserTyping);
-                socket.off('user_stopped_typing', handleUserStoppedTyping);
+            if (messageInvolvesSender || messageInvolvesReceiver) {
+                dispatch(addMessage(newMessage)); // addMessage deduplicates by _id automatically
+                if (messageInvolvesSender) {
+                    // Other user sent this — clear unread count
+                    dispatch(clearUnreadCount(String(newMessage.senderId)));
+                }
             }
-        }
+        };
+
+        const handleReactionUpdate = ({ messageId, reactions }) => {
+            dispatch(updateReactions({ messageId, reactions }));
+        };
+
+        const handleDeletedMessage = ({ messageId }) => {
+            dispatch(markUnsent({ messageId }));
+        };
+
+        const handleStoryDeleted = (storyId) => {
+            dispatch(markStoryUnsent({ storyId }));
+        };
+
+        const handleUserTyping = ({ senderId }) => {
+            if (String(senderId) === String(selectedUser._id)) setIsTyping(true);
+        };
+
+        const handleUserStoppedTyping = ({ senderId }) => {
+            if (String(senderId) === String(selectedUser._id)) setIsTyping(false);
+        };
+
+        socket.on('receive_message', handleIncomingMessage);
+        socket.on('message_reaction_update', handleReactionUpdate);
+        socket.on('message_deleted', handleDeletedMessage);
+        socket.on('story_deleted_from_chat', handleStoryDeleted);
+        socket.on('user_typing', handleUserTyping);
+        socket.on('user_stopped_typing', handleUserStoppedTyping);
+
+        return () => {
+            socket.off('receive_message', handleIncomingMessage);
+            socket.off('message_reaction_update', handleReactionUpdate);
+            socket.off('message_deleted', handleDeletedMessage);
+            socket.off('story_deleted_from_chat', handleStoryDeleted);
+            socket.off('user_typing', handleUserTyping);
+            socket.off('user_stopped_typing', handleUserStoppedTyping);
+        };
     }, [dispatch, socket, selectedUser, user?._id]);
 
     // Grouping logic for messages
@@ -245,53 +311,70 @@ const ChatPage = () => {
                     <div className='px-2 mb-4 text-[12px] font-black text-[#8e8e8e] tracking-widest uppercase opacity-60'>Messages</div>
                     <div className='flex flex-col gap-1'>
                         {chatUsers?.map((suggestedUser) => {
-                            if (!suggestedUser) return null;
+                            if (!suggestedUser || String(suggestedUser._id) === String(user?._id)) return null;
                             const isOnline = onlineUsers.includes(String(suggestedUser?._id));
                             const isSelected = selectedUser?._id === suggestedUser?._id;
                             const unreadCount = unreadCounts[String(suggestedUser?._id)] || 0;
-                            const lastMsg = isSelected ? messages[messages.length - 1] : lastMessages[String(suggestedUser?._id)];
+                            const lastMsg = lastMessages[String(suggestedUser?._id)];
 
                             return (
-                                <div key={suggestedUser?._id} onClick={() => handleSelectUser(suggestedUser)}
-                                    className={`relative flex items-center gap-3 p-3 rounded-2xl transition-all duration-300 cursor-pointer active:scale-[0.98] group ${isSelected ? 'bg-[#F3F4F6]' : 'hover:bg-gray-50'}`}>
-                                    {isSelected && <div className="absolute left-0 top-3 bottom-3 w-1 bg-[#4F46E5] rounded-full shadow-[0_0_8px_rgba(79,70,229,0.4)]"></div>}
-                                    <div className="relative shrink-0">
-                                        <Avatar className={`w-14 h-14 border-2 ${isSelected ? 'border-white' : 'border-transparent'} shadow-sm transition-all group-hover:scale-105`}>
-                                            <AvatarImage src={suggestedUser?.profilePicture} className="object-cover" />
-                                            <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-indigo-600 text-white font-black text-[15px] uppercase">
-                                                {suggestedUser?.username?.charAt(0)}
-                                            </AvatarFallback>
-                                        </Avatar>
-                                        {isOnline && <div className="absolute bottom-1 right-1 w-3.5 h-3.5 bg-green-500 border-[2.5px] border-white rounded-full transition-all"></div>}
-                                    </div>
-                                    <div className='flex flex-col flex-1 overflow-hidden ml-1'>
-                                        <div className="flex justify-between items-center w-full">
-                                            <span className={`text-[15px] truncate font-black ${isSelected ? 'text-[#111]' : 'text-[#262626]'}`}>{suggestedUser?.username}</span>
-                                            {lastMsg && (
-                                                <span className="text-[11px] text-[#8e8e8e] font-bold opacity-60 font-sans">
-                                                    {new Date(lastMsg.createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true })}
-                                                </span>
-                                            )}
+                                <div key={suggestedUser?._id}
+                                    className={`relative p-3 rounded-2xl transition-all duration-300 cursor-pointer active:scale-[0.98] group select-none z-10 ${isSelected ? 'bg-white shadow-[0_4px_20px_rgba(0,0,0,0.05)] border border-gray-100/50' : 'hover:bg-gray-100/50'}`}
+                                >
+                                    {/* Clickable Overlay */}
+                                    <div
+                                        className="absolute inset-0 z-20 cursor-pointer"
+                                        onClick={() => handleSelectUser(suggestedUser)}
+                                    />
+
+                                    {/* Selection Indicator */}
+                                    {isSelected && <div className="absolute left-0 top-3 bottom-3 w-1 bg-[#4F46E5] rounded-full pointer-events-none"></div>}
+
+                                    <div className="relative flex items-center gap-3 pointer-events-none">
+                                        <div className="relative shrink-0">
+                                            <Avatar className={`w-14 h-14 border-2 ${isSelected ? 'border-white' : 'border-transparent'} shadow-sm transition-all group-hover:scale-105`}>
+                                                <AvatarImage src={suggestedUser?.profilePicture} className="object-cover" />
+                                                <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-indigo-600 text-white font-black text-[15px] uppercase">
+                                                    {suggestedUser?.username?.charAt(0)}
+                                                </AvatarFallback>
+                                            </Avatar>
+                                            {isOnline && <div className="absolute bottom-1 right-1 w-3.5 h-3.5 bg-green-500 border-[2.5px] border-white rounded-full transition-all"></div>}
                                         </div>
-                                        <div className="flex justify-between items-center w-full mt-0.5">
-                                            <span className={`text-[13px] truncate flex-1 font-medium ${unreadCount > 0 ? 'text-black font-black' : (isSelected ? 'text-indigo-600' : 'text-[#8e8e8e]')}`}>
-                                                {lastMsg ? (
-                                                    (lastMsg.senderId === user?._id ? "You: " : "") + 
-                                                    (lastMsg.messageType === 'reel' ? "Sent a reel" : 
-                                                     lastMsg.messageType === 'image' ? "Sent a photo" :
-                                                     lastMsg.messageType === 'video' ? "Sent a video" :
-                                                     lastMsg.message)
-                                                ) : (unreadCount > 0 ? `Sent ${unreadCount} new message${unreadCount > 1 ? 's' : ''}` : (isOnline ? 'Active now' : 'Offline'))}
-                                            </span>
-                                            {unreadCount > 0 && !isSelected && (
-                                                <div className="min-w-[20px] h-[20px] px-1.5 bg-red-500 flex items-center justify-center rounded-full ml-2 shadow-sm animate-pulse">
-                                                    <span className="text-[10px] font-black text-white">{unreadCount}</span>
+
+                                        <div className='flex flex-col flex-1 overflow-hidden ml-1'>
+                                            <div className="flex justify-between items-center w-full">
+                                                <div className="flex items-center gap-1.5 overflow-hidden">
+                                                    <span className={`text-[15px] truncate font-black ${isSelected ? 'text-[#111]' : 'text-[#262626]'}`}>{suggestedUser?.username}</span>
+                                                    {unreadCount > 0 && !isSelected && (
+                                                        <div className="w-2 h-2 bg-blue-500 rounded-full shrink-0"></div>
+                                                    )}
                                                 </div>
-                                            )}
+                                                {lastMsg && (
+                                                    <span className={`text-[11px] font-bold opacity-60 font-sans ${unreadCount > 0 ? 'text-blue-500 opacity-100' : 'text-[#8e8e8e]'}`}>
+                                                        {new Date(lastMsg.createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true })}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="flex justify-between items-center w-full mt-0.5">
+                                                <span className={`text-[13px] truncate flex-1 font-medium ${unreadCount > 0 ? 'text-black font-black' : (isSelected ? 'text-indigo-600' : 'text-[#8e8e8e]')}`}>
+                                                    {lastMsg ? (
+                                                        (String(lastMsg.senderId) === String(user?._id) ? "You: " : `${suggestedUser.username}: `) +
+                                                        (lastMsg.messageType === 'reel' ? "Sent a reel" :
+                                                            lastMsg.messageType === 'image' ? "Sent a photo" :
+                                                                lastMsg.messageType === 'video' ? "Sent a video" :
+                                                                    lastMsg.message)
+                                                    ) : (isOnline ? 'Active now' : 'Offline')}
+                                                </span>
+                                                {unreadCount > 0 && !isSelected && (
+                                                    <div className="min-w-[18px] h-[18px] px-1.5 bg-blue-500 flex items-center justify-center rounded-full ml-2 shadow-sm">
+                                                        <span className="text-[9px] font-black text-white">{unreadCount}</span>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                            )
+                            );
                         })}
                     </div>
                 </div>
@@ -324,7 +407,7 @@ const ChatPage = () => {
                             </div>
                             <div className="flex items-center gap-2">
                                 <Button variant="ghost" size="icon" className="rounded-full w-10 h-10 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all"><MessageCircle size={20} /></Button>
-                                <Button variant="ghost" size="icon" onClick={() => setSelectedUser(null)} className="rounded-full w-10 h-10 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"><X size={20} /></Button>
+                                <Button variant="ghost" size="icon" onClick={() => dispatch(setSelectedUser(null))} className="rounded-full w-10 h-10 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"><X size={20} /></Button>
                             </div>
                         </div>
 
@@ -341,7 +424,7 @@ const ChatPage = () => {
                                             <MessageBubble
                                                 key={msg._id}
                                                 msg={msg}
-                                                isSender={msg.senderId === user?._id}
+                                                isSender={String(msg.senderId) === String(user?._id)}
                                                 currentUser={user}
                                                 otherUser={selectedUser}
                                                 onReply={setReplyTo}
@@ -373,7 +456,7 @@ const ChatPage = () => {
                             <StoryViewer
                                 stories={[storyToView]}
                                 onClose={() => setStoryToView(null)}
-                                onStoryViewed={() => {}} 
+                                onStoryViewed={() => { }}
                             />
                         )}
 
@@ -385,7 +468,7 @@ const ChatPage = () => {
                                         <div className="flex items-center gap-2 mb-1">
                                             <Reply size={13} className="text-indigo-600" strokeWidth={3} />
                                             <span className="text-[11px] font-black text-indigo-600 uppercase tracking-tight">
-                                                Replying to {replyTo.senderId === user?._id ? "yourself" : selectedUser?.username}
+                                                Replying to {String(replyTo.senderId) === String(user?._id) ? "yourself" : selectedUser?.username}
                                             </span>
                                         </div>
                                         <p className="text-[13px] text-indigo-900/60 truncate font-medium">

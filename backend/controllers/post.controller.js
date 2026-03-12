@@ -289,8 +289,8 @@ export const deleteComment = async (req, res) => {
         const comment = await Comment.findById(commentId).populate('post');
         if (!comment) return res.status(404).json({ message: "Comment not found", success: false });
 
-        // User can delete ONLY if they are author of comment
-        if (comment.author.toString() !== userId) {
+        // User can delete ONLY if they are author of comment OR they are admin
+        if (comment.author.toString() !== userId && req.role !== 'admin') {
             return res.status(403).json({ message: "Unauthorized. You can only delete your own comments.", success: false });
         }
 
@@ -429,16 +429,14 @@ export const deletePost = async (req, res) => {
         if (!post) return res.status(404).json({ message: "Post Not Found", success: false });
 
 
-        // check if the looged in user is the owner of the post : 
-        if (post.author.toString() !== authorId) return res.status(403).json({ message: "Unauthorized" });
+        // check if the looged in user is the owner of the post OR they are admin: 
+        if (post.author.toString() !== authorId && req.role !== 'admin') return res.status(403).json({ message: "Unauthorized" });
 
         // Delete Post :
         await Post.findByIdAndDelete(postId);
 
-        // remove The Post id form the user's post :
-        let user = await User.findById(authorId);
-        user.posts = user.posts.filter(id => id.toString() !== postId);
-        await user.save();
+        // remove The Post id form the actual author's post array:
+        await User.findByIdAndUpdate(post.author, { $pull: { posts: postId } });
 
         // Delete Associated Comments : 
         await Comment.deleteMany({ post: postId });

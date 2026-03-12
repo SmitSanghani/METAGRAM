@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import path from "path";
 import connectDB from "./utils/db.js";
 import userRoute from "./routes/user.route.js";
+import authRoute from "./routes/auth.route.js";
 import postroute from "./routes/post.route.js";
 import messageRoute from "./routes/message.route.js";
 import storyRoute from "./routes/story.route.js";
@@ -43,6 +44,7 @@ app.use(cors(corsOptions));
 const __dirname = path.resolve();
 
 // All APIs Are Show Here :
+app.use("/api/v1/auth", authRoute);
 app.use("/api/v1/user", userRoute);
 app.use("/api/v1/post", postroute);
 app.use("/api/v1/message", messageRoute);
@@ -50,9 +52,9 @@ app.use("/api/v1/story", storyRoute);
 app.use("/api/v1/notification", notificationRoute);
 app.use("/api/v1/reels", reelRoute);
 
-app.use(express.static(path.join(__dirname, "/frontend/dist")));
-app.get("*", (req, res) => {
-    res.sendFile(path.resolve(__dirname, "frontend", "dist", "index.html"));
+app.use(express.static(path.join(__dirname, "../frontend/dist")));
+app.get("*path", (req, res) => {
+    res.sendFile(path.resolve(__dirname, "..", "frontend", "dist", "index.html"));
 });
 
 // Cron job to clean up expired stories every hour
