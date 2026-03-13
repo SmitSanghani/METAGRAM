@@ -88,6 +88,11 @@ export const likeOrUnlikeReel = async (req, res) => {
 
         if (!reel) return res.status(404).json({ message: "Reel not found", success: false });
 
+        const author = await User.findById(reel.author);
+        if (author.blockedUsers.includes(userId) || author.blockedBy.includes(userId)) {
+            return res.status(403).json({ message: "Action not allowed due to a block", success: false });
+        }
+
         const isLiked = reel.likes.includes(userId);
         let updatedLikes;
         if (isLiked) {
@@ -131,6 +136,11 @@ export const addCommentToReel = async (req, res) => {
 
         const reel = await Reel.findById(reelId);
         if (!reel) return res.status(404).json({ message: "Reel not found", success: false });
+
+        const author = await User.findById(reel.author);
+        if (author.blockedUsers.includes(userId) || author.blockedBy.includes(userId)) {
+            return res.status(403).json({ message: "Action not allowed due to a block", success: false });
+        }
 
         const comment = await ReelComment.create({
             text,

@@ -83,6 +83,14 @@ const userSchema = new mongoose.Schema({
     recentSearches: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
+    }],
+    blockedUsers: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    }],
+    blockedBy: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
     }]
 }, { timestamps: true });
 

@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Button } from './ui/button';
 import { MessageCircle, Send, X, Image as ImageIcon, Smile, Reply, Trash2 } from 'lucide-react';
@@ -13,6 +14,7 @@ import StoryViewer from './StoryViewer';
 const NOTIFICATION_SOUND_URL = "/notification.mp3"; // Reference local file
 
 const ChatPage = () => {
+    const navigate = useNavigate();
     useGetSuggestedUsers();
     const [textMessage, setTextMessage] = useState("");
     const { user, suggestedUsers } = useSelector(store => store.auth);
@@ -20,6 +22,8 @@ const ChatPage = () => {
     const { socket } = useSelector(store => store.socketio);
     const [replyTo, setReplyTo] = useState(null);
     const [storyToView, setStoryToView] = useState(null);
+    const [headerStories, setHeaderStories] = useState([]);
+    const [isHeaderStoryOpen, setIsHeaderStoryOpen] = useState(false);
     const dispatch = useDispatch();
 
     const [isTyping, setIsTyping] = useState(false);
@@ -104,6 +108,25 @@ const ChatPage = () => {
         fetchMessages();
     }, [selectedUser?._id, dispatch, socket]);
 
+    // Fetch user stories for the header
+    useEffect(() => {
+        if (selectedUser?._id) {
+            const fetchHeaderStories = async () => {
+                try {
+                    const res = await api.get(`/story/user/${selectedUser._id}`);
+                    if (res.data.success) {
+                        setHeaderStories(res.data.stories);
+                    }
+                } catch (error) {
+                    console.error("Error fetching header stories:", error);
+                }
+            };
+            fetchHeaderStories();
+        } else {
+            setHeaderStories([]);
+        }
+    }, [selectedUser?._id]);
+
     useEffect(() => {
         if (selectedUser && messages.length > 0) {
             const lastMsg = messages[messages.length - 1];
@@ -180,6 +203,9 @@ const ChatPage = () => {
                 setReplyTo(null);
             }
         } catch (error) {
+            if (error.response?.status === 403) {
+                toast.error(error.response.data.message || "Message not sent");
+            }
             console.error(error);
         }
     }
@@ -197,6 +223,8 @@ const ChatPage = () => {
 
     const reactMessageHandler = async (messageId, emoji) => {
         try {
+
+
             const res = await api.post(`/message/react/${messageId}`, { emoji });
             if (res.data.success) {
                 dispatch(updateReactions({ messageId, reactions: res.data.reactions }));
@@ -232,9 +260,7 @@ const ChatPage = () => {
         const handleIncomingMessage = (newMessage) => {
             setIsTyping(false);
 
-            // ✅ KEY FIX: Accept messages that belong to the current conversation
-            // This means: senderId is the other user OR receiverId is the other user
-            // (covers both: messages they send to us AND our own messages echoed back from the room)
+            // Accept messages that belong to the current conversation
             const messageInvolvesSender = String(newMessage.senderId) === String(selectedUser._id);
             const messageInvolvesReceiver = String(newMessage.receiverId) === String(selectedUser._id);
 
@@ -247,8 +273,8 @@ const ChatPage = () => {
             }
         };
 
-        const handleReactionUpdate = ({ messageId, reactions }) => {
-            dispatch(updateReactions({ messageId, reactions }));
+        const handleReactionAdded = ({ messageId, message_id, reactions }) => {
+            dispatch(updateReactions({ messageId: messageId || message_id, reactions }));
         };
 
         const handleDeletedMessage = ({ messageId }) => {
@@ -268,7 +294,7 @@ const ChatPage = () => {
         };
 
         socket.on('receive_message', handleIncomingMessage);
-        socket.on('message_reaction_update', handleReactionUpdate);
+        socket.on('message_reaction_added', handleReactionAdded);
         socket.on('message_deleted', handleDeletedMessage);
         socket.on('story_deleted_from_chat', handleStoryDeleted);
         socket.on('user_typing', handleUserTyping);
@@ -276,7 +302,7 @@ const ChatPage = () => {
 
         return () => {
             socket.off('receive_message', handleIncomingMessage);
-            socket.off('message_reaction_update', handleReactionUpdate);
+            socket.off('message_reaction_added', handleReactionAdded);
             socket.off('message_deleted', handleDeletedMessage);
             socket.off('story_deleted_from_chat', handleStoryDeleted);
             socket.off('user_typing', handleUserTyping);
@@ -375,13 +401,19 @@ const ChatPage = () => {
                                             </div>
                                             <div className="flex justify-between items-center w-full mt-0.5">
                                                 <span className={`text-[13px] truncate flex-1 font-medium ${unreadCount > 0 ? 'text-black font-black' : (isSelected ? 'text-indigo-600' : 'text-[#8e8e8e]')}`}>
-                                                    {lastMsg ? (
-                                                        (String(lastMsg.senderId) === String(user?._id) ? "You: " : `${suggestedUser.username}: `) +
-                                                        (lastMsg.messageType === 'reel' ? "Sent a reel" :
-                                                            lastMsg.messageType === 'image' ? "Sent a photo" :
-                                                                lastMsg.messageType === 'video' ? "Sent a video" :
-                                                                    lastMsg.message)
-                                                    ) : (isOnline ? 'Active now' : 'Offline')}
+                                                    {lastMsg ? (() => {
+                                                        const isMe = String(lastMsg.senderId) === String(user?._id);
+                                                        const prefix = isMe ? "You: " : `${suggestedUser.username}: `;
+                                                        let body = lastMsg.message;
+                                                        if (lastMsg.messageType === 'reel') body = "Sent a reel";
+                                                        else if (lastMsg.messageType === 'image') body = "Sent a photo";
+                                                        else if (lastMsg.messageType === 'video') body = "Sent a video";
+                                                        else if (lastMsg.messageType === 'post') body = "Shared a post";
+                                                        else if (lastMsg.messageType === 'story_reply') body = isMe ? "Replied to their story" : "Replied to your story";
+                                                        else if (lastMsg.messageType === 'story_reaction') body = isMe ? `Reacted to their story: ${lastMsg.message}` : `Reacted to your story: ${lastMsg.message}`;
+                                                        else if (lastMsg.messageType === 'reaction_info') body = lastMsg.message;
+                                                        return prefix + body;
+                                                    })() : (isOnline ? 'Active now' : 'Offline')}
                                                 </span>
                                                 {unreadCount > 0 && !isSelected && (
                                                     <div className="min-w-[18px] h-[18px] px-1.5 bg-blue-500 flex items-center justify-center rounded-full ml-2 shadow-sm">
@@ -403,10 +435,13 @@ const ChatPage = () => {
                 {selectedUser ? (
                     <>
                         {/* Header */}
-                        <div className='flex items-center justify-between px-8 py-5 border-b border-[#efefef] bg-white/95 backdrop-blur-md z-20 sticky top-0'>
-                            <div className='flex items-center gap-4 cursor-pointer hover:opacity-80 transition-opacity'>
-                                <div className="relative">
-                                    <Avatar className="w-13 h-13 border-2 border-indigo-50 shadow-sm">
+                        <div className='flex items-center justify-between px-8 py-5 border-b border-[#efefef] bg-white/95 backdrop-blur-md z-40 sticky top-0'>
+                            <div className='flex items-center gap-4'>
+                                <div 
+                                    className={`relative z-10 ${headerStories.length > 0 ? 'cursor-pointer' : ''}`}
+                                    onClick={() => headerStories.length > 0 && setIsHeaderStoryOpen(true)}
+                                >
+                                    <Avatar className={`w-13 h-13 border-2 ${headerStories.length > 0 ? 'border-pink-500' : 'border-indigo-50'} shadow-sm transition-transform active:scale-95`}>
                                         <AvatarImage src={selectedUser?.profilePicture} className="object-cover" />
                                         <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-indigo-600 text-white font-black uppercase text-[15px]">{selectedUser?.username?.charAt(0)}</AvatarFallback>
                                     </Avatar>
@@ -414,7 +449,10 @@ const ChatPage = () => {
                                         <div className="absolute bottom-0 right-0.5 w-4 h-4 bg-green-500 border-[3px] border-white rounded-full"></div>
                                     )}
                                 </div>
-                                <div className='flex flex-col'>
+                                <div 
+                                    className='flex flex-col cursor-pointer hover:opacity-70 transition-opacity z-10'
+                                    onClick={() => navigate(`/profile/${selectedUser?._id}`)}
+                                >
                                     <span className='font-black text-[18px] text-[#111] leading-none mb-1.5'>{selectedUser?.username}</span>
                                     <div className="flex items-center gap-1.5">
                                         <span className={`text-[11px] font-black uppercase tracking-wider ${onlineUsers.includes(selectedUser?._id) ? 'text-green-500' : 'text-gray-400'}`}>
@@ -472,6 +510,14 @@ const ChatPage = () => {
                                 )}
                             </div>
                         </ScrollToBottom>
+
+                        {isHeaderStoryOpen && headerStories.length > 0 && (
+                            <StoryViewer
+                                stories={headerStories}
+                                onClose={() => setIsHeaderStoryOpen(false)}
+                                onStoryViewed={() => {}}
+                            />
+                        )}
 
                         {/* Story Viewer in Chat */}
                         {storyToView && (

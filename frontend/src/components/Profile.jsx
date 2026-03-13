@@ -35,9 +35,12 @@ const Profile = () => {
   const requestPending = userProfile?.followRequests?.some(f => (f._id || f) === user?._id) || storeRequestPending;
   const isPrivateAndNotFollowing = userProfile?.isPrivate && !isFollowing && !isLoggedInUserProfile;
 
-  // Metagram button logic cases:
+  const isBlockedByMe = user?.blockedUsers?.some(id => String(id) === String(userProfile?._id));
+
   let buttonState = 'Follow';
-  if (isFollowing) {
+  if (isBlockedByMe) {
+    buttonState = 'Unblock';
+  } else if (isFollowing) {
     buttonState = 'Following';
   } else if (requestPending) {
     buttonState = 'Requested';
@@ -54,9 +57,11 @@ const Profile = () => {
   const [isFollowingMenuOpen, setIsFollowingMenuOpen] = useState(false);
   const [isUnfollowConfirmOpen, setIsUnfollowConfirmOpen] = useState(false);
 
+  const [openCommentDialog, setOpenCommentDialog] = useState(false);
+  const [isOptionsMenuOpen, setIsOptionsMenuOpen] = useState(false);
+  const [isBlockConfirmOpen, setIsBlockConfirmOpen] = useState(false);
   const [selectedReelForComments, setSelectedReelForComments] = useState(null);
   const [selectedItemForLikes, setSelectedItemForLikes] = useState(null);
-  const [openCommentDialog, setOpenCommentDialog] = useState(false);
 
   const dispatch = useDispatch();
 
@@ -115,6 +120,8 @@ const Profile = () => {
   const handleButtonClick = () => {
     if (buttonState === 'Following') {
       setIsFollowingMenuOpen(true);
+    } else if (buttonState === 'Unblock') {
+      unblockUserHandler();
     } else {
       followAndUnfollowHandler();
     }
@@ -135,6 +142,59 @@ const Profile = () => {
     } catch (error) {
       console.error("Error fetching user stories:", error);
     }
+  };
+
+  const blockUserHandler = async () => {
+    try {
+      const res = await api.post(`/user/block/${userProfile._id}`);
+      if (res.data.success) {
+        toast.success(res.data.message);
+        
+        // Update local auth user state (add to blockedUsers)
+        const updatedAuthUser = { ...user, blockedUsers: [...(user.blockedUsers || []), userProfile._id] };
+        dispatch(setAuthUser(updatedAuthUser));
+
+        // Since we blocked them, we should technically redirect or show they are blocked
+        // But common behavior is to stay and show an "Unblock" button
+        dispatch(setUserProfile({ ...userProfile, blockedBy: [...(userProfile.blockedBy || []), user._id] }));
+        
+        setIsBlockConfirmOpen(false);
+        setIsOptionsMenuOpen(false);
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to block user');
+    }
+  };
+
+  const unblockUserHandler = async () => {
+    try {
+      const res = await api.post(`/user/unblock/${userProfile._id}`);
+      if (res.data.success) {
+        toast.success(res.data.message);
+
+        // Update local auth user state (remove from blockedUsers)
+        const updatedAuthUser = {
+          ...user,
+          blockedUsers: user.blockedUsers.filter(id => id.toString() !== userProfile._id.toString())
+        };
+        dispatch(setAuthUser(updatedAuthUser));
+
+        dispatch(setUserProfile({
+          ...userProfile,
+          blockedBy: userProfile.blockedBy.filter(id => id.toString() !== user._id.toString())
+        }));
+
+        setIsOptionsMenuOpen(false);
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to unblock user');
+    }
+  };
+
+  const copyProfileLink = () => {
+    navigator.clipboard.writeText(window.location.href);
+    toast.success("Profile link copied to clipboard");
+    setIsOptionsMenuOpen(false);
   };
 
   React.useEffect(() => {
@@ -170,7 +230,23 @@ const Profile = () => {
 
   return (
     <div className='min-h-screen bg-[rgb(248,252,252)] py-10 px-4'>
-      <div className='max-w-5xl mx-auto flex flex-col gap-6'>
+      {!userProfile ? (
+        <div className="max-w-5xl mx-auto flex flex-col items-center justify-center py-20 bg-white rounded-[13px] border border-[#efefef] shadow-sm">
+          <div className="w-24 h-24 rounded-full bg-gray-100 flex items-center justify-center mb-6">
+            <AtSign size={40} className="text-gray-400" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">User not found</h2>
+          <p className="text-gray-500 mb-8">The link you followed may be broken, or the user may have blocked you.</p>
+          <Button 
+            onClick={() => navigate('/')}
+            className="bg-[#0095F6] hover:bg-[#1877F2] text-white rounded-[13px] h-10 px-8 font-bold"
+          >
+            Go to Home
+          </Button>
+        </div>
+      ) : (
+        <>
+          <div className='max-w-5xl mx-auto flex flex-col gap-6'>
 
         {/* Section 1 & 2: Header & Highlights Combined Card */}
         <div className='bg-white rounded-[13px] border border-[#efefef] p-6 shadow-sm flex flex-col gap-10'>
@@ -196,7 +272,17 @@ const Profile = () => {
             <section className='flex flex-col w-full'>
               {/* Header Row: Username + Actions */}
               <div className='flex flex-wrap items-center gap-4 mb-5 pt-2'>
-                <h1 className='text-[28px] font-bold text-[#262626]'>{userProfile?.username}</h1>
+                <div className="flex items-center gap-3">
+                  <h1 className='text-[28px] font-bold text-[#262626]'>{userProfile?.username}</h1>
+                  {!isLoggedInUserProfile && (
+                    <div 
+                      onClick={() => setIsOptionsMenuOpen(true)}
+                      className="cursor-pointer p-2 hover:bg-gray-100 rounded-full transition-colors"
+                    >
+                      <MoreHorizontal size={24} className="text-[#262626]" />
+                    </div>
+                  )}
+                </div>
                 <div className='flex gap-2 items-center ml-2'>
                   {isLoggedInUserProfile ? (
                     <Button
@@ -538,6 +624,88 @@ const Profile = () => {
             <Button
               variant="ghost"
               onClick={() => setIsUnfollowConfirmOpen(false)}
+              className="w-full py-6 text-[14px] font-medium text-[#262626] hover:bg-[#fafafa] rounded-none h-auto transition-colors"
+            >
+              Cancel
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+        </>
+      )}
+
+      {/* Profile Options Menu */}
+      <Dialog open={isOptionsMenuOpen} onOpenChange={setIsOptionsMenuOpen}>
+        <DialogContent className="max-w-[400px] p-0 overflow-hidden border-0 bg-white sm:rounded-xl shadow-2xl">
+          <div className="flex flex-col items-center">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                toast.info("Report feature coming soon");
+                setIsOptionsMenuOpen(false);
+              }}
+              className="w-full py-6 text-[14px] font-bold text-[#ED4956] hover:bg-[#fafafa] border-b border-[#efefef] rounded-none h-auto transition-colors"
+            >
+              Report
+            </Button>
+            
+            {isBlockedByMe ? (
+              <Button
+                variant="ghost"
+                onClick={unblockUserHandler}
+                className="w-full py-6 text-[14px] font-bold text-[#ED4956] hover:bg-[#fafafa] border-b border-[#efefef] rounded-none h-auto transition-colors"
+              >
+                Unblock
+              </Button>
+            ) : (
+              <Button
+                variant="ghost"
+                onClick={() => setIsBlockConfirmOpen(true)}
+                className="w-full py-6 text-[14px] font-bold text-[#ED4956] hover:bg-[#fafafa] border-b border-[#efefef] rounded-none h-auto transition-colors"
+              >
+                Block
+              </Button>
+            )}
+
+            <Button
+              variant="ghost"
+              onClick={copyProfileLink}
+              className="w-full py-6 text-[14px] font-medium text-[#262626] hover:bg-[#fafafa] border-b border-[#efefef] rounded-none h-auto transition-colors"
+            >
+              Copy Profile Link
+            </Button>
+            
+            <Button
+              variant="ghost"
+              onClick={() => setIsOptionsMenuOpen(false)}
+              className="w-full py-6 text-[14px] font-medium text-[#262626] hover:bg-[#fafafa] rounded-none h-auto transition-colors"
+            >
+              Cancel
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Block Confirmation Dialog */}
+      <Dialog open={isBlockConfirmOpen} onOpenChange={setIsBlockConfirmOpen}>
+        <DialogContent className="max-w-[400px] p-0 overflow-hidden border-0 bg-white sm:rounded-xl shadow-2xl">
+          <div className="flex flex-col items-center pt-8 pb-6 px-8 border-b border-[#efefef]">
+            <h2 className="text-[18px] font-bold text-[#262626] mb-4">Block {userProfile?.username}?</h2>
+            <p className="text-[14px] text-center text-gray-500 leading-relaxed">
+              They will not be able to find your profile, see your posts or reels, or send you messages. Metagram won't let them know you blocked them.
+            </p>
+          </div>
+          <div className="flex flex-col items-center">
+            <Button
+              variant="ghost"
+              onClick={blockUserHandler}
+              className="w-full py-6 text-[14px] font-bold text-[#ED4956] hover:bg-[#fafafa] border-b border-[#efefef] rounded-none h-auto transition-colors"
+            >
+              Block
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => setIsBlockConfirmOpen(false)}
               className="w-full py-6 text-[14px] font-medium text-[#262626] hover:bg-[#fafafa] rounded-none h-auto transition-colors"
             >
               Cancel

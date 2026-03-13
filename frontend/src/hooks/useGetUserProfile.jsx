@@ -22,7 +22,7 @@ const useGetUserProfile = (userId) => {
                 }
             } catch (error) {
                 console.log(error);
-
+                dispatch(setUserProfile(null));
             }
         }
         fetchUserProfile();

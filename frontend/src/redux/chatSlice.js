@@ -24,11 +24,11 @@ const chatSlice = createSlice({
             }
         },
         addChatUser: (state, action) => {
-          const newUser = action.payload;
-          const exists = state.chatUsers.find(u => String(u._id) === String(newUser._id));
-          if (!exists) {
-            state.chatUsers = [newUser, ...state.chatUsers];
-          }
+            const newUser = action.payload;
+            const exists = state.chatUsers.find(u => String(u._id) === String(newUser._id));
+            if (!exists) {
+                state.chatUsers = [newUser, ...state.chatUsers];
+            }
         },
         setSelectedUser: (state, action) => {
             state.selectedUser = action.payload;
@@ -41,8 +41,8 @@ const chatSlice = createSlice({
         },
         addMessage: (state, action) => {
             const newMessage = action.payload;
-            const exists = state.messages.find(m => 
-                (newMessage._id && m._id === newMessage._id) || 
+            const exists = state.messages.find(m =>
+                (newMessage._id && m._id === newMessage._id) ||
                 (newMessage.tempId && m.tempId === newMessage.tempId)
             );
             if (!exists) {
@@ -93,7 +93,7 @@ const chatSlice = createSlice({
         },
         updateReactions: (state, action) => {
             const { messageId, reactions } = action.payload;
-            const msg = state.messages.find(m => m._id === messageId);
+            const msg = state.messages.find(m => String(m._id) === String(messageId));
             if (msg) {
                 msg.reactions = reactions;
             }

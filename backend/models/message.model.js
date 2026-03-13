@@ -17,7 +17,7 @@ const messageschema = new mongoose.Schema({
     },
     messageType: {
         type: String,
-        enum: ['text', 'image', 'video', 'gif', 'story_reply', 'story_reaction', 'reel'],
+        enum: ['text', 'image', 'video', 'gif', 'story_reply', 'story_reaction', 'reel', 'post'],
         default: 'text'
     },
     mediaUrl: {
@@ -31,6 +31,10 @@ const messageschema = new mongoose.Schema({
     reelId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Reel'
+    },
+    postId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Post'
     },
     replyTo: {
         type: mongoose.Schema.Types.ObjectId,

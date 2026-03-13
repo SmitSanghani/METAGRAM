@@ -11,7 +11,16 @@ export const sendMessage = async (req, res) => {
         const senderId = req.id;
         const sender = await User.findById(senderId).select("username profilePicture");
         const receiverId = req.params.id;
-        const { message, messageType = 'text', storyId = null, reelId = null, replyTo = null, tempId } = req.body;
+        const { message, messageType = 'text', storyId = null, reelId = null, postId = null, replyTo = null, tempId } = req.body;
+
+        const receiver = await User.findById(receiverId);
+        if (!receiver) return res.status(404).json({ success: false, message: "Receiver not found" });
+
+        // BLOCK CHECK:
+        const senderUser = await User.findById(senderId);
+        if (senderUser.blockedUsers.includes(receiverId) || senderUser.blockedBy.includes(receiverId)) {
+            return res.status(403).json({ success: false, message: "You cannot message this account." });
+        }
 
         // Validation to prevent 500 errors if ID is malformed
         if (!receiverId || receiverId.length !== 24) {
@@ -72,6 +81,7 @@ export const sendMessage = async (req, res) => {
             messageType: file ? (file.mimetype.startsWith('image/') ? 'image' : 'video') : messageType,
             storyId,
             reelId,
+            postId,
             replyTo,
             mediaUrl
         };
@@ -100,6 +110,7 @@ export const sendMessage = async (req, res) => {
         await conversation.populate([
             { path: 'messages.storyId', select: 'mediaUrl mediaType userId' },
             { path: 'messages.reelId', select: 'videoUrl caption author', populate: { path: 'author', select: 'username profilePicture' } },
+            { path: 'messages.postId', select: 'image caption author', populate: { path: 'author', select: 'username profilePicture' } },
             { path: 'messages.reactions.userId', select: 'username profilePicture' }
         ]);
 
@@ -145,6 +156,7 @@ export const getMessages = async (req, res) => {
         }).populate([
             { path: 'messages.storyId', select: 'mediaUrl mediaType userId' },
             { path: 'messages.reelId', select: 'videoUrl caption author', populate: { path: 'author', select: 'username profilePicture' } },
+            { path: 'messages.postId', select: 'image caption author', populate: { path: 'author', select: 'username profilePicture' } },
             { path: 'messages.reactions.userId', select: 'username profilePicture' }
         ]);
 
@@ -237,15 +249,19 @@ export const addReaction = async (req, res) => {
 
         const message = conversation.messages.id(messageId);
         const reactionIndex = message.reactions.findIndex(r => r.userId.toString() === userId.toString());
+        let action = "added";
 
         if (reactionIndex > -1) {
             if (message.reactions[reactionIndex].emoji === emoji) {
                 message.reactions.splice(reactionIndex, 1);
+                action = "removed";
             } else {
                 message.reactions[reactionIndex].emoji = emoji;
+                action = "updated";
             }
         } else {
             message.reactions.push({ userId, emoji });
+            action = "added";
         }
 
         await conversation.save();
@@ -256,8 +272,23 @@ export const addReaction = async (req, res) => {
         const updatedMessage = conversation.messages.id(messageId);
         const reactions = updatedMessage.reactions;
 
-        broadcastToUser(updatedMessage.receiverId, "message_reaction_update", { messageId, senderId: userId, reactions });
-        broadcastToUser(updatedMessage.senderId, "message_reaction_update", { messageId, senderId: userId, reactions });
+        const reactionPayload = {
+            message_id: messageId,
+            messageId,
+            user_id: userId,
+            reaction: emoji,
+            reactions,
+            action, // "added", "updated", or "removed"
+            conversationId: conversation._id.toString()
+        };
+
+        // 1. Broadcast to the conversation room
+        io.to(conversation._id.toString()).emit("message_reaction_added", reactionPayload);
+
+        // 2. Also notify both participants directly
+        broadcastToUser(updatedMessage.senderId, "message_reaction_added", reactionPayload);
+        broadcastToUser(updatedMessage.receiverId, "message_reaction_added", reactionPayload);
+
 
         res.status(200).json({ success: true, reactions });
     } catch (error) {
@@ -277,7 +308,7 @@ export const getUnreadCounts = async (req, res) => {
         conversations.forEach(conv => {
             const otherParticipant = conv.participants.find(p => p.toString() !== userId.toString());
             if (otherParticipant) {
-                const count = conv.messages.filter(msg => 
+                const count = conv.messages.filter(msg =>
                     msg.senderId.toString() === otherParticipant.toString() && !msg.seen
                 ).length;
                 unreadCounts[otherParticipant.toString()] = count;

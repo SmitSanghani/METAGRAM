@@ -3,8 +3,9 @@ import { useSelector, useDispatch } from 'react-redux';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
-import { X, Heart, Trash2 } from 'lucide-react';
+import { X, Heart, Trash2, Reply } from 'lucide-react';
 import { markAllAsRead, markSingleAsRead, removeNotification, removeNotificationById, updateNotificationStatus } from '@/redux/notificationSlice';
+import { setSelectedUser, clearUnreadCount } from '@/redux/chatSlice';
 import api from '@/api';
 import { toast } from 'sonner';
 import { setAuthUser, setUserProfile } from '@/redux/authSlice';
@@ -89,6 +90,40 @@ const NotificationDropdown = ({ onClose }) => {
         }
     };
 
+    // Reply → go to chat with that sender
+    const handleReply = async (e, n) => {
+        e.stopPropagation();
+        if (!n.sender?._id) return;
+        // mark single notification as read
+        if (!n.read) {
+            try { await api.post(`/notification/${n._id}/read`, {}); dispatch(markSingleAsRead(n._id)); } catch (_) {}
+        }
+        // Mark chat messages as seen & clear unread count locally
+        try { 
+            await api.get(`/message/seen/${n.sender._id}`); 
+            dispatch(clearUnreadCount(n.sender._id));
+        } catch (_) {}
+        // Navigate to chat and select the user
+        dispatch(setSelectedUser(n.sender));
+        navigate('/chat');
+        onClose();
+    };
+
+    // Mark as read → marks notification + marks chat messages as seen (so other side shows "seen")
+    const handleMarkMessageAsRead = async (e, n) => {
+        e.stopPropagation();
+        if (!n.read) {
+            try { await api.post(`/notification/${n._id}/read`, {}); dispatch(markSingleAsRead(n._id)); } catch (_) {}
+        }
+        if (n.sender?._id) {
+            try { 
+                await api.get(`/message/seen/${n.sender._id}`); 
+                dispatch(clearUnreadCount(n.sender._id));
+                toast.success("Marked as read"); 
+            } catch (_) {}
+        }
+    };
+
     return (
         <div className="absolute top-0 left-full h-screen w-[340px] bg-[#FAFAFA] border-r border-[#F0F0F0] shadow-2xl z-50 flex flex-col">
             <div className="p-6 border-b border-indigo-500 flex items-center justify-between bg-gradient-to-r from-[#4F46E5] to-[#7C3AED] text-white">
@@ -161,6 +196,27 @@ const NotificationDropdown = ({ onClose }) => {
                                 <div className="text-[11px] font-bold text-[#4F46E5] mt-1.5 uppercase tracking-wide">
                                     {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}
                                 </div>
+
+                                {/* Reply + Mark as read actions for message-type notifications */}
+                                {(n.type === 'message' || n.type === 'comment' || n.type === 'story_comment' || n.type === 'like' || n.type === 'story_like') && (
+                                    <div className="flex gap-3 mt-2">
+                                        <button
+                                            onClick={(e) => handleReply(e, n)}
+                                            className="flex items-center gap-1 text-[12px] font-black text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 px-3 py-1.5 rounded-full transition-all active:scale-95"
+                                        >
+                                            <Reply size={12} strokeWidth={3} />
+                                            Reply
+                                        </button>
+                                        {!n.read && (
+                                            <button
+                                                onClick={(e) => handleMarkMessageAsRead(e, n)}
+                                                className="text-[12px] font-black text-gray-500 hover:text-gray-700 hover:bg-gray-100 px-3 py-1.5 rounded-full transition-all active:scale-95"
+                                            >
+                                                Mark as read
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                             {/* Content Thumbnail */}
                             {n.post?.image && (

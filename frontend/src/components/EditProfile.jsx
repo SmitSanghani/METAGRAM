@@ -16,8 +16,6 @@ const EditProfile = ({ isOpen, onClose }) => {
     const [bio, setBio] = useState(user?.bio || '');
     const [category, setCategory] = useState(user?.category || '');
     const [link, setLink] = useState(user?.link || '');
-    const [gender, setGender] = useState(user?.gender || 'male');
-    const [isPrivate, setIsPrivate] = useState(user?.isPrivate || false);
     const [file, setFile] = useState(null);
     const [imagePreview, setImagePreview] = useState(user?.profilePicture || '');
     const [loading, setLoading] = useState(false);
@@ -40,10 +38,8 @@ const EditProfile = ({ isOpen, onClose }) => {
         e.preventDefault();
         const formData = new FormData();
         formData.append('bio', bio);
-        formData.append('gender', gender);
         formData.append('category', category);
         formData.append('link', link);
-        formData.append('isPrivate', isPrivate);
         if (file) {
             formData.append('profilePicture', file);
         }
@@ -62,9 +58,7 @@ const EditProfile = ({ isOpen, onClose }) => {
                     bio: res.data.user?.bio,
                     category: res.data.user?.category,
                     profilePicture: res.data.user?.profilePicture,
-                    gender: res.data.user?.gender,
                     link: res.data.user?.link,
-                    isPrivate: res.data.user?.isPrivate
                 };
                 dispatch(setAuthUser(updatedUser));
 
@@ -75,9 +69,7 @@ const EditProfile = ({ isOpen, onClose }) => {
                         bio: res.data.user?.bio,
                         category: res.data.user?.category,
                         profilePicture: res.data.user?.profilePicture,
-                        gender: res.data.user?.gender,
                         link: res.data.user?.link,
-                        isPrivate: res.data.user?.isPrivate
                     }));
                 }
 
@@ -159,55 +151,7 @@ const EditProfile = ({ isOpen, onClose }) => {
                         />
                     </div>
 
-                    <div className="flex flex-col gap-2.5">
-                        <label className="font-bold text-[14px] text-[#262626] ml-0.5">Gender</label>
-                        <div className="grid grid-cols-2 gap-3">
-                            <label className={`flex items-center gap-3 h-11 px-4 rounded-[13px] border cursor-pointer transition-all ${gender === 'male' ? 'border-[#0095F6] bg-[#E8F5FD] text-[#0095F6]' : 'border-[#dbdbdb] bg-white text-[#8e8e8e] hover:border-gray-400'}`}>
-                                <input
-                                    type="checkbox"
-                                    className="hidden"
-                                    checked={gender === 'male'}
-                                    onChange={() => setGender('male')}
-                                />
-                                <div className={`w-5 h-5 rounded-full border-[1.5px] flex items-center justify-center ${gender === 'male' ? 'border-[#0095F6] bg-[#0095F6]' : 'border-gray-300'}`}>
-                                    {gender === 'male' && <div className="w-2 h-2 bg-white rounded-full" />}
-                                </div>
-                                <span className="text-[14px] font-bold">MALE</span>
-                            </label>
 
-                            <label className={`flex items-center gap-3 h-11 px-4 rounded-[13px] border cursor-pointer transition-all ${gender === 'female' ? 'border-[#0095F6] bg-[#E8F5FD] text-[#0095F6]' : 'border-[#dbdbdb] bg-white text-[#8e8e8e] hover:border-gray-400'}`}>
-                                <input
-                                    type="checkbox"
-                                    className="hidden"
-                                    checked={gender === 'female'}
-                                    onChange={() => setGender('female')}
-                                />
-                                <div className={`w-5 h-5 rounded-full border-[1.5px] flex items-center justify-center ${gender === 'female' ? 'border-[#0095F6] bg-[#0095F6]' : 'border-gray-300'}`}>
-                                    {gender === 'female' && <div className="w-2 h-2 bg-white rounded-full" />}
-                                </div>
-                                <span className="text-[14px] font-bold">FEMALE</span>
-                            </label>
-                        </div>
-                    </div>
-
-                    {/* Privacy Toggle Section */}
-                    <div className="flex flex-col gap-2.5 mb-2 mt-2">
-                        <div className="flex items-center justify-between px-1">
-                            <div>
-                                <h3 className="font-bold text-[14px] text-[#262626]">Private Account</h3>
-                                <p className="text-[12px] text-[#8e8e8e] mt-0.5 max-w-[80%]">When your account is public, your profile and posts can be seen by anyone. When private, only the followers you approve can see what you share.</p>
-                            </div>
-                            <label className="relative inline-flex items-center cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    className="sr-only peer"
-                                    checked={isPrivate}
-                                    onChange={(e) => setIsPrivate(e.target.checked)}
-                                />
-                                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#0095F6]"></div>
-                            </label>
-                        </div>
-                    </div>
 
                     <div className="pt-2 pb-6">
                         {loading ? (

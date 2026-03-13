@@ -16,8 +16,8 @@ import { getReceiverSocketId, io } from "../socket/socket.js";
 // User Registration : 
 export const register = async (req, res) => {
     try {
-        const { username, email, password, isPrivate = false } = req.body;
-        if (!username || !email || !password) {
+        const { username, email, password, gender, isPrivate = false } = req.body;
+        if (!username || !email || !password || !gender) {
             return res.status(401).json({
                 message: "Something is missing, Please Check !!!",
                 success: false,
@@ -45,6 +45,7 @@ export const register = async (req, res) => {
             username,
             email,
             password: hashedPassword,
+            gender,
             isPrivate
         });
         return res.status(201).json({
@@ -224,6 +225,16 @@ export const getProfile = async (req, res) => {
             });
         }
 
+        // BLOCK CHECK: If the target user has blocked current user, return "User not found"
+        if (user.blockedUsers.includes(currentUserId)) {
+            return res.status(404).json({
+                message: "User not found",
+                success: false
+            });
+        }
+
+        const isBlocked = user.blockedBy.includes(currentUserId);
+
         const isSelf = currentUserId?.toString() === userId?.toString();
         const isFollowing = user.followers.some(f => (f._id || f).toString() === currentUserId);
         const isFollower = user.following.some(f => (f._id || f).toString() === currentUserId);
@@ -273,6 +284,7 @@ export const getProfile = async (req, res) => {
             user: userResponse,
             isFollowing,
             isFollower,
+            isBlocked,
             requestPending: isRequested,
             success: true
         });
@@ -345,9 +357,11 @@ export const editProfile = async (req, res) => {
 // Get Suggested Users :
 export const getSuggestedUsers = async (req, res) => {
     try {
+        const user = await User.findById(req.id);
         const suggestedUsers = await User.find({
-            _id: { $ne: req.id },
-            isActive: { $ne: false }
+            _id: { $ne: req.id, $nin: [...user.blockedUsers, ...user.blockedBy] },
+            isActive: { $ne: false },
+            blockedUsers: { $ne: req.id }
         }).select("-password");
         if (!suggestedUsers) {
             return res.status(400).json({
@@ -381,6 +395,11 @@ export const followOrUnfollow = async (req, res) => {
         const targetUser = await User.findById(jiskoFollowKrunga);
 
         if (!user || !targetUser) return res.status(404).json({ message: "User not found", success: false });
+
+        // BLOCK CHECK:
+        if (user.blockedUsers.includes(jiskoFollowKrunga) || user.blockedBy.includes(jiskoFollowKrunga)) {
+            return res.status(403).json({ message: "Action not allowed due to a block", success: false });
+        }
 
         const isFollowing = user.following.includes(jiskoFollowKrunga);
         const hasRequested = targetUser.followRequests.includes(followKrneWala);
@@ -536,6 +555,8 @@ export const getChatUsers = async (req, res) => {
             participants: userId
         }).sort({ updatedAt: -1 }).populate('participants', 'username profilePicture');
 
+        const user = await User.findById(userId);
+
         const chattedUsers = conversations.map(conv => {
             const other = conv.participants.find(p => p._id.toString() !== userId.toString());
             if (!other) return null;
@@ -543,11 +564,11 @@ export const getChatUsers = async (req, res) => {
                 ...other.toObject(),
                 conversationId: conv._id
             };
-        }).filter(u => u != null);
+        }).filter(u => u != null && !user.blockedUsers.some(id => String(id) === String(u._id)) && !user.blockedBy.some(id => String(id) === String(u._id)));
 
-        // Get all active users except the current user
+        // Get all active users except the current user and blocked users
         const allUsers = await User.find({
-            _id: { $ne: userId },
+            _id: { $ne: userId, $nin: [...user.blockedUsers, ...user.blockedBy] },
             isActive: { $ne: false }
         }).select("-password");
 
@@ -629,9 +650,10 @@ export const searchUsers = async (req, res) => {
         if (!query) {
             return res.status(200).json({ users: [], success: true });
         }
+        const currentUser = await User.findById(req.id);
         const users = await User.find({
             username: { $regex: query, $options: 'i' },
-            _id: { $ne: req.id },
+            _id: { $ne: req.id, $nin: [...currentUser.blockedUsers, ...currentUser.blockedBy] },
             isActive: { $ne: false }
         }).select("username profilePicture fullName").limit(10);
 
@@ -701,6 +723,71 @@ export const clearRecentSearches = async (req, res) => {
 };
 
 
+export const blockUser = async (req, res) => {
+    try {
+        const userId = req.id;
+        const targetId = req.params.id;
+
+        if (userId === targetId) {
+            return res.status(400).json({ message: "You can't block yourself", success: false });
+        }
+
+        const user = await User.findById(userId);
+        const target = await User.findById(targetId);
+
+        if (!user || !target) return res.status(404).json({ message: "User not found", success: false });
+
+        // Add to block strings
+        if (!user.blockedUsers.includes(targetId)) {
+            user.blockedUsers.push(targetId);
+            target.blockedBy.push(userId);
+
+            // AUTO-UNFOLLOW Logic:
+            user.following = user.following.filter(id => id.toString() !== targetId.toString());
+            user.followers = user.followers.filter(id => id.toString() !== targetId.toString());
+            target.following = target.following.filter(id => id.toString() !== userId.toString());
+            target.followers = target.followers.filter(id => id.toString() !== userId.toString());
+            
+            // Clear pending requests
+            user.followRequests = user.followRequests.filter(id => id.toString() !== targetId.toString());
+            target.followRequests = target.followRequests.filter(id => id.toString() !== userId.toString());
+
+            // Remove from recent searches
+            user.recentSearches = user.recentSearches.filter(id => id.toString() !== targetId.toString());
+
+            await user.save();
+            await target.save();
+        }
+
+        return res.status(200).json({ message: `You have blocked ${target.username}`, success: true });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false });
+    }
+}
+
+export const unblockUser = async (req, res) => {
+    try {
+        const userId = req.id;
+        const targetId = req.params.id;
+
+        const user = await User.findById(userId);
+        const target = await User.findById(targetId);
+
+        if (!user || !target) return res.status(404).json({ message: "User not found", success: false });
+
+        user.blockedUsers = user.blockedUsers.filter(id => id.toString() !== targetId.toString());
+        target.blockedBy = target.blockedBy.filter(id => id.toString() !== userId.toString());
+
+        await user.save();
+        await target.save();
+
+        return res.status(200).json({ message: `You have unblocked ${target.username}`, success: true });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false });
+    }
+}
 export const getLikedActivity = async (req, res) => {
     try {
         const userId = req.id;
@@ -727,6 +814,23 @@ export const getCommentActivity = async (req, res) => {
             ...reelComments.map(c => ({ ...c.toObject(), activityType: 'reel' }))
         ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         return res.status(200).json({ success: true, activity });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ success: false });
+    }
+};
+
+export const getBlockedUsers = async (req, res) => {
+    try {
+        const userId = req.id;
+        const user = await User.findById(userId).populate('blockedUsers', 'username profilePicture fullName');
+        
+        if (!user) return res.status(404).json({ message: "User not found", success: false });
+
+        return res.status(200).json({
+            blockedUsers: user.blockedUsers,
+            success: true
+        });
     } catch (error) {
         console.error(error);
         return res.status(500).json({ success: false });

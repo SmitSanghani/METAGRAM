@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar'
 import { Dialog, DialogContent, DialogTrigger, DialogClose } from './ui/dialog'
 import { MessageCircle, MoreHorizontal, Send } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import SaveButton from './SaveButton'
 import { Button } from './ui/button'
 import { FaHeart, FaRegHeart } from "react-icons/fa";
@@ -13,6 +14,7 @@ import { setPosts, setSelectedPost } from '@/redux/postSlice'
 import { setAuthUser, setUserProfile } from '@/redux/authSlice'
 import { Badge } from './ui/badge'
 import UserListModal from './UserListModal'
+import SharePostModal from './SharePostModal'
 
 const Post = ({ post }) => {
 
@@ -21,6 +23,7 @@ const Post = ({ post }) => {
 
     const [text, setText] = useState("");
     const [open, setOpen] = useState(false);
+    const navigate = useNavigate();
     const { user, userProfile } = useSelector(store => store.auth);
     const { posts } = useSelector(store => store.post);
     
@@ -29,6 +32,7 @@ const Post = ({ post }) => {
     const postLike = post?.likes?.length || 0;
     const comment = post?.comments || [];
     const [showLikers, setShowLikers] = useState(false);
+    const [showShare, setShowShare] = useState(false);
     const dispatch = useDispatch();
 
 
@@ -141,14 +145,22 @@ const Post = ({ post }) => {
             {/* Header */}
             <div className='flex items-center justify-between py-4 bg-white px-2'>
                 <div className='flex items-center gap-4'>
-                    <div className="relative p-[1.5px] rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600">
+                    <div 
+                        onClick={() => navigate(`/profile/${post?.author?._id}`)}
+                        className="relative p-[1.5px] rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600 cursor-pointer"
+                    >
                         <Avatar className="w-[42px] h-[42px] border-2 border-white">
                             <AvatarImage src={post?.author?.profilePicture} alt="post_image" className="object-cover" />
                             <AvatarFallback className="font-bold text-sm bg-gray-100">{post?.author?.username?.charAt(0)?.toUpperCase()}</AvatarFallback>
                         </Avatar>
                     </div>
                     <div className='flex items-center gap-1.5'>
-                        <h1 className='font-bold text-[15px] text-gray-900 cursor-pointer hover:text-gray-500'>{post?.author?.username}</h1>
+                        <h1 
+                            onClick={() => navigate(`/profile/${post?.author?._id}`)}
+                            className='font-bold text-[15px] text-gray-900 cursor-pointer hover:text-gray-500'
+                        >
+                            {post?.author?.username}
+                        </h1>
                         {user?._id === post?.author?._id && <span className="text-[10px] text-zinc-400 font-medium">• You</span>}
                     </div>
                 </div>
@@ -161,7 +173,7 @@ const Post = ({ post }) => {
                     <DialogContent className="p-0 bg-white dark:bg-zinc-900 border-none sm:rounded-xl overflow-hidden max-w-[400px]">
                         <div className="flex flex-col items-center">
                             <Button variant="ghost" className="w-full py-4 text-[14px] font-bold text-[#ED4956] hover:bg-red-50 dark:hover:bg-red-900/10 border-b border-gray-50 dark:border-zinc-800 rounded-none h-auto">Unfollow</Button>
-                            <Button variant="ghost" className="w-full py-4 text-[14px] font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-800 border-b border-gray-50 dark:border-zinc-800 rounded-none h-auto">Go to post</Button>
+
                             {user && user?._id === post?.author._id && (
                                 <Button onClick={deletePostHandler} variant="ghost" className="w-full py-4 text-[14px] font-bold text-[#ED4956] hover:bg-red-50 dark:hover:bg-red-900/10 border-b border-gray-50 dark:border-zinc-800 rounded-none h-auto">Delete</Button>
                             )}
@@ -193,7 +205,7 @@ const Post = ({ post }) => {
                         <div className="transition-transform active:scale-90 cursor-pointer" onClick={() => { dispatch(setSelectedPost(post)); setOpen(true); }}>
                             <MessageCircle size={28} className='text-black hover:text-gray-500' strokeWidth={2} />
                         </div>
-                        <div className="transition-transform active:scale-90 cursor-pointer">
+                        <div className="transition-transform active:scale-90 cursor-pointer" onClick={() => setShowShare(true)}>
                             <Send size={28} className='text-black hover:text-gray-500' strokeWidth={2} />
                         </div>
                     </div>
@@ -215,7 +227,12 @@ const Post = ({ post }) => {
                     </span>
 
                     <div className='flex flex-wrap items-center gap-2'>
-                        <span className='font-bold text-[15px] text-gray-900 hover:opacity-70 cursor-pointer'>{post?.author?.username}</span>
+                        <span 
+                            onClick={() => navigate(`/profile/${post?.author?._id}`)}
+                            className='font-bold text-[15px] text-gray-900 hover:opacity-70 cursor-pointer'
+                        >
+                            {post?.author?.username}
+                        </span>
                         <p className='text-[15px] text-gray-800 font-medium'>
                             {post.caption}
                         </p>
@@ -231,6 +248,8 @@ const Post = ({ post }) => {
                     )}
 
                     <CommentDialog open={open} setOpen={setOpen} />
+
+                    <SharePostModal open={showShare} setOpen={setShowShare} post={post} />
 
                     {showLikers && (
                         <UserListModal

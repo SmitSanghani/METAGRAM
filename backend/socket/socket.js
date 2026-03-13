@@ -78,10 +78,6 @@ io.on('connection', (socket) => {
         emitToUser(senderId, "message_seen_update", { messageId, receiverId: userId });
     });
 
-    socket.on("message_reaction", ({ messageId, receiverId, emoji, reactions }) => {
-        emitToUser(receiverId, "message_reaction_update", { messageId, senderId: userId, emoji, reactions });
-    });
-
     socket.on("message_delete", ({ messageId, receiverId }) => {
         emitToUser(receiverId, "message_deleted", { messageId });
     });

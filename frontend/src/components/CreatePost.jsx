@@ -17,6 +17,7 @@ const CreatePost = ({ open, setOpen }) => {
     const [caption, setCaption] = useState("");
     const [imagePreview, setImagePreview] = useState("");
     const [allowComments, setAllowComments] = useState(true);
+    const [loading, setLoading] = useState(false);
     const { user } = useSelector((store) => store.auth);
     const { posts } = useSelector((store) => store.post);
     const dispatch = useDispatch();

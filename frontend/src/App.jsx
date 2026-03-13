@@ -29,8 +29,9 @@ import { useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "sonner";
 import { Avatar, AvatarImage, AvatarFallback } from "./components/ui/avatar";
+import { X } from "lucide-react";
 import { setSocket } from "./redux/socketSlice";
-import { setOnlineUsers, incrementUnreadCount, setBulkUnreadCounts, updateLastMessage, addMessage, updateMessageStatus, reorderUsers, updateChatUserConversation, clearUnreadCount, addChatUser } from "./redux/chatSlice";
+import { setOnlineUsers, incrementUnreadCount, setBulkUnreadCounts, updateLastMessage, addMessage, updateMessageStatus, reorderUsers, updateChatUserConversation, clearUnreadCount, addChatUser, updateReactions } from "./redux/chatSlice";
 import { addNotification, setNotifications } from "./redux/notificationSlice";
 import { updateReelLikes, addReelComment, deleteReelComment, editReelComment, updateReelViews, updateReelCommentLikes } from "./redux/reelSlice";
 import { setPosts, updatePostCommentLikes, deletePostComment, addPostComment, updatePostLikes } from "./redux/postSlice";
@@ -144,11 +145,16 @@ function App() {
   useTheme(); // Initialize theme sync
   const { user } = useSelector(store => store.auth);
   const { socket } = useSelector(store => store.socketio);
-  const { selectedUser, chatUsers = [] } = useSelector(store => store.chat || {});
+  const { selectedUser, chatUsers = [], messages = [] } = useSelector(store => store.chat || {});
   const selectedUserRef = useRef(null);
-  const audioRef = useRef(null); // Changed: Initialize as null
+  const audioRef = useRef(null); 
   const chatUsersRef = useRef(chatUsers);
+  const messagesRef = useRef(messages);
   const dispatch = useDispatch();
+
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
 
   useEffect(() => {
     chatUsersRef.current = chatUsers;
@@ -268,8 +274,10 @@ function App() {
            }));
         }
 
+        // Always update last message preview and reorder the sidebar 
         dispatch(updateLastMessage({ userId: targetUserId, message: newMessage }));
         dispatch(reorderUsers(targetUserId));
+
         if (newMessage.conversationId) {
           dispatch(updateChatUserConversation({ userId: targetUserId, conversationId: newMessage.conversationId }));
         }
@@ -277,11 +285,13 @@ function App() {
         const openChatUser = selectedUserRef.current;
         const isViewingThisChat = openChatUser && String(openChatUser._id) === targetUserId;
         
-        if (isViewingThisChat && !isFromMe) {
+        if (isViewingThisChat) {
           console.log(`[Socket] Appending to active chat (Room delivery)`);
           dispatch(addMessage(newMessage));
-          dispatch(clearUnreadCount(senderId));
-          api.get(`/message/seen/${senderId}`).catch(() => {});
+          if (!isFromMe) {
+            dispatch(clearUnreadCount(senderId));
+            api.get(`/message/seen/${senderId}`).catch(() => {});
+          }
         }
       });
 
@@ -323,21 +333,58 @@ function App() {
           toast.custom((t) => (
             <div 
               onClick={() => { window.location.href = '/chat'; toast.dismiss(t); }}
-              className="bg-white border border-indigo-100 shadow-2xl rounded-2xl p-4 flex items-center gap-4 cursor-pointer hover:bg-gray-50 transition-all max-w-sm w-full"
+              className="bg-white border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.06)] rounded-[24px] p-5 flex gap-4 relative max-w-[360px] w-full cursor-pointer hover:bg-gray-50 transition-all pointer-events-auto"
             >
-              <Avatar className="w-12 h-12 border-2 border-indigo-100 shrink-0">
-                <AvatarImage src={newMessage.senderProfilePicture} className="object-cover" />
-                <AvatarFallback className="bg-indigo-600 text-white font-black">{newMessage.senderUsername?.charAt(0)}</AvatarFallback>
-              </Avatar>
-              <div className="flex flex-col overflow-hidden">
-                <span className="text-[13px] font-black text-indigo-600 mb-0.5 uppercase tracking-tighter">New Message</span>
-                <span className="text-[15px] font-black text-gray-900 leading-tight truncate">{newMessage.senderUsername || 'Someone'}</span>
-                <p className="text-[13px] text-gray-500 truncate mt-0.5">
+              <div className="relative shrink-0">
+                <Avatar className="w-14 h-14 border border-indigo-50 shadow-sm">
+                  <AvatarImage src={newMessage.senderProfilePicture} className="object-cover" />
+                  <AvatarFallback className="bg-indigo-100 text-indigo-600 font-bold uppercase">{newMessage.senderUsername?.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-white rounded-full"></div>
+              </div>
+              
+              <div className="flex flex-col flex-1 min-w-0">
+                <div className="flex items-center justify-between mb-0.5">
+                  <span className="text-[12px] font-medium text-gray-400 capitalize">Just now</span>
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); toast.dismiss(t); }}
+                    className="text-gray-300 hover:text-gray-500 transition-colors p-1"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+                
+                <span className="text-[14px] font-semibold text-gray-500 leading-none mb-1">{newMessage.senderUsername}</span>
+                <p className="text-[16px] font-bold text-gray-900 leading-tight truncate mb-3">
                   {newMessage.messageType === 'text' ? newMessage.message : `Sent a ${newMessage.messageType}`}
                 </p>
+                
+                <div className="flex items-center gap-4">
+                  <button 
+                    onClick={(e) => { 
+                      e.stopPropagation(); 
+                      window.location.href = '/chat'; 
+                      toast.dismiss(t); 
+                    }}
+                    className="text-[13px] font-bold text-indigo-600 hover:text-indigo-700 transition-colors"
+                  >
+                    Reply
+                  </button>
+                  <button 
+                    onClick={(e) => { 
+                      e.stopPropagation(); 
+                      api.get(`/message/seen/${newMessage.senderId}`).catch(() => {});
+                      dispatch(clearUnreadCount(newMessage.senderId));
+                      toast.dismiss(t); 
+                    }}
+                    className="text-[13px] font-bold text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    Mark as read
+                  </button>
+                </div>
               </div>
             </div>
-          ), { id: `msg-${newMessage._id}`, duration: 4000, position: 'top-right' });
+          ), { id: `msg-${newMessage._id}`, duration: 5000, position: 'top-right' });
 
           if (document.visibilityState !== 'visible' && Notification.permission === "granted") {
             new Notification(`New Message from ${newMessage.senderUsername || 'User'}`, {
@@ -355,6 +402,92 @@ function App() {
 
       socketio.on('message_seen_update', ({ receiverId }) => {
         dispatch(updateMessageStatus({ targetUserId: receiverId, status: { seen: true } }));
+      });
+
+      socketio.on('message_reaction_added', ({ messageId, user_id, reaction, reactions, action }) => {
+        // user_id is the person who reacted
+        dispatch(updateReactions({ messageId, reactions }));
+        
+        const senderId = String(user_id);
+        const emoji = reaction;
+
+        // Find existing user in sidebar to update preview
+        const personInSidebar = chatUsersRef.current?.find(u => String(u._id) === senderId);
+        
+        // Only show notification/preview if the reaction is NOT from the current user AND it wasn't a removal
+        if (personInSidebar && senderId !== String(user?._id) && action !== 'removed') {
+             // Find target message to see what was reacted to
+             const targetMsg = messagesRef.current?.find(m => String(m._id) === String(messageId));
+             let typeLabel = "message";
+             if (targetMsg) {
+                 if (targetMsg.messageType === 'reel') typeLabel = "reel";
+                 else if (targetMsg.messageType === 'story_reply' || targetMsg.messageType === 'story_reaction') typeLabel = "story";
+                 else if (targetMsg.messageType === 'image') typeLabel = "photo";
+                 else if (targetMsg.messageType === 'video') typeLabel = "video";
+             }
+
+             const previewMsg = {
+                 _id: `react-${messageId}-${Date.now()}`,
+                 senderId: senderId,
+                 message: `Reacted ${emoji} to your ${typeLabel}`,
+                 messageType: 'reaction_info',
+                 createdAt: new Date().toISOString()
+             };
+             dispatch(updateLastMessage({ userId: senderId, message: previewMsg }));
+             dispatch(reorderUsers(senderId));
+             
+             // ✅ Always show toast for reaction — even while in that chat
+             if (audioRef.current) {
+               audioRef.current.currentTime = 0;
+               audioRef.current.play().catch(() => {});
+             }
+             toast.custom((t) => (
+               <div 
+                 onClick={() => { window.location.href = '/chat'; toast.dismiss(t); }}
+                 className="bg-white border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.06)] rounded-[24px] p-5 flex gap-4 relative max-w-[360px] w-full cursor-pointer hover:bg-gray-50 transition-all pointer-events-auto"
+               >
+                 <div className="relative shrink-0">
+                   <Avatar className="w-14 h-14 border border-pink-50 shadow-sm">
+                     <AvatarImage src={personInSidebar.profilePicture} className="object-cover" />
+                     <AvatarFallback className="bg-pink-100 text-pink-600 font-bold uppercase">{personInSidebar.username?.charAt(0)}</AvatarFallback>
+                   </Avatar>
+                   <div className="absolute -bottom-1 -right-1 w-7 h-7 bg-white rounded-full flex items-center justify-center shadow-md border border-pink-50 text-[16px]">
+                     {emoji}
+                   </div>
+                 </div>
+                 
+                 <div className="flex flex-col flex-1 min-w-0">
+                   <div className="flex items-center justify-between mb-0.5">
+                     <span className="text-[12px] font-medium text-gray-400 capitalize">Just now</span>
+                     <button 
+                       onClick={(e) => { e.stopPropagation(); toast.dismiss(t); }}
+                       className="text-gray-300 hover:text-gray-500 transition-colors p-1"
+                     >
+                       <X size={16} />
+                     </button>
+                   </div>
+                   
+                   <span className="text-[14px] font-semibold text-gray-500 leading-none mb-1">{personInSidebar.username}</span>
+                   <p className="text-[16px] font-bold text-gray-900 leading-tight truncate mb-3">
+                     Reacted {emoji} to your {typeLabel}
+                   </p>
+                   
+                   <div className="flex items-center gap-4">
+                     <button 
+                       onClick={(e) => { 
+                         e.stopPropagation(); 
+                         window.location.href = '/chat'; 
+                         toast.dismiss(t); 
+                       }}
+                       className="text-[13px] font-bold text-pink-600 hover:text-pink-700 transition-colors"
+                     >
+                       View Chat
+                     </button>
+                   </div>
+                 </div>
+               </div>
+             ), { id: `react-${messageId}`, duration: 5000, position: 'top-right' });
+        }
       });
 
       // Global updates for Reels and Posts

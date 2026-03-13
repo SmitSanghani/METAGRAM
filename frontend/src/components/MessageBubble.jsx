@@ -36,6 +36,14 @@ const MessageBubble = ({ msg, isSender, onReply, onDelete, onReact, onScrollTo, 
         );
     }
 
+    // Hide story_reaction messages from the SENDER's view — only the story owner should see it
+    // Note: Re-enabled after user feedback "message hi nahi show ho raha he"
+    /*
+    if (msg.messageType === 'story_reaction' && isSender) {
+        return null;
+    }
+    */
+
     const handleDragEnd = (_, info) => {
         if (!isSender && info.offset.x > 50) onReply(msg);
         else if (isSender && info.offset.x < -50) onReply(msg);
@@ -45,7 +53,7 @@ const MessageBubble = ({ msg, isSender, onReply, onDelete, onReact, onScrollTo, 
     const avatarUser = isSender ? currentUser : otherUser;
 
     return (
-        <div id={`msg-${msg._id}`} className={`group flex flex-col mb-4 ${isSender ? 'items-end' : 'items-start'} transition-all duration-500`}>
+        <div id={`msg-${msg._id}`} className={`group flex flex-col ${msg.reactions?.length > 0 ? 'mb-8' : 'mb-4'} ${isSender ? 'items-end' : 'items-start'} transition-all duration-500`}>
             <div className={`flex items-end gap-1.5 max-w-[85%] ${isSender ? 'flex-row-reverse' : 'flex-row'}`}>
                 <Avatar className="w-8 h-8 shrink-0 border border-white shadow-sm mb-0.5">
                     <AvatarImage src={avatarUser?.profilePicture} className="object-cover" />
@@ -116,9 +124,15 @@ const MessageBubble = ({ msg, isSender, onReply, onDelete, onReact, onScrollTo, 
                                 )}
                             </div>
                         ) : msg.messageType === 'story_reply' || msg.messageType === 'story_reaction' ? (
-                            <div 
+                            <div
                                 className="flex flex-col gap-2 min-w-[160px] max-w-[220px] cursor-pointer"
-                                onClick={() => onStoryClick(msg.storyId)}
+                                onClick={() => {
+                                    if (msg.storyId) {
+                                        // Inject userId: the story belongs to the receiver of the reaction (opposite of sender)
+                                        const storyOwner = isSender ? otherUser : currentUser;
+                                        onStoryClick({ ...msg.storyId, userId: storyOwner });
+                                    }
+                                }}
                             >
                                 <div className="relative aspect-[9/16] w-[120px] rounded-xl overflow-hidden bg-black/10 border border-white/20 shadow-inner group/story">
                                     {msg.storyId?.mediaType === 'video' ? (
@@ -132,7 +146,10 @@ const MessageBubble = ({ msg, isSender, onReply, onDelete, onReact, onScrollTo, 
                                 </div>
                                 <div className="flex flex-col gap-1 px-1">
                                     <span className="text-[10px] font-black uppercase tracking-tighter opacity-50">
-                                        {isSender ? "You replied to their story" : `${otherUser?.username} replied to your story`}
+                                        {msg.messageType === 'story_reaction'
+                                            ? (isSender ? "You reacted to their story" : `${otherUser?.username} reacted to your story`)
+                                            : (isSender ? "You replied to their story" : `${otherUser?.username} replied to your story`)
+                                        }
                                     </span>
                                     <span className="text-[14px]">
                                         {msg.message}
@@ -140,7 +157,7 @@ const MessageBubble = ({ msg, isSender, onReply, onDelete, onReact, onScrollTo, 
                                 </div>
                             </div>
                         ) : msg.messageType === 'reel' ? (
-                            <div 
+                            <div
                                 className="flex flex-col min-w-[200px] max-w-[260px] cursor-pointer group/reel shadow-xl rounded-[26px]"
                                 onClick={() => navigate(`/reels/${msg.reelId?._id || ''}`)}
                             >
@@ -160,22 +177,59 @@ const MessageBubble = ({ msg, isSender, onReply, onDelete, onReact, onScrollTo, 
                                             </span>
                                         </div>
                                     </div>
-                                    
+
                                     {/* Video Container */}
                                     <div className="relative aspect-[10/13] rounded-2xl overflow-hidden bg-black shadow-inner ring-1 ring-white/10">
-                                        <video 
-                                            src={msg.reelId?.videoUrl} 
+                                        <video
+                                            src={msg.reelId?.videoUrl}
                                             className="w-full h-full object-cover"
-                                            muted 
+                                            muted
                                             playsInline
                                             preload="metadata"
                                             disablePictureInPicture
                                         />
-                                        
+
                                         {/* Realistic Play Overlay removed as per request */}
                                         <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/80 via-black/20 to-transparent">
                                             <p className="text-[12px] text-white font-bold leading-tight drop-shadow-lg line-clamp-1">
                                                 {msg.reelId?.caption || "Watch Reel"}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : msg.messageType === 'post' ? (
+                            <div
+                                className="flex flex-col min-w-[200px] max-w-[260px] cursor-pointer group/post shadow-xl rounded-[26px]"
+                                onClick={() => navigate(`/profile/${msg.postId?.author?._id || ''}`)} // Navigate to author profile or post detail if available
+                            >
+                                <div className={`bg-[#F1F5F9] ${isSender ? '-mx-4 -my-2.5' : '-mx-4 -my-2.5'} p-4 rounded-[26px] overflow-hidden transition-all hover:brightness-110 active:scale-[0.98]`}>
+                                    {/* Header Section */}
+                                    <div className="flex items-center gap-2.5 mb-3 px-1">
+                                        <Avatar className="w-8 h-8 border-2 border-white/50 shadow-md">
+                                            <AvatarImage src={msg.postId?.author?.profilePicture} className="object-cover" />
+                                            <AvatarFallback className="bg-gray-200 text-gray-600 font-black">{msg.postId?.author?.username?.charAt(0)}</AvatarFallback>
+                                        </Avatar>
+                                        <div className="flex flex-col text-gray-800">
+                                            <span className="text-[11px] font-black leading-none">
+                                                {msg.postId?.author?.username}
+                                            </span>
+                                            <span className="text-[9px] font-black opacity-50 uppercase tracking-[0.1em] mt-0.5">
+                                                SHARED A POST
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {/* Image Container */}
+                                    <div className="relative aspect-square rounded-2xl overflow-hidden bg-gray-200 shadow-inner ring-1 ring-black/5">
+                                        <img
+                                            src={msg.postId?.image || msg.mediaUrl}
+                                            className="w-full h-full object-cover"
+                                            alt="post"
+                                        />
+                                        <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/60 to-transparent">
+                                            <p className="text-[12px] text-white font-bold leading-tight drop-shadow-lg line-clamp-1">
+                                                {msg.postId?.caption || msg.message || "View Post"}
                                             </p>
                                         </div>
                                     </div>
@@ -189,13 +243,16 @@ const MessageBubble = ({ msg, isSender, onReply, onDelete, onReact, onScrollTo, 
                         {msg.reactions?.length > 0 && (
                             <div
                                 onClick={() => setShowReactionInfo(true)}
-                                className={`absolute -bottom-2 ${isSender ? 'right-2' : 'left-2'} flex -space-x-1 cursor-pointer hover:scale-110 transition-transform`}
+                                className={`absolute -bottom-2 ${isSender ? 'right-2' : 'left-2'} flex -space-x-0.5 cursor-pointer hover:scale-110 transition-transform z-10 origin-center`}
                             >
-                                {msg.reactions.map((r, i) => (
-                                    <div key={i} className="bg-white rounded-full px-1 py-0.5 text-[12px] shadow-md border border-gray-100 animate-in zoom-in-50">
-                                        {r.emoji}
-                                    </div>
-                                ))}
+                                <div className="bg-white rounded-full px-1.5 py-0.5 text-[11px] shadow-lg border border-gray-100 flex items-center gap-0.5 animate-in zoom-in-50 duration-300 ring-2 ring-white">
+                                    {[...new Set(msg.reactions.map(r => r.emoji))].map((emoji, i) => (
+                                        <span key={i} className="drop-shadow-sm">{emoji}</span>
+                                    ))}
+                                    {msg.reactions.length > 1 && (
+                                        <span className="text-[9px] font-black text-gray-400 ml-0.5">{msg.reactions.length}</span>
+                                    )}
+                                </div>
                             </div>
                         )}
                     </motion.div>

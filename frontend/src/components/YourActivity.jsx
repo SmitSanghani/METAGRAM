@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '@/api';
 import { useSelector } from 'react-redux';
-import { Heart, MessageCircle, Clock, LayoutGrid, List, ChevronRight } from 'lucide-react';
+import { Heart, MessageCircle, PlaySquare, LayoutGrid, List, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Badge } from './ui/badge';
@@ -145,8 +145,12 @@ const YourActivity = ({ inSettings = false }) => {
                                                     src={item.videoUrl} 
                                                     className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110" 
                                                 />
-                                                <div className="absolute top-2 right-2 p-1 bg-black/40 rounded-full">
-                                                    <Clock size={12} className="text-white" />
+                                                <div className="absolute top-2 right-2 p-1.5 bg-black/40 backdrop-blur-sm rounded-md z-10">
+                                                    <PlaySquare size={14} className="text-[#E2FF4E] fill-[#E2FF4E]/20" />
+                                                </div>
+                                                <div className="absolute bottom-2 left-2 bg-[#E2FF4E]/90 text-black px-1.5 py-0.5 rounded-[4px] text-[9px] font-black flex items-center gap-1 shadow-lg z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <PlaySquare size={8} strokeWidth={3} />
+                                                    {item.viewsCount || 0}
                                                 </div>
                                             </div>
                                         )}
@@ -177,7 +181,16 @@ const YourActivity = ({ inSettings = false }) => {
                                             {item.activityType === 'post' ? (
                                                 <img src={item.post?.image} alt="content" className="w-full h-full object-cover" />
                                             ) : (
-                                                <video src={item.reel?.videoUrl} className="w-full h-full object-cover" />
+                                                <div className="relative w-full h-full">
+                                                    <video src={item.reel?.videoUrl} className="w-full h-full object-cover" />
+                                                    <div className="absolute top-1 right-1 p-0.5 bg-black/40 backdrop-blur-sm rounded-sm z-10">
+                                                        <PlaySquare size={10} className="text-[#E2FF4E]" />
+                                                    </div>
+                                                    <div className="absolute bottom-1 left-1 bg-[#E2FF4E]/90 text-black px-1 py-0.5 rounded-[2px] text-[7px] font-black flex items-center gap-0.5 shadow-sm z-10">
+                                                        <PlaySquare size={6} strokeWidth={3} />
+                                                        {item.reel?.viewsCount || 0}
+                                                    </div>
+                                                </div>
                                             )}
                                         </div>
                                         <div className="flex-1 min-w-0">

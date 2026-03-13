@@ -1,18 +1,41 @@
 import React, { useState } from 'react';
-import { useSelector } from 'react-redux';
-import { TrendingUp, BarChart2, User, Lock, Bell, Moon, Sun, ChevronRight, Activity as ActivityIcon } from 'lucide-react';
+import { useDispatch, useSelector } from 'react-redux';
+import { TrendingUp, BarChart2, User, Lock, Bell, Moon, Sun, ChevronRight, Activity as ActivityIcon, Key, UserX } from 'lucide-react';
 import YourActivity from './YourActivity';
+import BlockedAccounts from './BlockedAccounts';
 import ReactECharts from 'echarts-for-react';
+import { setAuthUser } from '@/redux/authSlice';
+import api from '@/api';
+import { toast } from 'sonner';
 
 const Settings = () => {
     const [activeSection, setActiveSection] = useState('insights');
     const { user } = useSelector(store => store.auth);
+    const dispatch = useDispatch();
+    const [isPrivate, setIsPrivate] = useState(user?.isPrivate || false);
+
+    const handlePrivacyToggle = async (checked) => {
+        try {
+            const formData = new FormData();
+            formData.append('isPrivate', checked);
+            
+            const res = await api.post('/user/profile/edit', formData);
+            if (res.data.success) {
+                setIsPrivate(checked);
+                dispatch(setAuthUser({ ...user, isPrivate: checked }));
+                toast.success(`Account is now ${checked ? 'private' : 'public'}`);
+            }
+        } catch (error) {
+            toast.error("Failed to update privacy settings");
+        }
+    };
 
     const menuItems = [
         { id: 'insights', icon: <BarChart2 size={20} />, label: 'Follower Insights' },
         { id: 'activity', icon: <ActivityIcon size={20} />, label: 'Your Activity' },
         { id: 'account', icon: <User size={20} />, label: 'Account Settings' },
         { id: 'privacy', icon: <Lock size={20} />, label: 'Privacy & Security' },
+        { id: 'blocked', icon: <UserX size={20} />, label: 'Blocked Accounts' },
     ];
 
     // Mock Followers Growth Data for ECharts
@@ -219,19 +242,65 @@ const Settings = () => {
                     )}
 
                     {activeSection === 'account' && (
-                        <div className='p-12 flex flex-col items-center justify-center text-gray-400'>
-                            <User size={64} className="mb-4 opacity-20" />
-                            <h2 className="text-xl font-bold text-gray-900">Account Settings</h2>
-                            <p>Coming soon to Metagram.</p>
+                        <div className='p-8 animate-in fade-in slide-in-from-right-4 duration-500'>
+                            <div className='mb-8'>
+                                <h1 className='text-2xl font-bold text-gray-900'>Account Settings</h1>
+                                <p className='text-gray-500 text-sm'>Manage your account security and privacy.</p>
+                            </div>
+
+                            <div className='flex flex-col gap-6 max-w-2xl'>
+                                <div className='p-6 bg-white border border-gray-100 rounded-3xl shadow-sm'>
+                                    <div className='flex items-center justify-between'>
+                                        <div className='flex-1 pr-8'>
+                                            <h3 className='font-bold text-gray-900 mb-1'>Private Account</h3>
+                                            <p className='text-sm text-gray-500'>
+                                                When your account is public, your profile and posts can be seen by anyone. When private, only the followers you approve can see what you share.
+                                            </p>
+                                        </div>
+                                        <label className="relative inline-flex items-center cursor-pointer scale-110">
+                                            <input
+                                                type="checkbox"
+                                                className="sr-only peer"
+                                                checked={isPrivate}
+                                                onChange={(e) => handlePrivacyToggle(e.target.checked)}
+                                            />
+                                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#3b82f6]"></div>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     )}
 
                     {activeSection === 'privacy' && (
-                        <div className='p-12 flex flex-col items-center justify-center text-gray-400'>
-                            <Lock size={64} className="mb-4 opacity-20" />
-                            <h2 className="text-xl font-bold text-gray-900">Privacy & Security</h2>
-                            <p>Coming soon to Metagram.</p>
+                        <div className='p-8 animate-in fade-in slide-in-from-right-4 duration-500'>
+                            <div className='mb-8'>
+                                <h1 className='text-2xl font-bold text-gray-900'>Privacy & Security</h1>
+                                <p className='text-gray-500 text-sm'>Manage your privacy and who can see your content.</p>
+                            </div>
+
+                            <div className='flex flex-col gap-4 max-w-2xl'>
+                                <div 
+                                    onClick={() => setActiveSection('blocked')}
+                                    className='p-6 bg-white border border-gray-100 rounded-3xl shadow-sm hover:bg-gray-50 cursor-pointer flex items-center justify-between transition-all'
+                                >
+                                    <div className='flex items-center gap-4'>
+                                        <div className='p-3 bg-red-50 text-red-500 rounded-2xl'>
+                                            <UserX size={24} />
+                                        </div>
+                                        <div>
+                                            <h3 className='font-bold text-gray-900'>Blocked Accounts</h3>
+                                            <p className='text-sm text-gray-500'>Manage people you've blocked.</p>
+                                        </div>
+                                    </div>
+                                    <ChevronRight size={20} className='text-gray-400' />
+                                </div>
+                            </div>
                         </div>
+                    )}
+
+                    {activeSection === 'blocked' && (
+                        <BlockedAccounts />
                     )}
                 </div>
             </div>

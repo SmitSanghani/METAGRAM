@@ -135,6 +135,11 @@ export const likePost = async (req, res) => {
             });
         }
 
+        const author = await User.findById(post.author);
+        if (author.blockedUsers.includes(likekrneWalaUserKiId) || author.blockedBy.includes(likekrneWalaUserKiId)) {
+            return res.status(403).json({ message: "Action not allowed due to a block", success: false });
+        }
+
         // Like Logic Started :
         await post.updateOne({ $addToSet: { likes: likekrneWalaUserKiId } });
         await post.save();
@@ -211,6 +216,12 @@ export const addComment = async (req, res) => {
 
         const { text } = req.body;
         const post = await Post.findById(postId);
+        if (!post) return res.status(404).json({ message: "Post not found", success: false });
+
+        const author = await User.findById(post.author);
+        if (author.blockedUsers.includes(commentkrneWalaUserKiId) || author.blockedBy.includes(commentkrneWalaUserKiId)) {
+            return res.status(403).json({ message: "Action not allowed due to a block", success: false });
+        }
 
         if (!text) {
             return res.status(400).json({
