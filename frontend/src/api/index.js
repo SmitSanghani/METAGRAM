@@ -26,9 +26,11 @@ api.interceptors.response.use(
     (response) => response,
     (error) => {
         if (error.response && error.response.status === 401) {
-            // Optional: Clear local storage if token is invalid
-            // localStorage.removeItem('token');
-            // Note: Redux state is cleared in App.jsx interceptor
+            localStorage.removeItem('token');
+            // Check if we're already on the login page to avoid redirect loops
+            if (window.location.pathname !== '/login') {
+                window.location.href = "/login";
+            }
         }
         return Promise.reject(error);
     }
