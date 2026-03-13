@@ -15,13 +15,20 @@ const chatSlice = createSlice({
             state.chatUsers = action.payload;
         },
         reorderUsers: (state, action) => {
-            const userId = action.payload;
-            const index = state.chatUsers.findIndex(u => String(u._id) === String(userId));
+            const userId = String(action.payload);
+            const index = state.chatUsers.findIndex(u => String(u._id) === userId);
             if (index !== -1) {
-                const user = { ...state.chatUsers[index] }; // deep copy to ensure reactivity triggers properly
-                const others = state.chatUsers.filter(u => String(u._id) !== String(userId));
+                const user = state.chatUsers[index];
+                const others = state.chatUsers.filter(u => String(u._id) !== userId);
                 state.chatUsers = [user, ...others];
             }
+        },
+        addChatUser: (state, action) => {
+          const newUser = action.payload;
+          const exists = state.chatUsers.find(u => String(u._id) === String(newUser._id));
+          if (!exists) {
+            state.chatUsers = [newUser, ...state.chatUsers];
+          }
         },
         setSelectedUser: (state, action) => {
             state.selectedUser = action.payload;
@@ -133,7 +140,8 @@ export const {
     clearUnreadCount,
     updateLastMessage,
     removeTempMessage,
-    updateChatUserConversation
+    updateChatUserConversation,
+    addChatUser
 } = chatSlice.actions;
 
 export default chatSlice.reducer;

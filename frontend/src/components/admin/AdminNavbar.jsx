@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Search, Bell, User, LogOut, X, Settings, ExternalLink } from 'lucide-react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '@/api';
 import { toast } from 'sonner';
 import { setAuthUser } from '../../redux/authSlice';
 
@@ -38,7 +38,7 @@ const AdminNavbar = () => {
         const timer = setTimeout(async () => {
             try {
                 setSearchLoading(true);
-                const res = await axios.get('http://localhost:8000/api/v1/user/all', { withCredentials: true });
+                const res = await api.get('/user/all');
                 const allUsers = res.data?.users || [];
                 const filtered = allUsers.filter(u =>
                     u.username?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -69,7 +69,7 @@ const AdminNavbar = () => {
     // ── Logout ────────────────────────────────────────────────────────────────
     const handleLogout = async () => {
         try {
-            await axios.get('http://localhost:8000/api/v1/user/logout', { withCredentials: true });
+            await api.get('/user/logout');
             dispatch(setAuthUser(null));
             toast.success('Logged out successfully');
             navigate('/login');

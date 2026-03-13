@@ -34,3 +34,25 @@ export const markAsRead = async (req, res) => {
         return res.status(500).json({ success: false, message: "Server error marking notifications" });
     }
 };
+export const markSingleAsRead = async (req, res) => {
+    try {
+        const { notificationId } = req.params;
+        const notification = await Notification.findByIdAndUpdate(
+            notificationId,
+            { read: true },
+            { new: true }
+        );
+
+        if (!notification) {
+            return res.status(404).json({ success: false, message: "Notification not found" });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Notification marked as read",
+        });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ success: false, message: "Server error marking notification" });
+    }
+};

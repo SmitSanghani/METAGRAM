@@ -6,7 +6,7 @@ import {
     TrendingUp, 
     Loader2
 } from 'lucide-react';
-import axios from 'axios';
+import api from '@/api';
 import { toast } from 'sonner';
 
 const StatCard = ({ title, value, icon: Icon, colorClass, loading }) => (
@@ -35,9 +35,9 @@ const AdminDashboard = () => {
         const fetchStats = async () => {
             try {
                 const [userRes, postRes, reelRes] = await Promise.all([
-                    axios.get('http://localhost:8000/api/v1/user/suggested', { withCredentials: true }),
-                    axios.get('http://localhost:8000/api/v1/post/all', { withCredentials: true }),
-                    axios.get('http://localhost:8000/api/v1/reels/feed', { withCredentials: true })
+                    api.get('/user/suggested'),
+                    api.get('/post/all'),
+                    api.get('/reels/feed')
                 ]);
 
                 setStats({

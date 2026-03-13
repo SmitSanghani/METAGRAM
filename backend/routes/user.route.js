@@ -1,13 +1,17 @@
 import express from 'express';
-import { editProfile, followOrUnfollow, getProfile, getSuggestedUsers, getChatUsers, login, logout, register, acceptFollowRequest, deleteFollowRequest, toggleUserStatus, changePassword } from '../controllers/user.controller.js';
+import { editProfile, followOrUnfollow, getProfile, getSuggestedUsers, getChatUsers, login, logout, register, acceptFollowRequest, deleteFollowRequest, toggleUserStatus, changePassword, checkUsername, searchUsers, addToRecentSearch, removeFromRecentSearch, getRecentSearches, clearRecentSearches, getLikedActivity, getCommentActivity } from '../controllers/user.controller.js';
 import isAuthenticated from '../middlewares/isAuthenticated.js';
 import upload from '../middlewares/multer.js';
 
 const router = express.Router();
 
+router.route('/activity/likes').get(isAuthenticated, getLikedActivity);
+router.route('/activity/comments').get(isAuthenticated, getCommentActivity);
+
 router.route("/register").post(register);
 router.route("/login").post(login);
 router.route("/logout").get(logout);
+router.route("/check-username/:username").get(checkUsername);
 router.route('/:id/profile').get(isAuthenticated, getProfile);
 router.route('/profile/edit').post(isAuthenticated, upload.single('profilePicture'), editProfile);
 router.route('/suggested').get(isAuthenticated, getSuggestedUsers);
@@ -17,5 +21,10 @@ router.route('/follow/accept/:id').post(isAuthenticated, acceptFollowRequest);
 router.route('/follow/delete/:id').post(isAuthenticated, deleteFollowRequest);
 router.route('/admin/toggle-status/:id').post(isAuthenticated, toggleUserStatus);
 router.route('/change-password').post(isAuthenticated, changePassword);
+router.route('/search').get(isAuthenticated, searchUsers);
+router.route('/recent-search').get(isAuthenticated, getRecentSearches);
+router.route('/recent-search/add/:id').post(isAuthenticated, addToRecentSearch);
+router.route('/recent-search/remove/:id').delete(isAuthenticated, removeFromRecentSearch);
+router.route('/recent-search/clear-all').delete(isAuthenticated, clearRecentSearches);
 
 export default router;

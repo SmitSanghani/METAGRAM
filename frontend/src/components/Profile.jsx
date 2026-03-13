@@ -5,8 +5,8 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
-import { AtSign, Heart, MessageCircle, UserPlus, MoreHorizontal, Grid, PlaySquare, Contact, Link, ChevronDown, Trash2, Bookmark } from 'lucide-react'
-import axios from 'axios'
+import { AtSign, Heart, MessageCircle, UserPlus, MoreHorizontal, Grid, PlaySquare, Contact, Link, ChevronDown, Trash2, Bookmark, Plus } from 'lucide-react'
+import api from '@/api';
 import StoryViewer from './StoryViewer'
 import EditProfile from './EditProfile'
 import UserListModal from './UserListModal'
@@ -69,7 +69,7 @@ const Profile = () => {
 
   const followAndUnfollowHandler = async () => {
     try {
-      const res = await axios.post(`http://localhost:8000/api/v1/user/followorunfollow/${userProfile._id}`, {}, { withCredentials: true });
+      const res = await api.post(`/user/followorunfollow/${userProfile._id}`, {});
       if (res.data.success) {
 
         let updatedFollowing = [...(user?.following || [])];
@@ -128,7 +128,7 @@ const Profile = () => {
   const fetchUserStories = async () => {
     try {
       if (!userId) return;
-      const res = await axios.get(`http://localhost:8000/api/v1/story/user/${userId}`, { withCredentials: true });
+      const res = await api.get(`/story/user/${userId}`);
       if (res.data.success) {
         setUserStories(res.data.stories);
       }
@@ -147,7 +147,7 @@ const Profile = () => {
     e.stopPropagation();
     if (window.confirm("Are you sure you want to delete this reel?")) {
       try {
-        const res = await axios.delete(`http://localhost:8000/api/v1/reels/delete/${reelId}`, { withCredentials: true });
+        const res = await api.delete(`/reels/delete/${reelId}`);
         if (res.data.success) {
           toast.success("Reel deleted successfully");
           dispatch(setUserProfile({
@@ -177,18 +177,19 @@ const Profile = () => {
           <div className='flex items-start gap-12 md:gap-20'>
             {/* Avatar Section */}
             <section className='flex items-center justify-center shrink-0'>
-              <div
-                className="cursor-pointer"
-                onClick={() => hasStory && setIsStoryViewerOpen(true)}
-              >
-                <StoryAvatar
-                  user={userProfile}
-                  currentUser={user}
-                  stories={userStories}
-                  size={window.innerWidth < 768 ? 100 : 168}
-                  strokeWidth={4}
-                />
-              </div>
+                <div
+                  className="relative group cursor-pointer"
+                  onClick={() => ((isLoggedInUserProfile || isFollowing) && userStories.length > 0) && setIsStoryViewerOpen(true)}
+                >
+                  <StoryAvatar
+                    user={userProfile}
+                    currentUser={user}
+                    stories={(isLoggedInUserProfile || isFollowing) ? userStories : []}
+                    size={window.innerWidth < 768 ? 100 : 168}
+                    isYourStory={isLoggedInUserProfile}
+                    strokeWidth={4}
+                  />
+                </div>
             </section>
 
             {/* Profile Info Section */}

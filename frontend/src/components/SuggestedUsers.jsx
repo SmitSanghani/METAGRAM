@@ -2,7 +2,7 @@ import React from 'react'
 import { useSelector, useDispatch } from 'react-redux';
 import { Link } from 'react-router-dom';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
-import axios from 'axios';
+import api from '@/api';
 import { toast } from 'sonner';
 import { setAuthUser, updateSuggestedUser } from '@/redux/authSlice';
 
@@ -16,7 +16,7 @@ const SuggestedUsers = () => {
             if (!window.confirm("Do you want to unfollow this user?")) return;
         }
         try {
-            const res = await axios.post(`http://localhost:8000/api/v1/user/followorunfollow/${targetUserId}`, {}, { withCredentials: true });
+            const res = await api.post(`/user/followorunfollow/${targetUserId}`, {});
             if (res.data.success) {
                 let updatedFollowing = [...(user.following || [])];
 

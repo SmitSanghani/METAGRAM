@@ -3,7 +3,7 @@ import { Mail, Lock, Loader2, Eye, EyeOff } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import AuthLayout from './AuthLayout';
 import { toast } from 'sonner';
-import axios from 'axios';
+import api from '@/api';
 import { useDispatch } from 'react-redux';
 import { setAuthUser } from '../redux/authSlice';
 
@@ -43,11 +43,10 @@ const Login = () => {
 
         try {
             setLoading(true);
-            const res = await axios.post('http://localhost:8000/api/v1/user/login', input, {
+            const res = await api.post('/user/login', input, {
                 headers: {
                     'Content-Type': 'application/json'
-                },
-                withCredentials: true
+                }
             });
             if (res.data.success) {
                 dispatch(setAuthUser(res.data.user));

@@ -3,7 +3,7 @@ import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Heart, Trash2, MoreHorizontal } from 'lucide-react';
 import { Dialog, DialogContent, DialogTrigger, DialogClose } from './ui/dialog';
 import { useSelector, useDispatch } from 'react-redux';
-import axios from 'axios';
+import api from '@/api';
 import { toast } from 'sonner';
 import { setPosts } from '@/redux/postSlice';
 
@@ -43,10 +43,9 @@ const Comment = ({ comment, onReply, allComments = [], depth = 0 }) => {
         setIsLiked(!isLiked);
         setLikeCount(prev => isLiked ? prev - 1 : prev + 1);
         try {
-            const res = await axios.post(
-                `http://localhost:8000/api/v1/post/comment/like/${comment._id}`,
-                {},
-                { withCredentials: true }
+            const res = await api.post(
+                `/post/comment/like/${comment._id}`,
+                {}
             );
             if (!res.data.success) {
                 setIsLiked(prevLiked);
@@ -61,7 +60,7 @@ const Comment = ({ comment, onReply, allComments = [], depth = 0 }) => {
 
     const handleDelete = async () => {
         try {
-            const res = await axios.delete(`http://localhost:8000/api/v1/post/comment/delete/${comment._id}`, { withCredentials: true });
+            const res = await api.delete(`/post/comment/delete/${comment._id}`);
             if (res.data.success) {
                 toast.success("Comment deleted");
                 // We'll let Socket.io handle the UI removal if it's connected, 
@@ -78,7 +77,7 @@ const Comment = ({ comment, onReply, allComments = [], depth = 0 }) => {
             return;
         }
         try {
-            const res = await axios.put(`http://localhost:8000/api/v1/post/comment/edit/${comment._id}`, { text: editValue }, { withCredentials: true });
+            const res = await api.put(`/post/comment/edit/${comment._id}`, { text: editValue });
             if (res.data.success) {
                 toast.success("Comment updated");
                 setIsEditing(false);

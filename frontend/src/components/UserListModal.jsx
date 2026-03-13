@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader } from './ui/dialog';
 import { useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { setAuthUser } from '@/redux/authSlice';
-import axios from 'axios';
+import api from '@/api';
 import { toast } from 'sonner';
 
 const UserListItem = ({ user: targetUser, currentAuthUser, onClose }) => {
@@ -25,7 +25,7 @@ const UserListItem = ({ user: targetUser, currentAuthUser, onClose }) => {
         if (buttonState === 'Following' && !window.confirm(`Unfollow @${targetUser.username}?`)) return;
 
         try {
-            const res = await axios.post(`http://localhost:8000/api/v1/user/followorunfollow/${targetUser._id}`, {}, { withCredentials: true });
+            const res = await api.post(`/user/followorunfollow/${targetUser._id}`, {});
             if (res.data.success) {
                 let updatedFollowing = [...(currentAuthUser.following || [])];
                 if (res.data.status === 'followed') {

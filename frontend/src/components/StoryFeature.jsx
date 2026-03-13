@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '@/api';
 import { useSelector } from 'react-redux';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Plus } from 'lucide-react';
@@ -34,7 +34,7 @@ const StoryFeature = () => {
 
     const fetchStories = async () => {
         try {
-            const res = await axios.get('http://localhost:8000/api/v1/story/all', { withCredentials: true });
+            const res = await api.get('/story/all');
             if (res.data.success) {
                 const stories = res.data.groupedStories;
                 const currentUserId = user?._id;
@@ -88,7 +88,7 @@ const StoryFeature = () => {
                 {/* Your Story Bubble */}
                 <SwiperSlide className="w-[72px] !w-auto flex flex-col items-center gap-2 cursor-pointer mt-1 first:pl-2">
                     <div
-                        className="relative group transition-transform active:scale-95"
+                        className="relative group transition-all"
                         onClick={() => myStoryGroup ? openStoryViewer(user._id) : setIsUploadModalOpen(true)}
                     >
                         <StoryAvatar
@@ -100,7 +100,7 @@ const StoryFeature = () => {
                         />
                         {/* Blue Plus Button */}
                         <div 
-                            className="absolute bottom-[6px] right-[6px] p-[2px] bg-white rounded-full shadow-sm cursor-pointer hover:scale-110 active:scale-90 transition-transform z-10"
+                            className="absolute bottom-[6px] right-[6px] p-[2px] bg-white rounded-full shadow-sm cursor-pointer transition-transform z-10"
                             onClick={(e) => {
                                 e.stopPropagation();
                                 setIsUploadModalOpen(true);

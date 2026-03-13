@@ -3,8 +3,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Button } from './ui/button';
 import { MessageCircle, Send, X, Image as ImageIcon, Smile, Reply, Trash2 } from 'lucide-react';
-import axios from 'axios';
-import { setMessages, addMessage, updateMessageStatus, updateReactions, markUnsent, markStoryUnsent, incrementUnreadCount, clearUnreadCount, updateLastMessage, removeTempMessage, setSelectedUser, setChatUsers, reorderUsers, updateChatUserConversation } from '../redux/chatSlice';
+import api from '@/api';
+import { setMessages, addMessage, updateMessageStatus, updateReactions, markUnsent, markStoryUnsent, incrementUnreadCount, clearUnreadCount, updateLastMessage, removeTempMessage, setSelectedUser, setChatUsers, reorderUsers, updateChatUserConversation, addChatUser } from '../redux/chatSlice';
 import ScrollToBottom from 'react-scroll-to-bottom';
 import MessageBubble from './MessageBubble';
 import useGetSuggestedUsers from '@/hooks/useGetSuggestedUsers';
@@ -26,15 +26,25 @@ const ChatPage = () => {
     const [highlightedMessageId, setHighlightedMessageId] = useState(null);
     let typingTimeout = useRef(null);
 
-    // Initial sync of chat users if needed (filter out self)
+    // Initial sync of chat users
     useEffect(() => {
         if (suggestedUsers && suggestedUsers.length > 0) {
             const filtered = suggestedUsers.filter(u => String(u._id) !== String(user?._id));
+            
+            // Merge logic: Add users from suggestedUsers that aren't already in chatUsers
+            filtered.forEach(sUser => {
+                const exists = chatUsers.find(u => String(u._id) === String(sUser._id));
+                if (!exists) {
+                    dispatch(addChatUser(sUser));
+                }
+            });
+
+            // If chatUsers was empty, we can just set them all to maintain order from backend
             if (chatUsers.length === 0) {
                 dispatch(setChatUsers(filtered));
             }
         }
-    }, [suggestedUsers, user?._id, chatUsers.length, dispatch]);
+    }, [suggestedUsers, user?._id, dispatch]); // Removed chatUsers.length to allow merging as data arrives
 
     // Clear unread count when chat selected
     const handleSelectUser = (targetUser) => {
@@ -50,7 +60,7 @@ const ChatPage = () => {
         dispatch(clearUnreadCount(String(targetUser._id)));
 
         // Immediate sync with backend
-        axios.get(`http://localhost:8000/api/v1/message/seen/${targetUser._id}`, { withCredentials: true }).catch(() => { });
+        api.get(`/message/seen/${targetUser._id}`).catch(() => { });
 
         // Join conversation room immediately if we already know the conversationId
         if (socket && targetUser.conversationId) {
@@ -73,7 +83,7 @@ const ChatPage = () => {
 
         const fetchMessages = async () => {
             try {
-                const res = await axios.get(`http://localhost:8000/api/v1/message/all/${selectedUser._id}`, { withCredentials: true });
+                const res = await api.get(`/message/all/${selectedUser._id}`);
                 if (res.data.success) {
                     dispatch(setMessages(res.data.messages || []));
                     markAsSeen();
@@ -107,7 +117,7 @@ const ChatPage = () => {
     const markAsSeen = async () => {
         if (!selectedUser) return;
         try {
-            await axios.get(`http://localhost:8000/api/v1/message/seen/${selectedUser._id}`, { withCredentials: true });
+            await api.get(`/message/seen/${selectedUser._id}`);
             if (socket) {
                 const lastMsg = messages[messages.length - 1];
                 if (lastMsg && lastMsg.senderId === selectedUser._id) {
@@ -138,13 +148,12 @@ const ChatPage = () => {
                 });
             }
 
-            const res = await axios.post(`http://localhost:8000/api/v1/message/send/${selectedUser?._id}`, {
+            const res = await api.post(`/message/send/${selectedUser?._id}`, {
                 message: textMessage,
                 replyTo: replyTo?._id,
                 tempId: tempId
             }, {
-                headers: { 'Content-Type': 'application/json' },
-                withCredentials: true
+                headers: { 'Content-Type': 'application/json' }
             });
 
             if (res.data.success) {
@@ -177,7 +186,7 @@ const ChatPage = () => {
 
     const unsendMessageHandler = async (messageId) => {
         try {
-            const res = await axios.delete(`http://localhost:8000/api/v1/message/delete/${messageId}`, { withCredentials: true });
+            const res = await api.delete(`/message/delete/${messageId}`);
             if (res.data.success) {
                 dispatch(markUnsent({ messageId }));
             }
@@ -188,7 +197,7 @@ const ChatPage = () => {
 
     const reactMessageHandler = async (messageId, emoji) => {
         try {
-            const res = await axios.post(`http://localhost:8000/api/v1/message/react/${messageId}`, { emoji }, { withCredentials: true });
+            const res = await api.post(`/message/react/${messageId}`, { emoji });
             if (res.data.success) {
                 dispatch(updateReactions({ messageId, reactions: res.data.reactions }));
             }
@@ -280,21 +289,30 @@ const ChatPage = () => {
         if (!msg.createdAt) return groups;
         const d = new Date(msg.createdAt);
         if (isNaN(d.getTime())) return groups;
-        const dateString = d.toLocaleDateString();
-        if (!groups[dateString]) groups[dateString] = [];
-        groups[dateString].push(msg);
+        
+        // Use toDateString for a stable local date key (e.g., "Fri Mar 13 2026")
+        const dateKey = d.toDateString();
+        
+        if (!groups[dateKey]) groups[dateKey] = [];
+        groups[dateKey].push(msg);
         return groups;
     }, {});
 
     const formatDateLabel = (dateStr) => {
+        if (!dateStr || dateStr === 'Invalid Date') return "";
         const date = new Date(dateStr);
+        if (isNaN(date.getTime())) return "";
+
         const today = new Date();
         const yesterday = new Date();
         yesterday.setDate(today.getDate() - 1);
 
-        if (date.toDateString() === today.toDateString()) return "Today";
-        if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
-        return date.toLocaleDateString([], { month: 'long', day: 'numeric', year: date.getFullYear() !== today.getFullYear() ? 'numeric' : undefined });
+        const dStr = date.toDateString();
+        if (dStr === today.toDateString()) return "Today";
+        if (dStr === yesterday.toDateString()) return "Yesterday";
+
+        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
     };
 
     return (
@@ -413,30 +431,34 @@ const ChatPage = () => {
 
                         <ScrollToBottom className='flex-1 p-0 flex flex-col bg-[#fafafa] overflow-hidden' scrollViewClassName="custom-scrollbar px-10 py-8" followButtonClassName='hidden'>
                             <div className="flex flex-col gap-1 min-h-full pb-6">
-                                {Object.keys(groupedMessages || {}).map(date => (
-                                    <React.Fragment key={date}>
-                                        <div className="flex justify-center my-8">
-                                            <span className="text-[10px] font-black text-[#8e8e8e] uppercase tracking-[0.2em] bg-white border border-gray-100 px-5 py-2 rounded-full shadow-sm">
-                                                {formatDateLabel(date)}
-                                            </span>
-                                        </div>
-                                        {groupedMessages[date].map((msg) => (
-                                            <MessageBubble
-                                                key={msg._id}
-                                                msg={msg}
-                                                isSender={String(msg.senderId) === String(user?._id)}
-                                                currentUser={user}
-                                                otherUser={selectedUser}
-                                                onReply={setReplyTo}
-                                                onDelete={unsendMessageHandler}
-                                                onReact={reactMessageHandler}
-                                                onScrollTo={scrollToMessage}
-                                                onStoryClick={(story) => setStoryToView(story)}
-                                                isHighlighted={highlightedMessageId === msg._id}
-                                            />
-                                        ))}
-                                    </React.Fragment>
-                                ))}
+                                {Object.keys(groupedMessages || {}).map(date => {
+                                    const label = formatDateLabel(date);
+                                    if (!label) return null;
+                                    return (
+                                        <React.Fragment key={date}>
+                                            <div className="flex justify-center my-8">
+                                                <span className="text-[10px] font-black text-[#8e8e8e] uppercase tracking-[0.2em] bg-white border border-gray-100 px-5 py-2 rounded-full shadow-sm">
+                                                    {label}
+                                                </span>
+                                            </div>
+                                            {groupedMessages[date].map((msg) => (
+                                                <MessageBubble
+                                                    key={msg._id}
+                                                    msg={msg}
+                                                    isSender={String(msg.senderId) === String(user?._id)}
+                                                    currentUser={user}
+                                                    otherUser={selectedUser}
+                                                    onReply={setReplyTo}
+                                                    onDelete={unsendMessageHandler}
+                                                    onReact={reactMessageHandler}
+                                                    onScrollTo={scrollToMessage}
+                                                    onStoryClick={(story) => setStoryToView(story)}
+                                                    isHighlighted={highlightedMessageId === msg._id}
+                                                />
+                                            ))}
+                                        </React.Fragment>
+                                    );
+                                })}
                                 {isTyping && (
                                     <div className='flex mb-6 justify-start animate-in slide-in-from-bottom-4 duration-500'>
                                         <div className='flex items-center gap-2 px-6 py-4 rounded-[24px] bg-white border border-[#efefef] shadow-[0_4px_12px_rgba(0,0,0,0.03)]'>
@@ -533,9 +555,8 @@ const ChatPage = () => {
                                                             formData.append("replyTo", replyTo._id);
                                                         }
 
-                                                        const res = await axios.post(`http://localhost:8000/api/v1/message/send/${selectedUser?._id}`, formData, {
-                                                            headers: { 'Content-Type': 'multipart/form-data' },
-                                                            withCredentials: true
+                                                        const res = await api.post(`/message/send/${selectedUser?._id}`, formData, {
+                                                            headers: { 'Content-Type': 'multipart/form-data' }
                                                         });
                                                         if (res.data.success) {
                                                             dispatch(removeTempMessage(tempId));

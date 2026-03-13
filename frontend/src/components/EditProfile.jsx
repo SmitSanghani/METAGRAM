@@ -4,7 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogHeader } from './ui/dialog';
 import { Textarea } from './ui/textarea';
-import axios from 'axios';
+import api from '@/api';
 import { toast } from 'sonner';
 import { setAuthUser, setUserProfile } from '@/redux/authSlice';
 import { Loader2, X } from 'lucide-react';
@@ -50,11 +50,10 @@ const EditProfile = ({ isOpen, onClose }) => {
 
         try {
             setLoading(true);
-            const res = await axios.post('http://localhost:8000/api/v1/user/profile/edit', formData, {
+            const res = await api.post('/user/profile/edit', formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data',
                 },
-                withCredentials: true,
             });
 
             if (res.data.success) {

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { MessageSquare, Trash2, Loader2, Eye, X } from 'lucide-react';
-import axios from 'axios';
+import api from '@/api';
 import { toast } from 'sonner';
 import PostViewModal from './PostViewModal';
 
@@ -14,7 +14,7 @@ const CommentManagement = () => {
     const fetchAllPostsAndComments = async () => {
         try {
             setLoading(true);
-            const res = await axios.get('http://localhost:8000/api/v1/post/all', { withCredentials: true });
+            const res = await api.get('/post/all');
             if (res.data.success) {
                 setPosts(res.data.posts);
                 const allComments = res.data.posts.flatMap(post => 
@@ -45,7 +45,7 @@ const CommentManagement = () => {
     const deleteCommentHandler = async (commentId, postId) => {
         if (!window.confirm("Are you sure you want to delete this comment?")) return;
         try {
-            const response = await axios.delete(`http://localhost:8000/api/v1/post/comment/delete/${commentId}`, { withCredentials: true });
+            const response = await api.delete(`/post/comment/delete/${commentId}`);
             if (response.data.success) {
                 setComments(prev => prev.filter(c => c._id !== commentId));
                 // Update selected post if modal is open
@@ -70,7 +70,7 @@ const CommentManagement = () => {
             // if (post.author.toString() !== authorId) return res.status(403).json({ message: "Unauthorized" });
             // This also blocks admins. I'll need to fix this.
             
-            const res = await axios.delete(`http://localhost:8000/api/v1/post/delete/${postId}`, { withCredentials: true });
+            const res = await api.delete(`/post/delete/${postId}`);
             if (res.data.success) {
                 setPosts(prev => prev.filter(p => p._id !== postId));
                 setComments(prev => prev.filter(c => c.postId !== postId));

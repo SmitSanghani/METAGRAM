@@ -4,8 +4,8 @@ import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { X, Heart, Trash2 } from 'lucide-react';
-import { markAllAsRead, removeNotification, removeNotificationById, updateNotificationStatus } from '@/redux/notificationSlice';
-import axios from 'axios';
+import { markAllAsRead, markSingleAsRead, removeNotification, removeNotificationById, updateNotificationStatus } from '@/redux/notificationSlice';
+import api from '@/api';
 import { toast } from 'sonner';
 import { setAuthUser, setUserProfile } from '@/redux/authSlice';
 
@@ -18,7 +18,7 @@ const NotificationDropdown = ({ onClose }) => {
 
     const handleRead = async () => {
         try {
-            await axios.post('http://localhost:8000/api/v1/notification/read', {}, { withCredentials: true });
+            await api.post('/notification/read', {});
             dispatch(markAllAsRead());
         } catch (error) {
             console.error('Error marking read', error);
@@ -33,7 +33,7 @@ const NotificationDropdown = ({ onClose }) => {
 
     const handleAccept = async (senderId) => {
         try {
-            const res = await axios.post(`http://localhost:8000/api/v1/user/follow/accept/${senderId}`, {}, { withCredentials: true });
+            const res = await api.post(`/user/follow/accept/${senderId}`, {});
             if (res.data.success) {
                 if (res.data.status === 'deleted') {
                     dispatch(updateNotificationStatus({ senderId, type: 'follow_request', status: 'deleted' }));
@@ -62,29 +62,31 @@ const NotificationDropdown = ({ onClose }) => {
 
     const handleDelete = async (senderId) => {
         try {
-            const res = await axios.post(`http://localhost:8000/api/v1/user/follow/delete/${senderId}`, {}, { withCredentials: true });
+            const res = await api.post(`/user/follow/delete/${senderId}`, {});
             if (res.data.success) {
                 dispatch(updateNotificationStatus({ senderId, type: 'follow_request', status: 'deleted' }));
             }
         } catch (error) { toast.error(error.response?.data?.message || 'Error deleting'); }
     };
 
-    const handleNotificationClick = (n) => {
-        if (n.type === 'follow' || n.type === 'follow_request' || n.type === 'follow_accept') {
-            if (n.type === 'follow_accept') {
-                if (user && !user.following?.includes(n.sender._id)) {
-                    dispatch(setAuthUser({
-                        ...user,
-                        following: [...(user.following || []), n.sender._id]
-                    }));
-                }
+    const handleMarkAsRead = async (n) => {
+        // Mark as read if not already read
+        if (!n.read) {
+            try {
+                await api.post(`/notification/${n._id}/read`, {});
+                dispatch(markSingleAsRead(n._id));
+            } catch (error) {
+                console.error('Error marking notification as read', error);
             }
-            navigate(`/profile/${n.sender._id}`);
-        } else if (n.post || n.reel || n.story) {
-            // Navigate to profile for now, or open specific modal if implemented
-            navigate(`/profile/${n.sender._id}`);
         }
-        onClose();
+    };
+
+    const handleUserClick = (e, senderId) => {
+        e.stopPropagation();
+        if (senderId) {
+            navigate(`/profile/${senderId}`);
+            onClose();
+        }
     };
 
     return (
@@ -112,15 +114,23 @@ const NotificationDropdown = ({ onClose }) => {
                     notifications.map((n) => (
                         <div
                             key={n._id}
-                            onClick={() => handleNotificationClick(n)}
-                            className={`flex items-center gap-3 p-4 border-b border-[#F0F0F0] hover:bg-white cursor-pointer transition ${!n.read ? 'bg-[#EEF2FF]/60 border-l-4 border-l-[#4F46E5]' : 'border-l-4 border-l-transparent'}`}
+                            onClick={() => handleMarkAsRead(n)}
+                            className={`flex items-center gap-3 p-4 border-b border-[#F0F0F0] hover:bg-white cursor-pointer transition group ${!n.read ? 'bg-[#EEF2FF]/60 border-l-4 border-l-[#4F46E5]' : 'border-l-4 border-l-transparent'}`}
                         >
-                            <Avatar className="w-12 h-12 shadow-sm border border-[#F0F0F0]">
+                            <Avatar 
+                                onClick={(e) => handleUserClick(e, n.sender?._id)}
+                                className="w-12 h-12 shadow-sm border border-[#F0F0F0] hover:opacity-80 transition-opacity"
+                            >
                                 <AvatarImage src={n.sender?.profilePicture} className="object-cover" />
                                 <AvatarFallback>{n.sender?.username?.charAt(0)?.toUpperCase()}</AvatarFallback>
                             </Avatar>
                             <div className="flex-1 text-[13px] leading-tight">
-                                <span className="font-bold mr-1 text-[#333]">{n.sender?.username}</span>
+                                <span 
+                                    onClick={(e) => handleUserClick(e, n.sender?._id)}
+                                    className="font-bold mr-1 text-[#333] hover:underline cursor-pointer"
+                                >
+                                    {n.sender?.username}
+                                </span>
                                 <span className="text-gray-600">
                                     {n.type === 'follow' && 'started following you.'}
                                     {n.type === 'follow_request' && 'requested to follow you.'}
@@ -132,6 +142,7 @@ const NotificationDropdown = ({ onClose }) => {
                                     {n.type === 'reel_comment_like' && 'liked your reel comment ❤️'}
                                     {n.type === 'story_like' && 'liked your story.'}
                                     {n.type === 'story_comment' && 'replied to your story.'}
+                                    {n.type === 'profile_visit' && 'visited your profile.'}
                                 </span>
 
                                 {n.type === 'follow_request' && !n.requestStatus && (
@@ -172,9 +183,9 @@ const NotificationDropdown = ({ onClose }) => {
                                 <button
                                     onClick={(e) => handleDeleteNotification(e, n._id)}
                                     className='opacity-0 group-hover:opacity-100 p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all'
-                                    title="Dismiss notification"
+                                    title="Delete notification"
                                 >
-                                    <X size={15} strokeWidth={2.5} />
+                                    <Trash2 size={16} strokeWidth={2} />
                                 </button>
                                 {!n.read && <div className="w-2.5 h-2.5 rounded-full bg-[#4F46E5] shadow-sm shrink-0 mb-1"></div>}
                             </div>

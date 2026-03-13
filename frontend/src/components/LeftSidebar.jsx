@@ -1,8 +1,8 @@
-import { Heart, Home, LogOut, MessageCircle, PlusSquare, Search, TrendingUp, Video, Sun, Moon } from 'lucide-react'
+import { Heart, Home, LogOut, MessageCircle, PlusSquare, Search, Settings, Video, Sun, Moon } from 'lucide-react'
 import React, { useState } from 'react'
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar'
 import { toast } from 'sonner'
-import axios from 'axios'
+import api from '@/api';
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { setAuthUser } from '@/redux/authSlice'
@@ -10,6 +10,7 @@ import CreatePost from './CreatePost'
 import ReelUploadModal from './ReelUploadModal'
 import { setPosts, setSelectedPost } from '@/redux/postSlice'
 import NotificationDropdown from './NotificationDropdown'
+import SearchDrawer from './SearchDrawer'
 import useTheme from '../hooks/useTheme'
 
 const LeftSidebar = () => {
@@ -21,6 +22,7 @@ const LeftSidebar = () => {
     const [open, setOpen] = useState(false);
     const [reelOpen, setReelOpen] = useState(false);
     const [notificationOpen, setNotificationOpen] = useState(false);
+    const [searchOpen, setSearchOpen] = useState(false);
     const dispatch = useDispatch();
 
     const { unreadCounts = {} } = useSelector(store => store.chat || {});
@@ -30,7 +32,7 @@ const LeftSidebar = () => {
 
     const logoutHandler = async () => {
         try {
-            const res = await axios.get('http://localhost:8000/api/v1/user/logout', { withCredentials: true });
+            const res = await api.get('/user/logout');
             if (res.data.success) {
                 dispatch(setAuthUser(null));
                 dispatch(setSelectedPost(null));
@@ -65,11 +67,22 @@ const LeftSidebar = () => {
             setNotificationOpen(false);
         } else if (textType === 'Notifications') {
             setNotificationOpen(!notificationOpen);
+            setSearchOpen(false);
+        } else if (textType === 'Search') {
+            setSearchOpen(!searchOpen);
+            navigate('/explore');
+            setNotificationOpen(false);
+        } else if (textType === 'Settings') {
+            navigate('/settings');
+            setNotificationOpen(false);
+            setSearchOpen(false);
         } else if (textType === 'Upload Reel') {
             setReelOpen(true);
             setNotificationOpen(false);
+            setSearchOpen(false);
         } else {
             setNotificationOpen(false);
+            setSearchOpen(false);
         }
     }
 
@@ -77,18 +90,20 @@ const LeftSidebar = () => {
     const sidebarItems = [
         { icon: <Home size={20} strokeWidth={1.5} />, text: "Home" },
         { icon: <Search size={20} strokeWidth={1.5} />, text: "Search" },
-        { icon: <TrendingUp size={20} strokeWidth={1.5} />, text: "Explore" },
         { icon: <Video size={20} strokeWidth={1.5} />, text: "Reels" },
         { icon: <MessageCircle size={20} strokeWidth={1.5} />, text: "Message" },
         { icon: <Heart size={20} strokeWidth={1.5} />, text: "Notifications" },
         { icon: <PlusSquare size={20} strokeWidth={1.5} />, text: "Create" },
-        { icon: <Video size={20} strokeWidth={1.5} />, text: "Upload Reel" }
+        { icon: <Video size={20} strokeWidth={1.5} />, text: "Upload Reel" },
+        { icon: <Settings size={20} strokeWidth={1.5} />, text: "Settings" }
     ]
 
     const isActive = (text) => {
         if (text === 'Home' && location.pathname === '/') return true;
         if (text === 'Message' && location.pathname.startsWith('/chat')) return true;
         if (text === 'Reels' && location.pathname.startsWith('/reels')) return true;
+        if (text === 'Search' && location.pathname.startsWith('/explore')) return true;
+        if (text === 'Settings' && location.pathname.startsWith('/settings')) return true;
         if (text === 'Profile' && location.pathname.includes(`/profile/${user?._id}`)) return true;
         return false;
     }
@@ -174,6 +189,7 @@ const LeftSidebar = () => {
             )}
 
             {notificationOpen && <NotificationDropdown onClose={() => setNotificationOpen(false)} />}
+            <SearchDrawer isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
         </div>
     )
 }

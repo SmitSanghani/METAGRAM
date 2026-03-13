@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { Settings as SettingsIcon, Bell, Lock, User, Palette, ShieldCheck, ChevronDown, ChevronUp, Save, Eye, EyeOff, Check, X, Sun, Moon, Monitor } from 'lucide-react';
-import axios from 'axios';
+import api from '@/api';
 import { toast } from 'sonner';
 import { setAuthUser } from '../../redux/authSlice';
 
@@ -112,7 +112,7 @@ const AdminSettings = () => {
             setProfileLoading(true);
             const formData = new FormData();
             formData.append('bio', profile.bio);
-            const res = await axios.post('http://localhost:8000/api/v1/user/profile/edit', formData, { withCredentials: true });
+            const res = await api.post('/user/profile/edit', formData);
             if (res.data.success) {
                 dispatch(setAuthUser({ ...user, bio: profile.bio }));
                 toast.success('Profile updated successfully!');
@@ -131,10 +131,10 @@ const AdminSettings = () => {
         try {
             setPassLoading(true);
             // Try the backend endpoint — if it doesn't exist we'll show a message
-            const res = await axios.post('http://localhost:8000/api/v1/user/change-password', {
+            const res = await api.post('/user/change-password', {
                 currentPassword: passwords.current,
                 newPassword: passwords.newPass,
-            }, { withCredentials: true });
+            });
             if (res.data.success) {
                 setPasswords({ current: '', newPass: '', confirm: '' });
                 toast.success('Password changed successfully!');

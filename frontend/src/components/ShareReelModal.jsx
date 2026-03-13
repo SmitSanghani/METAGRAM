@@ -4,7 +4,7 @@ import { Button } from './ui/button';
 import { Search, Send, X, CheckCircle2 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
-import axios from 'axios';
+import api from '@/api';
 import { toast } from 'sonner';
 
 const ShareReelModal = ({ open, setOpen, reel }) => {
@@ -30,11 +30,11 @@ const ShareReelModal = ({ open, setOpen, reel }) => {
         setLoading(true);
         try {
             for (const userId of selectedUsers) {
-                await axios.post(`http://localhost:8000/api/v1/message/send/${userId}`, {
+                await api.post(`/message/send/${userId}`, {
                     messageType: 'reel',
                     reelId: reel._id,
                     message: ""
-                }, { withCredentials: true });
+                });
             }
             toast.success("Shared successfully!");
             setOpen(false);

@@ -6,7 +6,7 @@ import { MoreHorizontal, X } from 'lucide-react'
 import { Button } from './ui/button'
 import { useDispatch, useSelector } from 'react-redux'
 import Comment from './Comment.jsx'
-import axios from 'axios'
+import api from '@/api';
 import { toast } from 'sonner'
 import { setPosts } from '@/redux/postSlice'
 import { DialogClose } from '@radix-ui/react-dialog'
@@ -101,14 +101,13 @@ const CommentDialog = ({ open, setOpen }) => {
 
     const sendMessageHandler = async () => {
         try {
-            const res = await axios.post(`http://localhost:8000/api/v1/post/${selectedPost?._id}/comment`, {
+            const res = await api.post(`/post/${selectedPost?._id}/comment`, {
                 text,
                 parentId: replyingTo?._id
             }, {
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                withCredentials: true,
             });
             if (res.data.success) {
                 const updatedCommnetData = [...comment, res.data.comment];
@@ -133,7 +132,7 @@ const CommentDialog = ({ open, setOpen }) => {
     const likeOrDislikeHandler = async () => {
         try {
             const action = liked ? "dislike" : "like";
-            const res = await axios.get(`http://localhost:8000/api/v1/post/${selectedPost._id}/${action}`, { withCredentials: true });
+            const res = await api.get(`/post/${selectedPost._id}/${action}`);
             if (res.data.success) {
                 const updatedLikesCount = liked ? postLike - 1 : postLike + 1;
                 setPostLike(updatedLikesCount);

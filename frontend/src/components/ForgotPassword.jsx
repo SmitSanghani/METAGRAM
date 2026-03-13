@@ -3,7 +3,7 @@ import { Mail, Loader2, ArrowLeft } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import AuthLayout from './AuthLayout';
 import { toast } from 'sonner';
-import axios from 'axios';
+import api from '@/api';
 
 const ForgotPassword = () => {
     const [email, setEmail] = useState("");
@@ -28,7 +28,7 @@ const ForgotPassword = () => {
         if (!validate()) return;
         try {
             setLoading(true);
-            const res = await axios.post('http://localhost:8000/api/v1/auth/send-otp', { email });
+            const res = await api.post('/auth/send-otp', { email });
             if (res.data.success) {
                 toast.success(res.data.message);
                 navigate("/verify-otp", { state: { email } });

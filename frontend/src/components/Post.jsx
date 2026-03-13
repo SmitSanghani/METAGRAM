@@ -8,7 +8,7 @@ import { FaHeart, FaRegHeart } from "react-icons/fa";
 import CommentDialog from './CommentDialog'
 import { useDispatch, useSelector } from 'react-redux'
 import { toast } from 'sonner'
-import axios from 'axios'
+import api from '@/api';
 import { setPosts, setSelectedPost } from '@/redux/postSlice'
 import { setAuthUser, setUserProfile } from '@/redux/authSlice'
 import { Badge } from './ui/badge'
@@ -23,9 +23,11 @@ const Post = ({ post }) => {
     const [open, setOpen] = useState(false);
     const { user, userProfile } = useSelector(store => store.auth);
     const { posts } = useSelector(store => store.post);
-    const [liked, setLiked] = useState(post.likes.includes(user?._id) || false);
-    const [postLike, setPostLike] = useState(post.likes.length);
-    const [comment, setComment] = useState(post.comments);
+    
+    // Derived values for live updates
+    const liked = post?.likes?.includes(user?._id);
+    const postLike = post?.likes?.length || 0;
+    const comment = post?.comments || [];
     const [showLikers, setShowLikers] = useState(false);
     const dispatch = useDispatch();
 
@@ -44,13 +46,9 @@ const Post = ({ post }) => {
     const likeOrDislikeHandler = async () => {
         try {
             const action = liked ? "dislike" : "like";
-            const res = await axios.get(`http://localhost:8000/api/v1/post/${post._id}/${action}`, { withCredentials: true });
+            const res = await api.get(`/post/${post._id}/${action}`);
             if (res.data.success) {
-                const updatedLikes = liked ? postLike - 1 : postLike + 1;
-                setPostLike(updatedLikes);
-                setLiked(!liked);
-
-                // Update the post likes :
+                // Update the post likes in Redux :
                 const updatedPostData = posts.map(p =>
                     p._id === post._id ? {
                         ...p,
@@ -70,16 +68,14 @@ const Post = ({ post }) => {
     // comment on post handler :
     const commentHandler = async () => {
         try {
-            const res = await axios.post(`http://localhost:8000/api/v1/post/${post._id}/comment`, { text }, {
+            const res = await api.post(`/post/${post._id}/comment`, { text }, {
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                withCredentials: true,
             });
             console.log(res.data);
             if (res.data.success) {
                 const updatedCommnetData = [...comment, res.data.comment];
-                setComment(updatedCommnetData);
 
                 const updatedPostData = posts.map(p =>
                     p._id === post._id ? {
@@ -101,7 +97,7 @@ const Post = ({ post }) => {
     // delete post handler :
     const deletePostHandler = async () => {
         try {
-            const res = await axios.delete(`http://localhost:8000/api/v1/post/delete/${post?._id}`, { withCredentials: true });
+            const res = await api.delete(`/post/delete/${post?._id}`);
             if (res.data.success) {
                 const updatedPostData = posts.filter((postItem) => postItem?._id !== post?._id);
                 dispatch(setPosts(updatedPostData));
@@ -115,7 +111,7 @@ const Post = ({ post }) => {
 
     const bookmarkHandler = async () => {
         try {
-            const res = await axios.post(`http://localhost:8000/api/v1/post/${post?._id}/bookmark`, {}, { withCredentials: true });
+            const res = await api.post(`/post/${post?._id}/bookmark`, {});
             if (res.data.success) {
                 toast.success(res.data.message);
 
@@ -203,7 +199,7 @@ const Post = ({ post }) => {
                     </div>
                     <div className="transition-transform active:scale-90 cursor-pointer px-2">
                         <SaveButton
-                            isSaved={user?.bookmarks?.some(item => (item._id || item) === post?._id)}
+                            isSaved={user?.bookmarks?.some(item => (item._id || item).toString() === post?._id?.toString())}
                             onClick={bookmarkHandler}
                             size={28}
                         />

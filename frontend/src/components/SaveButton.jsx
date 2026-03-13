@@ -23,7 +23,7 @@ const SaveButton = ({ isSaved, onClick, size = 22, className = "" }) => {
                     {isSaved ? (
                         <FaBookmark
                             size={size - 2}
-                            className="text-[#4F46E5] transition-all scale-110"
+                            className="text-black transition-all scale-110"
                         />
                     ) : (
                         <FaRegBookmark

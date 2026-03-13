@@ -1,21 +1,31 @@
-import React from 'react';
+import { X, Plus } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 
-const StoryAvatar = ({ user, currentUser, stories = [], size = 66, isYourStory = false }) => {
-    // Identify overall user story state
+const StoryAvatar = ({ user, currentUser, stories = [], size = 66, isYourStory = false, strokeWidth }) => {
+    // Process story stats
     const unseenStories = stories.filter(s => !s.viewers.map(v => (v._id || v).toString()).includes(currentUser?._id));
     const isUnseen = unseenStories.length > 0;
     const isCF = stories.some(s => s.audience === 'closeFriends');
+    const hasStories = stories.length > 0;
 
-    // Case 1: No Story Uploaded
-    if (stories.length === 0) {
+    // Unified constants for alignment
+    const ringWidth = strokeWidth || 3.5;
+    const innerGap = 2.5;
+    const padding = 8;
+    const svgSize = size + (padding * 2); 
+    const center = svgSize / 2;
+    const radius = (size / 2) + innerGap + (ringWidth / 2);
+
+    // Case: No Story
+    if (!hasStories) {
         return (
-            <div className="relative flex items-center justify-center p-[2px]" style={{ width: size + 8, height: size + 8 }}>
+            <div className="relative flex items-center justify-center p-2 group" style={{ width: svgSize, height: svgSize }}>
                 <div 
-                    className="rounded-full overflow-hidden p-[2px] border-[2px] border-black dark:border-white transition-all hover:scale-105" 
+                    className="rounded-full overflow-hidden p-[2px] border-[1px] border-black/5 dark:border-white/10 transition-all" 
                     style={{ width: size + 4, height: size + 4 }}
                 >
-                    <Avatar className="w-full h-full border-2 border-white dark:border-zinc-950">
+                    <Avatar className="w-full h-full border-2 border-white dark:border-zinc-950 shadow-sm">
                         <AvatarImage src={user?.profilePicture} className="object-cover" />
                         <AvatarFallback className="bg-gray-100 dark:bg-zinc-800 text-[10px] font-black uppercase">
                             {user?.username?.substring(0, 2).toUpperCase()}
@@ -26,21 +36,17 @@ const StoryAvatar = ({ user, currentUser, stories = [], size = 66, isYourStory =
         );
     }
 
-    // Constants for precise UI
-    const ringWidth = 4;
-    const innerGap = 2;
-    const svgSize = size + 12; // Radius handles the size, we need enough viewBox
-    const center = svgSize / 2;
-    const radius = (size / 2) + innerGap + (ringWidth / 2);
-
-    // Determine stroke color
-    let strokeColor = "#d1d1d1"; // Default viewed grey
+    // Determine ring appearance
+    // if (isUnseen) -> Rainbow or Green (CF)
+    // if (!isUnseen) -> Grey
+    let strokeColor = "#DBDBDB"; // Viewed (Gray)
     if (isUnseen) {
-        strokeColor = isCF ? "#2ecc71" : "url(#metagram-ring-gradient)";
+        strokeColor = isCF ? "#2ecc71" : "url(#instagram-gradient)";
     }
 
     return (
-        <div className="relative flex items-center justify-center transition-transform active:scale-95 cursor-pointer" style={{ width: svgSize, height: svgSize }}>
+        <div className="relative flex items-center justify-center transition-all group cursor-pointer" style={{ width: svgSize, height: svgSize }}>
+            {/* Static Ring */}
             <svg
                 width={svgSize}
                 height={svgSize}
@@ -48,7 +54,7 @@ const StoryAvatar = ({ user, currentUser, stories = [], size = 66, isYourStory =
                 className="absolute inset-0 transform -rotate-90 pointer-events-none"
             >
                 <defs>
-                    <linearGradient id="metagram-ring-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <linearGradient id="instagram-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
                         <stop offset="0%" stopColor="#feda75" />
                         <stop offset="25%" stopColor="#fa7e1e" />
                         <stop offset="50%" stopColor="#d62976" />
@@ -57,7 +63,6 @@ const StoryAvatar = ({ user, currentUser, stories = [], size = 66, isYourStory =
                     </linearGradient>
                 </defs>
 
-                {/* Continuous Circular Ring */}
                 <circle
                     cx={center}
                     cy={center}
@@ -65,16 +70,15 @@ const StoryAvatar = ({ user, currentUser, stories = [], size = 66, isYourStory =
                     fill="none"
                     stroke={strokeColor}
                     strokeWidth={ringWidth}
-                    className="transition-all duration-500 ease-in-out"
                 />
             </svg>
 
-            {/* White Gap and Avatar */}
+            {/* Gap and Avatar */}
             <div 
-                className="rounded-full overflow-hidden p-[2px] bg-white dark:bg-zinc-950 flex items-center justify-center shadow-sm" 
-                style={{ width: size + 4, height: size + 4 }}
+                className="rounded-full overflow-hidden p-[3px] bg-white dark:bg-zinc-950 flex items-center justify-center" 
+                style={{ width: size + 6, height: size + 6 }}
             >
-                <div className="w-full h-full rounded-full overflow-hidden border border-gray-100 dark:border-zinc-800">
+                <div className="w-full h-full rounded-full overflow-hidden border border-gray-100 dark:border-zinc-800 shadow-inner">
                     <Avatar className="w-full h-full">
                         <AvatarImage src={user?.profilePicture} className="object-cover" />
                         <AvatarFallback className="bg-gray-200 dark:bg-zinc-800 text-[10px] font-bold uppercase">

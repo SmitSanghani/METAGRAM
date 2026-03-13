@@ -10,6 +10,9 @@ import ChatPage from "./components/ChatPage"
 import ProtectedRoute from "./components/ProtectedRoute"
 import AuthenticatedRoute from "./components/AuthenticatedRoute"
 import Reels from "./components/Reels"
+import Explore from "./components/Explore"
+import YourActivity from "./components/YourActivity"
+import Settings from "./components/Settings"
 import AdminLayout from "./components/admin/AdminLayout"
 import AdminDashboard from "./components/admin/AdminDashboard"
 import UserManagement from "./components/admin/UserManagement"
@@ -27,13 +30,13 @@ import { useDispatch, useSelector } from "react-redux";
 import { toast } from "sonner";
 import { Avatar, AvatarImage, AvatarFallback } from "./components/ui/avatar";
 import { setSocket } from "./redux/socketSlice";
-import { setOnlineUsers, incrementUnreadCount, setBulkUnreadCounts, updateLastMessage, addMessage, updateMessageStatus, reorderUsers, updateChatUserConversation, clearUnreadCount } from "./redux/chatSlice";
+import { setOnlineUsers, incrementUnreadCount, setBulkUnreadCounts, updateLastMessage, addMessage, updateMessageStatus, reorderUsers, updateChatUserConversation, clearUnreadCount, addChatUser } from "./redux/chatSlice";
 import { addNotification, setNotifications } from "./redux/notificationSlice";
 import { updateReelLikes, addReelComment, deleteReelComment, editReelComment, updateReelViews, updateReelCommentLikes } from "./redux/reelSlice";
-import { setPosts, updatePostCommentLikes, deletePostComment, addPostComment } from "./redux/postSlice";
+import { setPosts, updatePostCommentLikes, deletePostComment, addPostComment, updatePostLikes } from "./redux/postSlice";
 import { setAuthUser, updateUserProfileReelStats, removeUserProfileReelComment, editUserProfileReelComment, updateUserProfileReelCommentLikes } from "./redux/authSlice";
 import { useLocation } from "react-router-dom";
-import axios from "axios";
+import api from '@/api';
 
 const browserRouter = createBrowserRouter([
   {
@@ -60,6 +63,18 @@ const browserRouter = createBrowserRouter([
       {
         path: '/reels/:id',
         element: <ProtectedRoute><Reels /></ProtectedRoute>
+      },
+      {
+        path: '/explore',
+        element: <ProtectedRoute><Explore /></ProtectedRoute>
+      },
+      {
+        path: '/settings',
+        element: <ProtectedRoute><Settings /></ProtectedRoute>
+      },
+      {
+        path: '/settings/activity',
+        element: <ProtectedRoute><YourActivity /></ProtectedRoute>
       },
     ]
   },
@@ -129,10 +144,15 @@ function App() {
   useTheme(); // Initialize theme sync
   const { user } = useSelector(store => store.auth);
   const { socket } = useSelector(store => store.socketio);
-  const { selectedUser } = useSelector(store => store.chat || {});
+  const { selectedUser, chatUsers = [] } = useSelector(store => store.chat || {});
   const selectedUserRef = useRef(null);
   const audioRef = useRef(null); // Changed: Initialize as null
+  const chatUsersRef = useRef(chatUsers);
   const dispatch = useDispatch();
+
+  useEffect(() => {
+    chatUsersRef.current = chatUsers;
+  }, [chatUsers]);
 
   useEffect(() => {
     // Initialize audio only once on mount
@@ -163,8 +183,8 @@ function App() {
   }, []);
 
   useEffect(() => {
-    // Global axios interceptor for 401 errors
-    const interceptor = axios.interceptors.response.use(
+    // Global api interceptor for 401 errors
+    const interceptor = api.interceptors.response.use(
       (response) => response,
       (error) => {
         if (error.response && error.response.status === 401) {
@@ -180,8 +200,8 @@ function App() {
       const fetchInitialData = async () => {
         try {
           const [msgRes, notiRes] = await Promise.all([
-            axios.get('http://localhost:8000/api/v1/message/unread-counts', { withCredentials: true }),
-            axios.get('http://localhost:8000/api/v1/notification', { withCredentials: true })
+            api.get('/message/unread-counts'),
+            api.get('/notification')
           ]);
           
           if (msgRes.data.success) dispatch(setBulkUnreadCounts(msgRes.data.unreadCounts));
@@ -193,8 +213,7 @@ function App() {
       fetchInitialData();
 
       const socketio = io('http://localhost:8000', {
-        query: { userId: user._id },
-        withCredentials: true
+        query: { userId: user._id }
       });
 
       dispatch(setSocket(socketio));
@@ -216,6 +235,18 @@ function App() {
         }
       });
 
+      socketio.on('postLiked', ({ postId, userId }) => {
+        dispatch(updatePostLikes({ postId, userId, type: 'like' }));
+      });
+
+      socketio.on('postDisliked', ({ postId, userId }) => {
+        dispatch(updatePostLikes({ postId, userId, type: 'dislike' }));
+      });
+
+      socketio.on('newPostComment', (comment) => {
+        dispatch(addPostComment({ postId: comment.post, comment }));
+      });
+
       // 1. Room-specific message delivery (Fallback/Optimization for multi-tab or active rooms)
       socketio.on('receive_message', (newMessage) => {
         const currentUserId = String(user._id);
@@ -227,6 +258,16 @@ function App() {
         console.log(`[Socket] Received "receive_message" (Room) - Content: ${newMessage.message} - Sender: ${senderId}`);
 
         // Update list previews & sync conversationId for the sidebar
+        const senderExistsInSidebar = chatUsersRef.current?.some(u => String(u._id) === targetUserId);
+        if (!senderExistsInSidebar && !isFromMe) {
+           dispatch(addChatUser({
+             _id: senderId,
+             username: newMessage.senderUsername,
+             profilePicture: newMessage.senderProfilePicture,
+             conversationId: newMessage.conversationId
+           }));
+        }
+
         dispatch(updateLastMessage({ userId: targetUserId, message: newMessage }));
         dispatch(reorderUsers(targetUserId));
         if (newMessage.conversationId) {
@@ -240,17 +281,29 @@ function App() {
           console.log(`[Socket] Appending to active chat (Room delivery)`);
           dispatch(addMessage(newMessage));
           dispatch(clearUnreadCount(senderId));
-          axios.get(`http://localhost:8000/api/v1/message/seen/${senderId}`, { withCredentials: true }).catch(() => {});
+          api.get(`/message/seen/${senderId}`).catch(() => {});
         }
       });
 
       // 2. Global direct notification delivery (Universal reliability)
       socketio.on('new_message_notification', (newMessage) => {
-        const currentUserId = String(user._id);
+        const currentUserId = String(user?._id);
         const senderId = String(newMessage.senderId);
         if (senderId === currentUserId) return; // Prevent echoing back to sender
 
-        console.log(`[Socket] Received "new_message_notification" (Direct) - Content: ${newMessage.message} - From: ${senderId}`);
+        console.log(`[Socket] Received "new_message_notification" (Direct) - From: ${senderId}`);
+
+        // 1. Ensure user exists in sidebar
+        const senderExistsInSidebar = chatUsersRef.current?.some(u => String(u._id) === senderId);
+        if (!senderExistsInSidebar) {
+           console.log(`[Socket] Adding missing user ${senderId} to sidebar`);
+           dispatch(addChatUser({
+             _id: senderId,
+             username: newMessage.senderUsername,
+             profilePicture: newMessage.senderProfilePicture,
+             conversationId: newMessage.conversationId
+           }));
+        }
 
         const openChatUser = selectedUserRef.current;
         const isViewingThisChat = openChatUser && String(openChatUser._id) === senderId;
@@ -259,7 +312,7 @@ function App() {
           console.log(`[Socket] Appending to active chat (Direct delivery)`);
           dispatch(addMessage(newMessage));
           dispatch(clearUnreadCount(senderId));
-          axios.get(`http://localhost:8000/api/v1/message/seen/${senderId}`, { withCredentials: true }).catch(() => {});
+          api.get(`/message/seen/${senderId}`).catch(() => {});
         } else {
           // Play sound and show toast only if NOT looking at this chat
           if (audioRef.current) {
@@ -351,14 +404,14 @@ function App() {
       return () => {
         socketio.disconnect();
         dispatch(setSocket(null));
-        axios.interceptors.response.eject(interceptor);
+        api.interceptors.response.eject(interceptor);
       };
     } else {
       if (socket) {
         socket.disconnect();
         dispatch(setSocket(null));
       }
-      axios.interceptors.response.eject(interceptor);
+      api.interceptors.response.eject(interceptor);
     }
   }, [user, dispatch]);
 

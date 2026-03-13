@@ -4,7 +4,7 @@ import { Button } from './ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Heart, Loader2, Send, Trash2, MessageCircle, X as CloseIcon } from 'lucide-react';
 import { toast } from 'sonner';
-import axios from 'axios';
+import api from '@/api';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { addReelComment, deleteReelComment, editReelComment } from '@/redux/reelSlice';
@@ -63,10 +63,10 @@ const ReelCommentsModal = ({ reelId, comments: initialComments = [], open, setOp
         if (!text.trim()) return;
         try {
             setLoading(true);
-            const res = await axios.post(`http://localhost:8000/api/v1/reels/comment/${reelId}`, {
+            const res = await api.post(`/reels/comment/${reelId}`, {
                 text,
                 parentId: replyingTo?._id || null
-            }, { withCredentials: true });
+            });
             if (res.data.success) {
                 dispatch(addReelComment({ reelId, comment: res.data.comment }));
                 setText("");
@@ -83,7 +83,7 @@ const ReelCommentsModal = ({ reelId, comments: initialComments = [], open, setOp
 
     const deleteReelCommentHandler = async (commentId) => {
         try {
-            const res = await axios.delete(`http://localhost:8000/api/v1/reels/comment/${commentId}`, { withCredentials: true });
+            const res = await api.delete(`/reels/comment/${commentId}`);
             if (res.data.success) {
                 dispatch(deleteReelComment({ reelId, commentId }));
                 toast.success(res.data.message || "Comment deleted");
@@ -114,7 +114,7 @@ const ReelCommentsModal = ({ reelId, comments: initialComments = [], open, setOp
                 return;
             }
             try {
-                const res = await axios.put(`http://localhost:8000/api/v1/reels/comment/${comment._id}`, { text: editValue }, { withCredentials: true });
+                const res = await api.put(`/reels/comment/${comment._id}`, { text: editValue });
                 if (res.data.success) {
                     toast.success("Comment updated");
                     setIsEditing(false);
@@ -130,7 +130,7 @@ const ReelCommentsModal = ({ reelId, comments: initialComments = [], open, setOp
             setIsLiked(!isLiked);
             setLikeCount(prev => isLiked ? prev - 1 : prev + 1);
             try {
-                const res = await axios.post(`http://localhost:8000/api/v1/reels/comment/like/${comment._id}`, {}, { withCredentials: true });
+                const res = await api.post(`/reels/comment/like/${comment._id}`, {});
                 if (!res.data.success) {
                     setIsLiked(prevLiked);
                     setLikeCount(prevCount);

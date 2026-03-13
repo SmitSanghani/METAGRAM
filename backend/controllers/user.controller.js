@@ -4,6 +4,9 @@ import jwt from "jsonwebtoken";
 import { getDataUri } from "../utils/dataUri.js";
 import cloudinary from "../utils/cloudinary.js";
 import { Post } from "../models/post.model.js";
+import { Reel } from "../models/reel.model.js";
+import { Comment } from "../models/comment.model.js";
+import { ReelComment } from "../models/reelComment.model.js";
 import { Notification } from "../models/notification.model.js";
 import { Conversation } from "../models/conversation.model.js";
 import { getReceiverSocketId, io } from "../socket/socket.js";
@@ -29,6 +32,14 @@ export const register = async (req, res) => {
             });
         }
 
+        const existingUsername = await User.findOne({ username });
+        if (existingUsername) {
+            return res.status(401).json({
+                message: "This username is already taken. Please try another one.",
+                success: false,
+            });
+        }
+
         const hashedPassword = await bcrypt.hash(password, 10);
         await User.create({
             username,
@@ -42,6 +53,36 @@ export const register = async (req, res) => {
         });
     } catch (error) {
         console.error(error);
+        return res.status(500).json({
+            message: "Internal Server Error",
+            success: false,
+        });
+    }
+};
+
+// Check username availability
+export const checkUsername = async (req, res) => {
+    try {
+        const { username } = req.params;
+        const user = await User.findOne({ username });
+        if (user) {
+            return res.status(200).json({
+                available: false,
+                message: "This username is already taken. Please try another one.",
+                success: true
+            });
+        }
+        return res.status(200).json({
+            available: true,
+            message: "Username is available.",
+            success: true
+        });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({
+            message: "Internal Server Error",
+            success: false
+        });
     }
 };
 
@@ -184,9 +225,41 @@ export const getProfile = async (req, res) => {
         }
 
         const isSelf = currentUserId?.toString() === userId?.toString();
-        const isFollowing = user.followers.some(f => f._id.toString() === currentUserId);
-        const isFollower = user.following.some(f => f._id.toString() === currentUserId);
-        const isRequested = user.followRequests.some(f => f.toString() === currentUserId);
+        const isFollowing = user.followers.some(f => (f._id || f).toString() === currentUserId);
+        const isFollower = user.following.some(f => (f._id || f).toString() === currentUserId);
+        const isRequested = user.followRequests.some(f => (f._id || f).toString() === currentUserId);
+
+        // Send profile visit notification if not self and not following each other (mutual non-following)
+        if (!isSelf && !isFollowing && !isFollower) {
+            try {
+                const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+                const existingNotif = await Notification.findOne({
+                    sender: currentUserId,
+                    receiver: userId,
+                    type: 'profile_visit',
+                    createdAt: { $gte: twentyFourHoursAgo }
+                });
+
+                if (!existingNotif) {
+                    const newNotif = await Notification.create({
+                        sender: currentUserId,
+                        receiver: userId,
+                        type: 'profile_visit'
+                    });
+
+                    const visitor = await User.findById(currentUserId).select("username profilePicture");
+                    const receiverSocketId = getReceiverSocketId(userId);
+                    if (receiverSocketId) {
+                        io.to(receiverSocketId).emit('notification', {
+                            ...newNotif.toObject(),
+                            sender: visitor
+                        });
+                    }
+                }
+            } catch (err) {
+                console.error("Error sending profile visit notification:", err);
+            }
+        }
 
         let userResponse = user.toObject();
 
@@ -550,3 +623,113 @@ export const changePassword = async (req, res) => {
         res.status(500).json({ message: "Internal server error", success: false });
     }
 }
+export const searchUsers = async (req, res) => {
+    try {
+        const query = req.query.query;
+        if (!query) {
+            return res.status(200).json({ users: [], success: true });
+        }
+        const users = await User.find({
+            username: { $regex: query, $options: 'i' },
+            _id: { $ne: req.id },
+            isActive: { $ne: false }
+        }).select("username profilePicture fullName").limit(10);
+
+        return res.status(200).json({ users, success: true });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: "Server error", success: false });
+    }
+};
+
+export const addToRecentSearch = async (req, res) => {
+    try {
+        const userId = req.id;
+        const targetId = req.params.id;
+        await User.findByIdAndUpdate(userId, {
+            $pull: { recentSearches: targetId }
+        });
+        await User.findByIdAndUpdate(userId, {
+            $push: { recentSearches: { $each: [targetId], $position: 0 } }
+        });
+        return res.status(200).json({ success: true });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ success: false });
+    }
+};
+
+export const removeFromRecentSearch = async (req, res) => {
+    try {
+        const userId = req.id;
+        const targetId = req.params.id;
+        await User.findByIdAndUpdate(userId, {
+            $pull: { recentSearches: targetId }
+        });
+        return res.status(200).json({ success: true });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ success: false });
+    }
+};
+
+export const getRecentSearches = async (req, res) => {
+    try {
+        const user = await User.findById(req.id).populate("recentSearches", "username profilePicture fullName");
+        return res.status(200).json({
+            recentSearches: user?.recentSearches || [],
+            success: true
+        });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ success: false });
+    }
+};
+
+
+export const clearRecentSearches = async (req, res) => {
+    try {
+        const userId = req.id;
+        await User.findByIdAndUpdate(userId, {
+            $set: { recentSearches: [] }
+        });
+        return res.status(200).json({ success: true });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ success: false });
+    }
+};
+
+
+export const getLikedActivity = async (req, res) => {
+    try {
+        const userId = req.id;
+        const likedPosts = await Post.find({ likes: userId }).populate('author', 'username profilePicture').sort({ createdAt: -1 });
+        const likedReels = await Reel.find({ likes: userId }).populate('author', 'username profilePicture').sort({ createdAt: -1 });
+        const activity = [
+            ...likedPosts.map(p => ({ ...p.toObject(), activityType: 'post' })),
+            ...likedReels.map(r => ({ ...r.toObject(), activityType: 'reel' }))
+        ].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+        return res.status(200).json({ success: true, activity });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ success: false });
+    }
+};
+
+export const getCommentActivity = async (req, res) => {
+    try {
+        const userId = req.id;
+        const postComments = await Comment.find({ author: userId }).populate({ path: 'post', select: 'image caption author', populate: { path: 'author', select: 'username' } }).sort({ createdAt: -1 });
+        const reelComments = await ReelComment.find({ author: userId }).populate({ path: 'reel', select: 'videoUrl thumbnail caption author', populate: { path: 'author', select: 'username' } }).sort({ createdAt: -1 });
+        const activity = [
+            ...postComments.map(c => ({ ...c.toObject(), activityType: 'post' })),
+            ...reelComments.map(c => ({ ...c.toObject(), activityType: 'reel' }))
+        ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        return res.status(200).json({ success: true, activity });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ success: false });
+    }
+};
+

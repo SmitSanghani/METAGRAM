@@ -3,7 +3,7 @@ import { Heart, MessageCircle, Send, Bookmark, Music, MoreHorizontal, UserPlus, 
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Button } from './ui/button';
 import { useDispatch, useSelector } from 'react-redux';
-import axios from 'axios';
+import api from '@/api';
 import { updateReelLikes, incrementReelViews, deleteReel } from '@/redux/reelSlice';
 import ReelCommentsModal from './ReelCommentsModal';
 import { toast } from 'sonner';
@@ -51,7 +51,7 @@ const ReelCard = ({ reel, isActive, isGlobalMuted, setIsGlobalMuted, onVideoEnd 
                     if (!viewCounted && (video.currentTime / video.duration) >= 0.4) {
                         viewCounted = true;
                         dispatch(incrementReelViews(reel._id));
-                        axios.post(`http://localhost:8000/api/v1/reels/view/${reel._id}`, {}, { withCredentials: true });
+                        api.post(`/reels/view/${reel._id}`, {});
                     }
                 }
             };
@@ -79,7 +79,7 @@ const ReelCard = ({ reel, isActive, isGlobalMuted, setIsGlobalMuted, onVideoEnd 
         dispatch(updateReelLikes({ reelId: reel._id, likes: newLikes }));
 
         try {
-            await axios.post(`http://localhost:8000/api/v1/reels/like/${reel._id}`, {}, { withCredentials: true });
+            await api.post(`/reels/like/${reel._id}`, {});
         } catch (error) {
             // Revert on error
             const revertedLikes = isLiked
@@ -94,7 +94,7 @@ const ReelCard = ({ reel, isActive, isGlobalMuted, setIsGlobalMuted, onVideoEnd 
         if (!reel.allowSave && user?._id !== reel.author?._id) return;
         setIsSaved(!isSaved);
         try {
-            await axios.post(`http://localhost:8000/api/v1/reels/save/${reel._id}`, {}, { withCredentials: true });
+            await api.post(`/reels/save/${reel._id}`, {});
         } catch (error) {
             setIsSaved(!isSaved);
             console.error(error);
@@ -114,7 +114,7 @@ const ReelCard = ({ reel, isActive, isGlobalMuted, setIsGlobalMuted, onVideoEnd 
     const handleDeleteReel = async () => {
         if (!window.confirm("Delete this reel?")) return;
         try {
-            const res = await axios.delete(`http://localhost:8000/api/v1/reels/delete/${reel._id}`, { withCredentials: true });
+            const res = await api.delete(`/reels/delete/${reel._id}`);
             if (res.data.success) {
                 toast.success(res.data.message);
                 // In a real app, you'd trigger a refresh or local state update
@@ -332,13 +332,13 @@ const EditReelModal = ({ reel, open, setOpen, handleDelete }) => {
     const handleSave = async () => {
         setLoading(true);
         try {
-            const res = await axios.put(`http://localhost:8000/api/v1/reels/edit/${reel._id}`, {
+            const res = await api.put(`/reels/edit/${reel._id}`, {
                 caption,
                 allowLikes,
                 allowComments,
                 allowShare,
                 allowSave
-            }, { withCredentials: true });
+            });
             if (res.data.success) {
                 toast.success(res.data.message);
                 dispatch(updateReel(res.data.reel));

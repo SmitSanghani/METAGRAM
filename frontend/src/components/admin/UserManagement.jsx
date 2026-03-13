@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Search, Filter, MoreHorizontal, Shield, ShieldAlert, Trash2, Eye, Loader2, UserX, UserCheck } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
-import axios from 'axios';
+import api from '@/api';
 import { toast } from 'sonner';
 
 const UserManagement = () => {
@@ -11,7 +11,7 @@ const UserManagement = () => {
 
     const fetchAllUsers = async () => {
         try {
-            const res = await axios.get('http://localhost:8000/api/v1/user/suggested', { withCredentials: true });
+            const res = await api.get('/user/suggested');
             if (res.data.success) {
                 setUsers(res.data.users);
             }
@@ -32,7 +32,7 @@ const UserManagement = () => {
         if (!window.confirm(`Are you sure you want to ${action} this account?`)) return;
 
         try {
-            const res = await axios.post(`http://localhost:8000/api/v1/user/admin/toggle-status/${userId}`, {}, { withCredentials: true });
+            const res = await api.post(`/user/admin/toggle-status/${userId}`, {});
             if (res.data.success) {
                 toast.success(res.data.message);
                 // Simple state update instead of full re-fetch

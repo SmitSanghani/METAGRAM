@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Mail, Lock, User, Loader2, Eye, EyeOff } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import AuthLayout from './AuthLayout';
 import { toast } from 'sonner';
-import axios from 'axios';
+import api from '@/api';
 
 const Signup = () => {
     const [input, setInput] = useState({
@@ -17,15 +17,40 @@ const Signup = () => {
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [errors, setErrors] = useState({});
     const navigate = useNavigate();
+    const [isCheckingUsername, setIsCheckingUsername] = useState(false);
+
+    useEffect(() => {
+        const checkAvailability = async () => {
+            if (input.username.length >= 3) {
+                setIsCheckingUsername(true);
+                try {
+                    const res = await api.get(`/user/check-username/${input.username}`);
+                    if (res.data.success && !res.data.available) {
+                        setErrors(prev => ({ ...prev, username: res.data.message }));
+                    } else {
+                        setErrors(prev => ({ ...prev, username: null }));
+                    }
+                } catch (error) {
+                    console.error("Error checking username", error);
+                } finally {
+                    setIsCheckingUsername(false);
+                }
+            }
+        };
+
+        const timeoutId = setTimeout(checkAvailability, 500);
+        return () => clearTimeout(timeoutId);
+    }, [input.username]);
 
     const validate = () => {
         let newErrors = {};
         if (!input.username) newErrors.username = "Alias name is required";
         else if (input.username.length < 3) newErrors.username = "Name must be at least 3 characters";
+        else if (errors.username) newErrors.username = errors.username;
 
         if (!input.email) newErrors.email = "Identity email is required";
         else if (!/\S+@\S+\.\S+/.test(input.email)) newErrors.email = "Please enter a valid email address";
-        
+
         if (!input.password) newErrors.password = "Secured key is required";
         else if (input.password.length < 6) newErrors.password = "Key must be at least 6 characters";
 
@@ -50,15 +75,14 @@ const Signup = () => {
 
         try {
             setLoading(true);
-            const res = await axios.post('http://localhost:8000/api/v1/user/register', {
+            const res = await api.post('/user/register', {
                 username: input.username,
                 email: input.email,
                 password: input.password
             }, {
                 headers: {
                     'Content-Type': 'application/json'
-                },
-                withCredentials: true
+                }
             });
             if (res.data.success) {
                 navigate("/login");
@@ -86,8 +110,13 @@ const Signup = () => {
                             value={input.username}
                             onChange={changeEventHandler}
                             placeholder="lex_cyber"
-                            className={`block w-full pl-12 pr-4 py-2.5 bg-[#1c1c1c] border ${errors.username ? 'border-red-500/50 focus:border-red-500' : 'border-white/10 focus:border-[#32b096]'} rounded-xl text-white placeholder-gray-600 focus:outline-none focus:ring-2 ${errors.username ? 'focus:ring-red-500/25' : 'focus:ring-[#32b096]/25'} transition-all shadow-lg text-sm`}
+                            className={`block w-full pl-12 pr-12 py-2.5 bg-[#1c1c1c] border ${errors.username ? 'border-red-500/50 focus:border-red-500' : 'border-white/10 focus:border-[#32b096]'} rounded-xl text-white placeholder-gray-600 focus:outline-none focus:ring-2 ${errors.username ? 'focus:ring-red-500/25' : 'focus:ring-[#32b096]/25'} transition-all shadow-lg text-sm`}
                         />
+                        {isCheckingUsername && (
+                            <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                                <Loader2 className="h-4 w-4 text-[#32b096] animate-spin" />
+                            </div>
+                        )}
                     </div>
                     {errors.username && <p className="text-[10px] text-red-500 font-bold tracking-wide mt-1 ml-1 uppercase">{errors.username}</p>}
                 </div>

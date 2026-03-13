@@ -2,7 +2,7 @@ import React from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { Heart, MessageCircle, Send, Bookmark, Music, Play } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
-import axios from 'axios';
+import api from '@/api';
 import { updateReelLikes } from '@/redux/reelSlice';
 
 const HomeReels = () => {
@@ -12,7 +12,7 @@ const HomeReels = () => {
 
     const handleLike = async (reelId, isLiked, likes) => {
         try {
-            const res = await axios.post(`http://localhost:8000/api/v1/reels/like/${reelId}`, {}, { withCredentials: true });
+            const res = await api.post(`/reels/like/${reelId}`, {});
             if (res.data.success) {
                 const newLikes = isLiked
                     ? likes.filter(id => id !== user?._id)

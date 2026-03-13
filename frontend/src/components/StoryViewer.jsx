@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronLeft, ChevronRight, Eye, Trash2, Heart, Send, Star, Plus } from 'lucide-react';
-import axios from 'axios';
+import api from '@/api';
 import { useSelector } from 'react-redux';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { toast } from 'sonner';
@@ -80,7 +80,7 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
     useEffect(() => {
         const currentStory = stories[currentIndex];
         if (currentStory && !currentStory.viewedLocally) {
-            axios.post(`http://localhost:8000/api/v1/story/${currentStory._id}/view`, {}, { withCredentials: true })
+            api.post(`/story/${currentStory._id}/view`, {})
                 .then(() => {
                     if (onStoryViewed) onStoryViewed(currentStory._id);
                 }).catch(console.error);
@@ -111,7 +111,7 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
         }
 
         try {
-            await axios.post(`http://localhost:8000/api/v1/story/${currentStory._id}/like`, {}, { withCredentials: true });
+            await api.post(`/story/${currentStory._id}/like`, {});
         } catch (error) {
             console.error("Error liking story:", error);
             // Revert on error
@@ -129,11 +129,11 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
         setComment("");
 
         try {
-            const res = await axios.post(`http://localhost:8000/api/v1/message/send/${currentStory.userId._id}`, {
+            const res = await api.post(`/message/send/${currentStory.userId._id}`, {
                 message: replyText,
                 messageType: 'story_reply',
                 storyId: currentStory._id
-            }, { withCredentials: true });
+            });
 
             if (res.data.success) {
                 toast.success("Reply sent to DM");
@@ -155,11 +155,11 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
         handleLike(e);
 
         try {
-            await axios.post(`http://localhost:8000/api/v1/message/send/${currentStory.userId._id}`, {
+            await api.post(`/message/send/${currentStory.userId._id}`, {
                 message: "❤️",
                 messageType: 'story_reaction',
                 storyId: currentStory._id
-            }, { withCredentials: true });
+            });
         } catch (error) {
             console.error("Error sending story reaction:", error);
         }
@@ -190,7 +190,7 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
 
     const handleDeleteStory = async () => {
         try {
-            const res = await axios.delete(`http://localhost:8000/api/v1/story/${currentStory._id}`, { withCredentials: true });
+            const res = await api.delete(`/story/${currentStory._id}`);
             if (res.data.success) {
                 toast.success(res.data.message);
                 if (onStoryDeleted) onStoryDeleted();
@@ -201,21 +201,54 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
         }
     };
 
+    // Swipe detection
+    const touchStartX = useRef(null);
+    const touchEndX = useRef(null);
+    const minSwipeDistance = 50;
+
+    const onTouchStart = (e) => {
+        touchStartX.current = e.targetTouches[0].clientX;
+        setIsPaused(true);
+    };
+
+    const onTouchMove = (e) => {
+        touchEndX.current = e.targetTouches[0].clientX;
+    };
+
+    const onTouchEnd = () => {
+        setIsPaused(false);
+        if (!touchStartX.current || !touchEndX.current) return;
+        
+        const distance = touchStartX.current - touchEndX.current;
+        const isLeftSwipe = distance > minSwipeDistance;
+        const isRightSwipe = distance < -minSwipeDistance;
+
+        if (isLeftSwipe) {
+            handleNext();
+        } else if (isRightSwipe) {
+            handlePrev();
+        }
+
+        touchStartX.current = null;
+        touchEndX.current = null;
+    };
+
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-90">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-95 backdrop-blur-md">
             {/* Close Button */}
-            <button onClick={onClose} className="absolute top-4 right-4 z-50 p-2 text-white hover:bg-white/20 rounded-full transition">
-                <X size={24} />
+            <button onClick={onClose} className="absolute top-6 right-6 z-50 p-2 text-white/50 hover:text-white hover:bg-white/10 rounded-full transition-all active:scale-90">
+                <X size={28} strokeWidth={2.5} />
             </button>
 
             {/* Viewer Container */}
             <div
-                className="relative w-full max-w-sm h-full max-h-[85vh] sm:rounded-xl overflow-hidden bg-black flex flex-col"
+                className="relative w-full max-w-[420px] h-full max-h-[85vh] sm:rounded-2xl overflow-hidden bg-black flex flex-col shadow-2xl"
                 onMouseDown={() => setIsPaused(true)}
                 onMouseUp={() => setIsPaused(false)}
                 onMouseLeave={() => setIsPaused(false)}
-                onTouchStart={() => setIsPaused(true)}
-                onTouchEnd={() => setIsPaused(false)}
+                onTouchStart={onTouchStart}
+                onTouchMove={onTouchMove}
+                onTouchEnd={onTouchEnd}
             >
                 {/* Progress Bars Container */}
                 <div className="absolute top-0 inset-x-0 p-2 z-20 flex gap-1">

@@ -3,7 +3,7 @@ import { Loader2, ArrowLeft } from 'lucide-react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import AuthLayout from './AuthLayout';
 import { toast } from 'sonner';
-import axios from 'axios';
+import api from '@/api';
 
 const VerifyOTP = () => {
     const [otp, setOtp] = useState(['', '', '', '', '', '']);
@@ -67,7 +67,7 @@ const VerifyOTP = () => {
 
         try {
             setLoading(true);
-            const res = await axios.post('http://localhost:8000/api/v1/auth/verify-otp', { email, otp: otpValue });
+            const res = await api.post('/auth/verify-otp', { email, otp: otpValue });
             if (res.data.success) {
                 toast.success(res.data.message);
                 navigate("/reset-password", { state: { email, otp: otpValue } });
@@ -81,7 +81,7 @@ const VerifyOTP = () => {
 
     const resendOTP = async () => {
         try {
-            const res = await axios.post('http://localhost:8000/api/v1/auth/send-otp', { email });
+            const res = await api.post('/auth/send-otp', { email });
             if (res.data.success) {
                 toast.success("New OTP sent to your email");
             }

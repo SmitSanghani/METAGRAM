@@ -17,21 +17,28 @@ const userSocketMap = {}; // Maps userId to an ARRAY of socketIds [id1, id2, ...
 
 io.on('connection', (socket) => {
     const userId = socket.handshake.query.userId;
-    if (userId) {
-        if (!userSocketMap[userId]) userSocketMap[userId] = [];
-        userSocketMap[userId].push(socket.id);
+    if (userId && userId !== "undefined") {
+        const uidStr = String(userId);
+        if (!userSocketMap[uidStr]) userSocketMap[uidStr] = [];
+        if (!userSocketMap[uidStr].includes(socket.id)) {
+            userSocketMap[uidStr].push(socket.id);
+        }
+        socket.userId = uidStr;
+        console.log(`[SOCKET] User ${uidStr} connected. Socket ID: ${socket.id}`);
     }
 
     // Emit to ALL connected clients the array of online users (keys)
     io.emit('getOnlineUsers', Object.keys(userSocketMap));
 
     socket.on("register_user", (uId) => {
+        if (!uId || uId === "undefined") return;
         const uidStr = String(uId);
         if (!userSocketMap[uidStr]) userSocketMap[uidStr] = [];
         if (!userSocketMap[uidStr].includes(socket.id)) {
             userSocketMap[uidStr].push(socket.id);
         }
         socket.userId = uidStr;
+        console.log(`[SOCKET] User ${uidStr} registered. Socket ID: ${socket.id}`);
         io.emit('getOnlineUsers', Object.keys(userSocketMap));
     });
 

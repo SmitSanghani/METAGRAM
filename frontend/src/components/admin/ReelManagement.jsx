@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Heart, MessageCircle, MoreHorizontal, Trash2, Eye, Loader2, Play, X } from 'lucide-react';
-import axios from 'axios';
+import api from '@/api';
 import { toast } from 'sonner';
 
 const ReelManagement = () => {
@@ -14,7 +14,7 @@ const ReelManagement = () => {
             try {
                 // Fetching from feed as it's the standard way to get reels, 
                 // in a real app might need a specific admin endpoint for all reels.
-                const res = await axios.get('http://localhost:8000/api/v1/reels/feed', { withCredentials: true });
+                const res = await api.get('/reels/feed');
                 if (res.data.success) {
                     setReels(res.data.reels);
                 }
@@ -31,7 +31,7 @@ const ReelManagement = () => {
     const deleteReelHandler = async (reelId) => {
         if (!window.confirm("Are you sure you want to delete this reel?")) return;
         try {
-            const res = await axios.delete(`http://localhost:8000/api/v1/reels/delete/${reelId}`, { withCredentials: true });
+            const res = await api.delete(`/reels/delete/${reelId}`);
             if (res.data.success) {
                 setReels(reels.filter(r => r._id !== reelId));
                 toast.success(res.data.message);

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { MessageCircle, Search, Loader2, User, ExternalLink } from 'lucide-react';
-import axios from 'axios';
+import api from '@/api';
 import { toast } from 'sonner';
 
 const MessageMonitoring = () => {
@@ -10,7 +10,7 @@ const MessageMonitoring = () => {
     useEffect(() => {
         const fetchChatUsers = async () => {
             try {
-                const res = await axios.get('http://localhost:8000/api/v1/user/chatusers', { withCredentials: true });
+                const res = await api.get('/user/chatusers');
                 if (res.data.success) {
                     setConversations(res.data.users);
                 }

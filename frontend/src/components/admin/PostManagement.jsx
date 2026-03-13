@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Heart, MessageCircle, MoreHorizontal, Trash2, Eye, Loader2, X } from 'lucide-react';
-import axios from 'axios';
+import api from '@/api';
 import { toast } from 'sonner';
 import PostViewModal from './PostViewModal';
 
@@ -13,7 +13,7 @@ const PostManagement = () => {
     const fetchPosts = async () => {
         try {
             setLoading(true);
-            const res = await axios.get('http://localhost:8000/api/v1/post/all', { withCredentials: true });
+            const res = await api.get('/post/all');
             if (res.data.success) {
                 setPosts(res.data.posts);
             }
@@ -32,7 +32,7 @@ const PostManagement = () => {
     const deletePostHandler = async (postId) => {
         if (!window.confirm("Are you sure you want to delete this post?")) return;
         try {
-            const res = await axios.delete(`http://localhost:8000/api/v1/post/delete/${postId}`, { withCredentials: true });
+            const res = await api.delete(`/post/delete/${postId}`);
             if (res.data.success) {
                 setPosts(posts.filter(p => p._id !== postId));
                 toast.success(res.data.message);
@@ -50,7 +50,7 @@ const PostManagement = () => {
     const deleteCommentHandler = async (commentId, postId) => {
         if (!window.confirm("Are you sure you want to delete this comment?")) return;
         try {
-            const res = await axios.delete(`http://localhost:8000/api/v1/post/comment/delete/${commentId}`, { withCredentials: true });
+            const res = await api.delete(`/post/comment/delete/${commentId}`);
             if (res.data.success) {
                 // Update post in list to reflect comment deletion
                 setPosts(prev => prev.map(p => {

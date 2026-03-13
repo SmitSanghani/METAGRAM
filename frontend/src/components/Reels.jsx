@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Mousewheel } from 'swiper/modules';
-import axios from 'axios';
+import api from '@/api';
 import { useDispatch, useSelector } from 'react-redux';
 import { setReels, updateReelLikes } from '@/redux/reelSlice';
 import ReelCard from './ReelCard';
@@ -39,7 +39,7 @@ const Reels = () => {
             let specificReel = null;
             if (p === 1 && paramReelId) {
                 try {
-                    const res = await axios.get(`http://localhost:8000/api/v1/reels/${paramReelId}`, { withCredentials: true });
+                    const res = await api.get(`/reels/${paramReelId}`);
                     if (res.data.success) {
                         specificReel = res.data.reel;
                     }
@@ -48,7 +48,7 @@ const Reels = () => {
                 }
             }
 
-            const res = await axios.get(`http://localhost:8000/api/v1/reels/feed?page=${p}&limit=5`, { withCredentials: true });
+            const res = await api.get(`/reels/feed?page=${p}&limit=5`);
             if (res.data.success) {
                 if (p === 1) {
                     let fedReels = res.data.reels;
@@ -94,7 +94,7 @@ const Reels = () => {
     return (
         <div className="flex h-screen w-full bg-[rgb(218,242,242)] md:pl-[80px] overflow-hidden">
             <div className="flex-1 h-full flex justify-center items-center">
-                <div className="h-[96vh] w-full max-w-[600px] relative shadow-[0_20px_60px_rgba(0,0,0,0.15)]">
+                <div className="h-[96vh] w-full max-w-[400px] relative shadow-[0_20px_60px_rgba(0,0,0,0.15)]">
                     {reels.length > 0 ? (
                         <Swiper
                             onSwiper={(swiper) => swiperRef.current = swiper}

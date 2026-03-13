@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Image as ImageIcon, Video, UserPlus, Check, Globe, Users, Search, Plus, Trash2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
-import axios from 'axios';
+import api from '@/api';
 import { toast } from 'sonner';
 
 const StoryUploadModal = ({ isOpen, onClose, user, onUploadSuccess }) => {
@@ -40,14 +40,14 @@ const StoryUploadModal = ({ isOpen, onClose, user, onUploadSuccess }) => {
             const authUserId = user?._id || user?.id;
             if (!authUserId) return;
 
-            const res = await axios.get(`http://localhost:8000/api/v1/user/${authUserId}/profile`, { withCredentials: true });
-            
+            const res = await api.get(`/user/${authUserId}/profile`);
+
             if (res.data.success) {
                 const profileUser = res.data.user;
-                
+
                 // STRICT RULE: Only real followers are allowed to appear
                 const rawFollowers = profileUser.followers || [];
-                
+
                 // Deduplicate and process
                 const uniqueFollowersMap = new Map();
                 rawFollowers.forEach(follower => {
@@ -73,7 +73,7 @@ const StoryUploadModal = ({ isOpen, onClose, user, onUploadSuccess }) => {
 
     const toggleCloseFriend = async (friendId) => {
         try {
-            const res = await axios.post(`http://localhost:8000/api/v1/story/close-friends`, { targetId: friendId }, { withCredentials: true });
+            const res = await api.post(`/story/close-friends`, { targetId: friendId });
             if (res.data.success) {
                 const isAdded = res.data.isCloseFriend;
                 if (isAdded) {
@@ -107,7 +107,7 @@ const StoryUploadModal = ({ isOpen, onClose, user, onUploadSuccess }) => {
         const newItems = [];
         for (const file of filesToAdd) {
             const type = file.type.startsWith('video/') ? 'video' : 'image';
-            
+
             if (type === 'video') {
                 // Check duration
                 const video = document.createElement('video');
@@ -133,11 +133,11 @@ const StoryUploadModal = ({ isOpen, onClose, user, onUploadSuccess }) => {
             });
         }
 
-             if (newItems.length === 0) return;
+        if (newItems.length === 0) return;
 
         const updatedFiles = [...files, ...newItems];
         setFiles(updatedFiles);
-        setActiveIndex(files.length); 
+        setActiveIndex(files.length);
         setStep(1);
         e.target.value = '';
     };
@@ -145,10 +145,10 @@ const StoryUploadModal = ({ isOpen, onClose, user, onUploadSuccess }) => {
     const removeFile = (index) => {
         const fileToRemove = files[index];
         URL.revokeObjectURL(fileToRemove.previewUrl);
-        
+
         const newFiles = files.filter((_, i) => i !== index);
         setFiles(newFiles);
-        
+
         if (activeIndex >= newFiles.length) {
             setActiveIndex(Math.max(0, newFiles.length - 1));
         }
@@ -164,9 +164,8 @@ const StoryUploadModal = ({ isOpen, onClose, user, onUploadSuccess }) => {
         formData.append('caption', caption);
 
         try {
-            const res = await axios.post('http://localhost:8000/api/v1/story/upload', formData, {
-                headers: { 'Content-Type': 'multipart/form-data' },
-                withCredentials: true
+            const res = await api.post('/story/upload', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
             });
             if (res.data.success) {
                 toast.success("Stories uploaded!");
@@ -195,8 +194,8 @@ const StoryUploadModal = ({ isOpen, onClose, user, onUploadSuccess }) => {
             >
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-zinc-800 bg-white dark:bg-zinc-950 sticky top-0 z-20">
-                    <button 
-                        onClick={() => step === 2 ? setStep(1) : onClose()} 
+                    <button
+                        onClick={() => step === 2 ? setStep(1) : onClose()}
                         className="p-1 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-full transition-colors"
                     >
                         <X size={24} className="dark:text-white" strokeWidth={2} />
@@ -234,7 +233,7 @@ const StoryUploadModal = ({ isOpen, onClose, user, onUploadSuccess }) => {
                             {step === 1 ? (
                                 <div className="p-4 space-y-6 flex-1 flex flex-col min-h-0">
                                     {/* Main Preview */}
-                                    <div className="relative aspect-[9/16] w-full max-w-[280px] mx-auto rounded-xl overflow-hidden bg-black shadow-2xl flex-shrink-0">
+                                    <div className="relative aspect-[9/14] w-full max-w-[280px] mx-auto rounded-xl overflow-hidden bg-black shadow-2xl flex-shrink-0">
                                         {files[activeIndex].type === 'video' ? (
                                             <video src={files[activeIndex].previewUrl} autoPlay loop muted className="w-full h-full object-cover" />
                                         ) : (
@@ -253,8 +252,8 @@ const StoryUploadModal = ({ isOpen, onClose, user, onUploadSuccess }) => {
                                     {/* Thumbnail Strip */}
                                     <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar px-2">
                                         {files.map((item, idx) => (
-                                            <div 
-                                                key={idx} 
+                                            <div
+                                                key={idx}
                                                 className={`relative flex-shrink-0 w-14 h-24 rounded-lg overflow-hidden border-2 transition-all cursor-pointer ${activeIndex === idx ? 'border-[#0095F6] scale-105' : 'border-transparent'}`}
                                                 onClick={() => setActiveIndex(idx)}
                                             >
@@ -263,7 +262,7 @@ const StoryUploadModal = ({ isOpen, onClose, user, onUploadSuccess }) => {
                                                 ) : (
                                                     <img src={item.previewUrl} className="w-full h-full object-cover" />
                                                 )}
-                                                <button 
+                                                <button
                                                     className="absolute top-0.5 right-0.5 bg-black/50 text-white rounded-full p-0.5 hover:bg-black/80"
                                                     onClick={(e) => { e.stopPropagation(); removeFile(idx); }}
                                                 >
@@ -272,7 +271,7 @@ const StoryUploadModal = ({ isOpen, onClose, user, onUploadSuccess }) => {
                                             </div>
                                         ))}
                                         {files.length < 10 && (
-                                            <button 
+                                            <button
                                                 className="flex-shrink-0 w-14 h-24 rounded-lg bg-gray-100 dark:bg-zinc-800 flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-zinc-700 hover:bg-gray-200 dark:hover:bg-zinc-700 transition-colors"
                                                 onClick={() => fileInputRef.current.click()}
                                             >

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '@/api';
 import { toast } from 'sonner';
 import { useDispatch } from 'react-redux';
 import { setAuthUser } from '../../redux/authSlice';
@@ -20,9 +20,8 @@ const AdminLogin = () => {
         e.preventDefault();
         try {
             setLoading(true);
-            const res = await axios.post('http://localhost:8000/api/v1/user/login', input, {
-                headers: { 'Content-Type': 'application/json' },
-                withCredentials: true
+            const res = await api.post('/user/login', input, {
+                headers: { 'Content-Type': 'application/json' }
             });
 
             if (res.data.success) {
@@ -34,7 +33,7 @@ const AdminLogin = () => {
                 } else {
                     toast.error('Access denied. Admin privileges required.');
                     // Optionally log them out immediately if they are not an admin
-                    await axios.get('http://localhost:8000/api/v1/user/logout', { withCredentials: true });
+                    await api.get('/user/logout');
                 }
             }
         } catch (error) {

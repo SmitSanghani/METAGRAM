@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { X, Search, Check, Star } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Button } from './ui/button';
-import axios from 'axios';
+import api from '@/api';
 import { toast } from 'sonner';
 
 const CloseFriendsModal = ({ isOpen, onClose, user, onUpdate }) => {
@@ -22,7 +22,7 @@ const CloseFriendsModal = ({ isOpen, onClose, user, onUpdate }) => {
     const fetchFollowers = async () => {
         try {
             setLoading(true);
-            const res = await axios.get(`http://localhost:8000/api/v1/user/profile/${user._id}`, { withCredentials: true });
+            const res = await api.get(`/user/profile/${user._id}`);
             if (res.data.success) {
                 setFollowers(res.data.user.followers || []);
             }
@@ -35,7 +35,7 @@ const CloseFriendsModal = ({ isOpen, onClose, user, onUpdate }) => {
 
     const toggleCloseFriend = async (friendId) => {
         try {
-            const res = await axios.post(`http://localhost:8000/api/v1/story/close-friends`, { targetId: friendId }, { withCredentials: true });
+            const res = await api.post(`/story/close-friends`, { targetId: friendId });
             if (res.data.success) {
                 const isAdded = res.data.isCloseFriend;
                 if (isAdded) {

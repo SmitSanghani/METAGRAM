@@ -1,6 +1,7 @@
 import sharp from "sharp";
 import cloudinary from "../utils/cloudinary.js";
 import { Post } from "../models/post.model.js";
+import { Reel } from "../models/reel.model.js";
 import { User } from "../models/user.model.js";
 import { Comment } from "../models/comment.model.js";
 import { Notification } from "../models/notification.model.js";
@@ -155,6 +156,9 @@ export const likePost = async (req, res) => {
             }
         }
 
+        // Real-time globally
+        io.emit('postLiked', { postId, userId: likekrneWalaUserKiId });
+
         return res.status(200).json({
             message: "Post Liked",
             success: true
@@ -164,8 +168,6 @@ export const likePost = async (req, res) => {
         console.error(error);
     }
 };
-
-
 
 // DisLike Post :
 export const dislikePost = async (req, res) => {
@@ -185,8 +187,8 @@ export const dislikePost = async (req, res) => {
         await post.updateOne({ $pull: { likes: likekrneWalaUserKiId } });
         await post.save();
 
-        // implement socket.io for real-time notifications :
-
+        // Real-time globally
+        io.emit('postDisliked', { postId, userId: likekrneWalaUserKiId });
 
         return res.status(200).json({
             message: "Post Disliked",
@@ -499,3 +501,53 @@ export const bookmarkPost = async (req, res) => {
 };
 
 
+export const getExplore = async (req, res) => {
+    try {
+        const posts = await Post.find()
+            .populate("author", "username profilePicture")
+            .populate("likes", "username profilePicture")
+            .populate({
+                path: "comments",
+                populate: { path: "author", select: "username profilePicture" }
+            });
+
+        const reels = await Reel.find()
+            .populate("author", "username profilePicture")
+            .populate("likes", "username profilePicture")
+            .populate({
+                path: "comments",
+                populate: { path: "author", select: "username profilePicture" }
+            });
+
+        // Weights
+        const W_LIKE = 5;
+        const W_COMMENT = 10;
+        const W_VIEW = 1;
+
+        const calculateScore = (item, isReel) => {
+            const likesCount = item.likes?.length || 0;
+            const commentsCount = item.comments?.length || 0;
+            const viewsCount = isReel ? (item.viewsCount || 0) : 0;
+            return (likesCount * W_LIKE) + (commentsCount * W_COMMENT) + (viewsCount * W_VIEW);
+        };
+
+        const topPosts = posts
+            .map(p => ({ ...p.toObject(), type: 'post', score: calculateScore(p, false) }))
+            .sort((a, b) => b.score - a.score)
+            .slice(0, 50);
+
+        const topReels = reels
+            .map(r => ({ ...r.toObject(), type: 'reel', score: calculateScore(r, true) }))
+            .sort((a, b) => b.score - a.score)
+            .slice(0, 50);
+
+        return res.status(200).json({
+            success: true,
+            top_posts: topPosts,
+            top_reels: topReels
+        });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: "Server error", success: false });
+    }
+};

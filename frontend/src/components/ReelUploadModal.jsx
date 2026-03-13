@@ -5,7 +5,7 @@ import { Textarea } from './ui/textarea';
 import { Button } from './ui/button';
 import { Loader2, Video, X } from 'lucide-react';
 import { toast } from 'sonner';
-import axios from 'axios';
+import api from '@/api';
 import { useDispatch, useSelector } from 'react-redux';
 import { addReel } from '@/redux/reelSlice';
 
@@ -47,9 +47,8 @@ const ReelUploadModal = ({ open, setOpen }) => {
 
         try {
             setLoading(true);
-            const res = await axios.post("http://localhost:8000/api/v1/reels/upload", formData, {
-                headers: { "Content-Type": "multipart/form-data" },
-                withCredentials: true
+            const res = await api.post("/reels/upload", formData, {
+                headers: { "Content-Type": "multipart/form-data" }
             });
             if (res.data.success) {
                 dispatch(addReel(res.data.reel));
