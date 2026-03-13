@@ -218,7 +218,11 @@ function App() {
       };
       fetchInitialData();
 
-      const socketio = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:8000', {
+      const socketUrl = window.location.hostname === 'localhost' 
+        ? 'http://localhost:8000' 
+        : 'https://metagram-3.onrender.com';
+        
+      const socketio = io(socketUrl, {
         query: { userId: user._id }
       });
 
