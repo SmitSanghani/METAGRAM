@@ -5,7 +5,7 @@ import AuthLayout from './AuthLayout';
 import { toast } from 'sonner';
 import api from '@/api';
 import { useDispatch } from 'react-redux';
-import { setAuthUser } from '../redux/authSlice';
+import { setAuthUser, setToken } from '../redux/authSlice';
 
 const Login = () => {
     const [input, setInput] = useState({
@@ -50,6 +50,9 @@ const Login = () => {
             });
             if (res.data.success) {
                 dispatch(setAuthUser(res.data.user));
+                if (res.data.token) {
+                    dispatch(setToken(res.data.token));
+                }
                 navigate("/");
                 toast.success(res.data.message);
             }

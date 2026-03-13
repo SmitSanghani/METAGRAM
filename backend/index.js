@@ -37,7 +37,9 @@ app.use(urlencoded({ extended: true }));
 
 const corsOptions = {
     origin: [process.env.URL, 'http://localhost:5173', 'https://metagram-nine.vercel.app'],
-    credentials: true
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
 }
 app.use(cors(corsOptions));
 

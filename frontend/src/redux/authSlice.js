@@ -10,6 +10,7 @@ const authSlice = createSlice({
         isFollower: false,
         requestPending: false,
         theme: localStorage.getItem('theme') || 'light-theme',
+        token: localStorage.getItem('token') || null,
     },
     reducers: {
         // actions
@@ -18,6 +19,18 @@ const authSlice = createSlice({
         },
         setAuthUser: (state, action) => {
             state.user = action.payload;
+            if (action.payload === null) {
+                state.token = null;
+                localStorage.removeItem('token');
+            }
+        },
+        setToken: (state, action) => {
+            state.token = action.payload;
+            if (action.payload) {
+                localStorage.setItem('token', action.payload);
+            } else {
+                localStorage.removeItem('token');
+            }
         },
         setSuggestedUsers: (state, action) => {
             state.suggestedUsers = action.payload;
@@ -111,6 +124,6 @@ const authSlice = createSlice({
     }
 });
 
-export const { setTheme, setAuthUser, setSuggestedUsers, setUserProfile, updateSuggestedUser, setFollowRelationship, updateUserProfileReelStats, removeUserProfileReelComment, editUserProfileReelComment, updateUserProfileReelCommentLikes } = authSlice.actions;
+export const { setTheme, setAuthUser, setToken, setSuggestedUsers, setUserProfile, updateSuggestedUser, setFollowRelationship, updateUserProfileReelStats, removeUserProfileReelComment, editUserProfileReelComment, updateUserProfileReelCommentLikes } = authSlice.actions;
 export default authSlice.reducer;
 

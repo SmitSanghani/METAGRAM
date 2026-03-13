@@ -3,7 +3,16 @@ import { User } from "../models/user.model.js";
 
 const isAuthenticated = async (req, res, next) => {
     try {
-        const token = req.cookies.token;
+        let token = req.cookies.token;
+        
+        // Also check Authorization header
+        if (!token && req.headers.authorization) {
+            const authHeader = req.headers.authorization;
+            if (authHeader.startsWith("Bearer ")) {
+                token = authHeader.split(" ")[1];
+            }
+        }
+
         if (!token) {
             return res.status(401).json({
                 message: "User not authenticated",

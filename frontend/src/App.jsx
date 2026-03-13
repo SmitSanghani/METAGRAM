@@ -223,7 +223,8 @@ function App() {
         : 'https://metagram-3.onrender.com';
         
       const socketio = io(socketUrl, {
-        query: { userId: user._id }
+        query: { userId: user._id },
+        auth: { token: localStorage.getItem('token') }
       });
 
       dispatch(setSocket(socketio));

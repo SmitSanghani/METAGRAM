@@ -7,7 +7,7 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
     cors: {
-        origin: process.env.URL || 'http://localhost:5173',
+        origin: [process.env.URL, 'http://localhost:5173', 'https://metagram-nine.vercel.app'],
         methods: ['GET', 'POST'],
         credentials: true
     }

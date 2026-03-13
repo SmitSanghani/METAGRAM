@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '@/api';
 import { toast } from 'sonner';
 import { useDispatch } from 'react-redux';
-import { setAuthUser } from '../../redux/authSlice';
+import { setAuthUser, setToken } from '../../redux/authSlice';
 import { Loader2, Mail, Lock, ShieldCheck } from 'lucide-react';
 
 const AdminLogin = () => {
@@ -28,6 +28,9 @@ const AdminLogin = () => {
                 const user = res.data.user;
                 if (user.role === 'admin') {
                     dispatch(setAuthUser(user));
+                    if (res.data.token) {
+                        dispatch(setToken(res.data.token));
+                    }
                     toast.success(res.data.message);
                     navigate('/admin');
                 } else {
