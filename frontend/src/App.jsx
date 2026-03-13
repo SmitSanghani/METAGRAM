@@ -218,7 +218,7 @@ function App() {
       };
       fetchInitialData();
 
-      const socketio = io('http://localhost:8000', {
+      const socketio = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:8000', {
         query: { userId: user._id }
       });
 
