@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import logo from '../assets/logo2.png';
 
 const AuthLayout = ({ children }) => {
     return (
@@ -17,7 +18,7 @@ const AuthLayout = ({ children }) => {
                     <div className="relative z-10">
                         <div className="flex flex-col items-center justify-center mb-8">
                             <div className="flex items-center gap-3 mb-1">
-                                <img src="./src/assets/logo2.png" alt="logo" className="w-13 h-13 object-contain" />
+                                <img src={logo} alt="logo" className="w-13 h-13 object-contain" />
                                 <h2 className="text-3xl font-bold font-space-grotesk tracking-tight text-white">METAGRAM</h2>
                             </div>
                             <p className="text-[9px] tracking-[0.3em] text-gray-500 font-bold uppercase transition-all">DIGITAL IDENTITY</p>
