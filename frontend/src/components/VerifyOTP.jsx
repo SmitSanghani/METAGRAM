@@ -113,7 +113,7 @@ const VerifyOTP = () => {
                             onChange={(e) => handleChange(index, e.target.value)}
                             onKeyDown={(e) => handleKeyDown(index, e)}
                             onPaste={handlePaste}
-                            className="w-12 h-14 bg-[#1c1c1c] border border-white/10 rounded-xl text-white text-2xl font-bold text-center focus:outline-none focus:border-[#32b096] focus:ring-2 focus:ring-[#32b096]/25 transition-all shadow-lg"
+                            className="w-12 h-14 bg-[#1c1c1c] border border-white/10 rounded-2xl text-white text-2xl font-bold text-center focus:outline-none focus:border-[#32b096] focus:ring-2 focus:ring-[#32b096]/25 transition-all shadow-lg"
                         />
                     ))}
                 </div>
@@ -122,7 +122,7 @@ const VerifyOTP = () => {
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full py-3 bg-white hover:bg-gray-100 text-black font-bold rounded-xl transition-all shadow-xl active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center text-sm"
+                        className="w-full py-3 bg-white hover:bg-gray-100 text-black font-bold rounded-2xl transition-all shadow-xl active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center text-sm"
                     >
                         {loading ? <Loader2 className="animate-spin h-5 w-5" /> : "Verify OTP"}
                     </button>

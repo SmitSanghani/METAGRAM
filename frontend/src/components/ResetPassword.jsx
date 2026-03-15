@@ -80,7 +80,7 @@ const ResetPassword = () => {
                             value={input.password}
                             onChange={changeEventHandler}
                             placeholder="••••••••••••"
-                            className={`block w-full pl-12 pr-12 py-3 bg-[#1c1c1c] border ${errors.password ? 'border-red-500/50 focus:border-red-500' : 'border-white/10 focus:border-[#32b096]'} rounded-xl text-white placeholder-gray-600 focus:outline-none focus:ring-2 ${errors.password ? 'focus:ring-red-500/25' : 'focus:ring-[#32b096]/25'} transition-all shadow-lg text-sm`}
+                            className={`block w-full pl-12 pr-12 py-3 bg-[#1c1c1c] border ${errors.password ? 'border-red-500/50 focus:border-red-500' : 'border-white/10 focus:border-[#32b096]'} rounded-2xl text-white placeholder-gray-600 focus:outline-none focus:ring-2 ${errors.password ? 'focus:ring-red-500/25' : 'focus:ring-[#32b096]/25'} transition-all shadow-lg text-sm`}
                         />
                         <button
                             type="button"
@@ -122,7 +122,7 @@ const ResetPassword = () => {
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full py-3 bg-white hover:bg-gray-100 text-black font-bold rounded-xl transition-all shadow-xl active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center text-sm"
+                        className="w-full py-3 bg-white hover:bg-gray-100 text-black font-bold rounded-2xl transition-all shadow-xl active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center text-sm"
                     >
                         {loading ? <Loader2 className="animate-spin h-5 w-5" /> : "Reset Password"}
                     </button>

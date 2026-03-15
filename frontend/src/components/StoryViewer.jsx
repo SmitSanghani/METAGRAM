@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronLeft, ChevronRight, Eye, Trash2, Heart, Send, Star, Plus } from 'lucide-react';
 import api from '@/api';
@@ -233,8 +234,8 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
         touchEndX.current = null;
     };
 
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-95 backdrop-blur-md">
+    return createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-95 backdrop-blur-md overflow-hidden">
             {/* Close Button */}
             <button onClick={onClose} className="absolute top-6 right-6 z-50 p-2 text-white/50 hover:text-white hover:bg-white/10 rounded-full transition-all active:scale-90">
                 <X size={28} strokeWidth={2.5} />
@@ -458,7 +459,8 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
                     )}
                 </AnimatePresence>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 

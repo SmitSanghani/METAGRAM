@@ -47,7 +47,7 @@ const StoryFeature = () => {
                 const sortedStories = stories.sort((a, b) => {
                     const aId = a.userId._id.toString();
                     const bId = b.userId._id.toString();
-                    
+
                     if (aId === currentUserId) return -1;
                     if (bId === currentUserId) return 1;
 
@@ -99,7 +99,7 @@ const StoryFeature = () => {
                             size={64}
                         />
                         {/* Blue Plus Button */}
-                        <div 
+                        <div
                             className="absolute bottom-[6px] right-[6px] p-[2px] bg-white rounded-full shadow-sm cursor-pointer transition-transform z-10"
                             onClick={(e) => {
                                 e.stopPropagation();

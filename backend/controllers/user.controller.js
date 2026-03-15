@@ -764,7 +764,7 @@ export const blockUser = async (req, res) => {
         return res.status(200).json({ message: `You have blocked ${target.username}`, success: true });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ success: false });
+        res.status(500).json({ message: "Failed to block user", success: false });
     }
 }
 
@@ -773,21 +773,25 @@ export const unblockUser = async (req, res) => {
         const userId = req.id;
         const targetId = req.params.id;
 
+        if (!userId || !targetId) {
+            return res.status(400).json({ message: "Missing user information", success: false });
+        }
+
         const user = await User.findById(userId);
         const target = await User.findById(targetId);
 
         if (!user || !target) return res.status(404).json({ message: "User not found", success: false });
 
-        user.blockedUsers = user.blockedUsers.filter(id => id.toString() !== targetId.toString());
-        target.blockedBy = target.blockedBy.filter(id => id.toString() !== userId.toString());
-
-        await user.save();
-        await target.save();
+        // Use $pull for more reliable array updates
+        await Promise.all([
+            User.updateOne({ _id: userId }, { $pull: { blockedUsers: targetId } }),
+            User.updateOne({ _id: targetId }, { $pull: { blockedBy: userId } })
+        ]);
 
         return res.status(200).json({ message: `You have unblocked ${target.username}`, success: true });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ success: false });
+        console.error("Unblock Error:", error);
+        res.status(500).json({ message: error.message || "Failed to unblock user", success: false });
     }
 }
 export const getLikedActivity = async (req, res) => {
@@ -830,12 +834,12 @@ export const getBlockedUsers = async (req, res) => {
         if (!user) return res.status(404).json({ message: "User not found", success: false });
 
         return res.status(200).json({
-            blockedUsers: user.blockedUsers,
+            blockedUsers: user.blockedUsers || [],
             success: true
         });
     } catch (error) {
         console.error(error);
-        return res.status(500).json({ success: false });
+        return res.status(500).json({ message: "Failed to fetch blocked users", success: false });
     }
 };
 

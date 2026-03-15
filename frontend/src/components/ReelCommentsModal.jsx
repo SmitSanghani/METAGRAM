@@ -247,14 +247,23 @@ const ReelCommentsModal = ({ reelId, comments: initialComments = [], open, setOp
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            <DialogContent className="sm:max-w-md h-[85vh] flex flex-col p-0 border-none bg-white rounded-t-[32px] sm:rounded-[40px] overflow-hidden focus:outline-none shadow-[0_32px_100px_rgba(0,0,0,0.3)] animate-in slide-in-from-bottom-[100%] duration-700">
+            <DialogContent className="sm:max-w-md h-[85vh] flex flex-col p-0 border-none bg-white rounded-t-[15px] sm:rounded-[20px] overflow-hidden focus:outline-none shadow-[0_32px_100px_rgba(0,0,0,0.3)] animate-in slide-in-from-bottom-[100%] duration-700">
                 <DialogHeader className="px-8 py-6 border-b border-gray-50 flex-none bg-white/90 backdrop-blur-xl sticky top-0 z-20">
                     <div className="flex items-center justify-between w-full">
                         <div className="flex flex-col">
                             <DialogTitle className="font-black text-[11px] uppercase tracking-[0.3em] text-gray-800 mb-1">METAGRAM</DialogTitle>
                             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Discussion ({comments?.length || 0})</span>
                         </div>
-                        <div className="w-12 h-1.5 bg-gray-100 rounded-full sm:hidden" />
+                        <div className="flex items-center gap-3">
+                            <div className="w-12 h-1.5 bg-gray-100 rounded-full sm:hidden" />
+                            <button 
+                                onClick={() => setOpen(false)}
+                                className="p-2 hover:bg-gray-100 rounded-full transition-all text-gray-400 hover:text-black active:scale-90"
+                                aria-label="Close"
+                            >
+                                <CloseIcon size={20} strokeWidth={3} />
+                            </button>
+                        </div>
                     </div>
                 </DialogHeader>
 

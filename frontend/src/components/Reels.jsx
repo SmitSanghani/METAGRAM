@@ -5,14 +5,15 @@ import api from '@/api';
 import { useDispatch, useSelector } from 'react-redux';
 import { setReels, updateReelLikes } from '@/redux/reelSlice';
 import ReelCard from './ReelCard';
-import { Loader2 } from 'lucide-react';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
+import { Loader2, ArrowLeft } from 'lucide-react';
 
-import { useLocation, useParams } from 'react-router-dom';
 
 import 'swiper/css';
 
 
 const Reels = () => {
+    const navigate = useNavigate();
     const { id: paramReelId } = useParams();
     const location = useLocation();
     const initialReel = location.state?.initialReel;
@@ -92,9 +93,18 @@ const Reels = () => {
     };
 
     return (
-        <div className="flex h-screen w-full bg-[rgb(218,242,242)] md:pl-[80px] overflow-hidden">
+        <div className="flex h-screen w-full bg-[#f6f7fb] overflow-hidden relative">
+            {/* Back Button */}
+            <button 
+                onClick={() => navigate('/')}
+                className="absolute top-8 left-8 z-50 flex items-center gap-2 px-4 py-2.5 bg-white/80 backdrop-blur-md rounded-xl shadow-sm border border-gray-100 hover:bg-white transition-all group active:scale-95"
+            >
+                <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
+                <span className="font-bold text-sm text-gray-700">Back to Feed</span>
+            </button>
+
             <div className="flex-1 h-full flex justify-center items-center">
-                <div className="h-[96vh] w-full max-w-[400px] relative shadow-[0_20px_60px_rgba(0,0,0,0.15)]">
+                <div className="h-[94vh] w-full max-w-[380px] relative shadow-[0_20px_50px_rgba(0,0,0,0.1)] rounded-2xl overflow-hidden">
                     {reels.length > 0 ? (
                         <Swiper
                             onSwiper={(swiper) => swiperRef.current = swiper}

@@ -9,18 +9,18 @@ const Home = () => {
     useGetAllPost();
     useGetSuggestedUsers();
     return (
-        <div className='flex justify-center w-full min-h-screen bg-[#edf6f5]'>
-            <div className='flex w-full max-w-[1240px] gap-20 pt-8 px-8 justify-between'>
+        <div className='flex justify-center w-full min-h-screen'>
+            <div className='flex w-full max-w-[1400px] gap-12 pt-8 justify-between'>
                 {/* Feed Section */}
-                <div className='flex-1 max-w-[700px]'>
+                <div className='flex-1 lg:max-w-none'>
                     <Feed />
                     <div className='py-4'>
                         <Outlet />
                     </div>
                 </div>
 
-                {/* Suggested Section */}
-                <div className='hidden lg:block w-full max-w-[340px]'>
+                {/* Suggested Section - Visible on very large screens */}
+                <div className='hidden xl:block w-full max-w-[320px]'>
                     <RightSidebar />
                 </div>
             </div>
@@ -29,3 +29,4 @@ const Home = () => {
 }
 
 export default Home
+

@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react'
-import { Dialog, DialogContent, DialogHeader } from './ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog'
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Textarea } from './ui/textarea';
 import { Button } from './ui/button';
@@ -62,8 +62,16 @@ const CreatePost = ({ open, setOpen }) => {
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogContent className="bg-white rounded-2xl p-0 border-none shadow-2xl overflow-hidden max-w-md max-h-[90vh] flex flex-col">
-                <DialogHeader className='relative flex-none items-center justify-center py-4 border-b border-[#efefef] m-0 bg-white'>
-                    <h2 className='text-center font-bold text-[16px] text-[#262626] w-full'>Create new post</h2>
+                <DialogHeader className='relative flex-none flex-row items-center justify-between py-4 px-4 border-b border-[#efefef] m-0 bg-white'>
+                    <div className="w-8" /> {/* Spacer */}
+                    <DialogTitle className='text-center font-bold text-[16px] text-[#262626]'>Create new post</DialogTitle>
+                    <DialogDescription className="sr-only">Upload a photo and write a caption for your new post</DialogDescription>
+                    <button 
+                        onClick={() => setOpen(false)}
+                        className="p-1 hover:bg-gray-100 rounded-full transition-colors text-gray-400 hover:text-black"
+                    >
+                        <X size={20} />
+                    </button>
                 </DialogHeader>
                 <div className='p-6 flex flex-col gap-5 overflow-y-auto no-scrollbar flex-1 bg-white'>
                     <div className='flex gap-3 items-center'>

@@ -23,6 +23,7 @@ import MessageMonitoring from "./components/admin/MessageMonitoring"
 import AdminSettings from "./components/admin/AdminSettings"
 import AdminLogin from "./components/admin/AdminLogin"
 import AdminProtectedRoute from "./components/admin/AdminProtectedRoute"
+import AnimationPage from "./components/AnimationPage"
 import { createBrowserRouter, RouterProvider } from "react-router-dom"
 import { io } from "socket.io-client";
 import { useEffect, useRef } from "react";
@@ -98,6 +99,10 @@ const browserRouter = createBrowserRouter([
   {
     path: '/reset-password',
     element: <AuthenticatedRoute><ResetPassword /></AuthenticatedRoute>
+  },
+  {
+    path: '/animation',
+    element: <AnimationPage />
   },
   {
     path: '/admin/login',

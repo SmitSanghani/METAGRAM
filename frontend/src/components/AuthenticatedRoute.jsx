@@ -6,7 +6,7 @@ const AuthenticatedRoute = ({ children }) => {
     const { user } = useSelector(store => store.auth);
     
     if (user) {
-        return <Navigate to="/" replace />;
+        return <Navigate to="/animation" replace />;
     }
     
     return children;

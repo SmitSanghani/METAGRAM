@@ -69,8 +69,11 @@ const LeftSidebar = () => {
             setNotificationOpen(!notificationOpen);
             setSearchOpen(false);
         } else if (textType === 'Search') {
-            setSearchOpen(!searchOpen);
-            navigate('/explore');
+            const searchInput = document.querySelector('input[placeholder="Search Metagram..."]');
+            if (searchInput) {
+                searchInput.focus();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
             setNotificationOpen(false);
         } else if (textType === 'Settings') {
             navigate('/settings');
@@ -88,61 +91,60 @@ const LeftSidebar = () => {
 
 
     const sidebarItems = [
-        { icon: <Home size={20} strokeWidth={1.5} />, text: "Home" },
-        { icon: <Search size={20} strokeWidth={1.5} />, text: "Search" },
-        { icon: <Video size={20} strokeWidth={1.5} />, text: "Reels" },
-        { icon: <MessageCircle size={20} strokeWidth={1.5} />, text: "Message" },
-        { icon: <Heart size={20} strokeWidth={1.5} />, text: "Notifications" },
-        { icon: <PlusSquare size={20} strokeWidth={1.5} />, text: "Create" },
-        { icon: <Video size={20} strokeWidth={1.5} />, text: "Upload Reel" },
-        { icon: <Settings size={20} strokeWidth={1.5} />, text: "Settings" }
+        { icon: <Home size={22} strokeWidth={1.5} />, text: "Home" },
+        { icon: <Video size={22} strokeWidth={1.5} />, text: "Reels" },
+        { icon: <MessageCircle size={22} strokeWidth={1.5} />, text: "Message" },
+        { icon: <Heart size={22} strokeWidth={1.5} />, text: "Notifications" },
+        { icon: <PlusSquare size={22} strokeWidth={1.5} />, text: "Create" },
+        { icon: <Video size={22} strokeWidth={1.5} />, text: "Upload Reel" },
+        { icon: <Settings size={22} strokeWidth={1.5} />, text: "Settings" }
     ]
 
     const isActive = (text) => {
         if (text === 'Home' && location.pathname === '/') return true;
         if (text === 'Message' && location.pathname.startsWith('/chat')) return true;
         if (text === 'Reels' && location.pathname.startsWith('/reels')) return true;
-        if (text === 'Search' && location.pathname.startsWith('/explore')) return true;
         if (text === 'Settings' && location.pathname.startsWith('/settings')) return true;
         if (text === 'Profile' && location.pathname.includes(`/profile/${user?._id}`)) return true;
         return false;
     }
 
     return (
-        <div className='fixed top-0 z-50 left-0 w-[240px] h-screen bg-[#d6eef3] border-r border-[#efefef] flex flex-col justify-between pb-6 px-4 transition-colors duration-300'>
+        <div className='fixed top-0 z-50 left-0 w-[280px] h-screen bg-white border-r border-gray-100 flex flex-col justify-between pb-6 px-6 transition-all duration-300'>
             <div className='flex flex-col'>
-                <div className='my-8 pl-3 flex flex-col'>
-                    <h1 className='text-2xl font-bold tracking-tight text-[#3b82f6]' style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+                <div className='my-10 pl-3 flex flex-col'>
+                    <h1 className='text-3xl font-black tracking-tighter text-gray-900 cursor-pointer' 
+                        style={{ fontFamily: "'Outfit', sans-serif" }}
+                        onClick={() => navigate('/')}
+                    >
                         METAGRAM
                     </h1>
-                    <p className='text-[8px] tracking-[0.3em] text-gray-400 font-bold uppercase mt-0.5' style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
-                        Digital Identity
-                    </p>
                 </div>
 
-                <div className='flex flex-col gap-2'>
+                <div className='flex flex-col gap-1.5'>
                     {
                         sidebarItems.map((item, index) => {
                             const active = isActive(item.text);
                             return (
                                 <div onClick={() => sidebarHandler(item.text)} key={index}
-                                    className={`flex items-center gap-4 cursor-pointer px-3 py-3 rounded-lg transition-all duration-200 group active:scale-[0.98] ${active
-                                        ? 'bg-white text-[#3b82f6] font-bold shadow-sm'
-                                        : 'text-[#262626] hover:bg-white/60'
+                                    className={`flex items-center gap-4 cursor-pointer px-4 py-3 rounded-xl transition-all duration-300 group active:scale-[0.98] ${active
+                                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-100'
+                                        : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
                                         }`}>
-                                    <div className={`transition-transform duration-200 group-hover:scale-110 ${active ? 'text-[#3b82f6]' : ''}`}>
-                                        {React.cloneElement(item.icon, { size: 24, strokeWidth: active ? 2.5 : 2 })}
+                                    <div className={`transition-transform duration-300 group-hover:scale-110 ${active ? 'text-white' : 'group-hover:text-black'}`}>
+                                        {React.cloneElement(item.icon, { strokeWidth: active ? 2.5 : 2 })}
                                     </div>
-                                    <span className={`text-[15px] ${active ? 'font-bold' : 'font-medium'}`}>{item.text}</span>
+                                    <span className={`text-[15px] ${active ? 'font-bold' : 'font-semibold'}`}>{item.text}</span>
+
 
                                     {item.text === 'Notifications' && unreadCount > 0 && (
-                                        <div className='ml-auto bg-red-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] flex items-center justify-center rounded-full px-1'>
+                                        <div className={`ml-auto text-[10px] font-bold min-w-[20px] h-[20px] flex items-center justify-center rounded-full px-1.5 ${active ? 'bg-white text-indigo-600' : 'bg-red-500 text-white'}`}>
                                             {unreadCount > 9 ? '9+' : unreadCount}
                                         </div>
                                     )}
 
                                     {item.text === 'Message' && totalUnreadMessages > 0 && location.pathname !== '/chat' && (
-                                        <div className='ml-auto bg-red-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] flex items-center justify-center rounded-full px-1'>
+                                        <div className={`ml-auto text-[10px] font-bold min-w-[20px] h-[20px] flex items-center justify-center rounded-full px-1.5 ${active ? 'bg-white text-indigo-600' : 'bg-red-500 text-white'}`}>
                                             {totalUnreadMessages > 9 ? '9+' : totalUnreadMessages}
                                         </div>
                                     )}
@@ -156,23 +158,23 @@ const LeftSidebar = () => {
             {/* Bottom Actions */}
             <div className='flex flex-col gap-2'>
                 <div onClick={() => sidebarHandler('Profile')}
-                    className={`flex items-center gap-4 cursor-pointer px-3 py-3 rounded-lg transition-all duration-200 group active:scale-[0.98] ${isActive('Profile')
-                        ? 'bg-white text-[#3b82f6] font-bold shadow-sm'
-                        : 'text-[#262626] hover:bg-white/60'
+                    className={`flex items-center gap-4 cursor-pointer px-4 py-3.5 rounded-2xl transition-all duration-300 group active:scale-[0.98] ${isActive('Profile')
+                        ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100'
+                        : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
                         }`}>
-                    <Avatar className={`w-6 h-6 border ${isActive('Profile') ? 'ring-2 ring-[#3b82f6] ring-offset-2' : 'border-gray-200'}`}>
+                    <Avatar className={`w-6 h-6 border ${isActive('Profile') ? 'ring-2 ring-white ring-offset-2 ring-offset-indigo-600' : 'border-gray-200'}`}>
                         <AvatarImage src={user?.profilePicture} alt="user" className="object-cover" />
-                        <AvatarFallback className='bg-gray-200 text-[10px] text-black'>{user?.username?.charAt(0)?.toUpperCase() || 'U'}</AvatarFallback>
+                        <AvatarFallback className='bg-gray-50 text-[10px] text-gray-400'>{user?.username?.charAt(0)?.toUpperCase() || 'U'}</AvatarFallback>
                     </Avatar>
-                    <span className={`text-[15px] ${isActive('Profile') ? 'font-bold' : 'font-normal'}`}>Profile</span>
+                    <span className={`text-[15px] ${isActive('Profile') ? 'font-bold' : 'font-semibold'}`}>Profile</span>
                 </div>
 
                 <div onClick={() => sidebarHandler('Logout')}
-                    className='flex items-center gap-4 cursor-pointer px-3 py-3 rounded-lg transition-all duration-200 text-[#262626] hover:bg-white/60 group active:scale-[0.98]'>
-                    <div className='transition-transform duration-200 group-hover:scale-110'>
-                        <LogOut size={24} strokeWidth={2} />
+                    className='flex items-center gap-4 cursor-pointer px-4 py-3.5 rounded-2xl transition-all duration-300 text-gray-500 hover:bg-red-50 hover:text-red-600 group active:scale-[0.98]'>
+                    <div className='transition-transform duration-300 group-hover:scale-110'>
+                        <LogOut size={22} strokeWidth={2} />
                     </div>
-                    <span className='text-[15px] font-medium'>Logout</span>
+                    <span className='text-[15px] font-semibold'>Logout</span>
                 </div>
             </div>
 
@@ -183,13 +185,12 @@ const LeftSidebar = () => {
             {/* Notifications Backdrop/Overlay */}
             {notificationOpen && (
                 <div
-                    className='fixed inset-0 bg-black/20 backdrop-blur-[2px] z-40 transition-opacity'
+                    className='fixed inset-0 bg-black/5 backdrop-blur-[2px] z-40 transition-opacity'
                     onClick={() => setNotificationOpen(false)}
                 />
             )}
 
             {notificationOpen && <NotificationDropdown onClose={() => setNotificationOpen(false)} />}
-            <SearchDrawer isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
         </div>
     )
 }

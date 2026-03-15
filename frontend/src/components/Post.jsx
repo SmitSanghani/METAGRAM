@@ -26,7 +26,7 @@ const Post = ({ post }) => {
     const navigate = useNavigate();
     const { user, userProfile } = useSelector(store => store.auth);
     const { posts } = useSelector(store => store.post);
-    
+
     // Derived values for live updates
     const liked = post?.likes?.includes(user?._id);
     const postLike = post?.likes?.length || 0;
@@ -145,7 +145,7 @@ const Post = ({ post }) => {
             {/* Header */}
             <div className='flex items-center justify-between py-4 bg-white px-2'>
                 <div className='flex items-center gap-4'>
-                    <div 
+                    <div
                         onClick={() => navigate(`/profile/${post?.author?._id}`)}
                         className="relative p-[1.5px] rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600 cursor-pointer"
                     >
@@ -155,7 +155,7 @@ const Post = ({ post }) => {
                         </Avatar>
                     </div>
                     <div className='flex items-center gap-1.5'>
-                        <h1 
+                        <h1
                             onClick={() => navigate(`/profile/${post?.author?._id}`)}
                             className='font-bold text-[15px] text-gray-900 cursor-pointer hover:text-gray-500'
                         >
@@ -227,7 +227,7 @@ const Post = ({ post }) => {
                     </span>
 
                     <div className='flex flex-wrap items-center gap-2'>
-                        <span 
+                        <span
                             onClick={() => navigate(`/profile/${post?.author?._id}`)}
                             className='font-bold text-[15px] text-gray-900 hover:opacity-70 cursor-pointer'
                         >
@@ -266,7 +266,7 @@ const Post = ({ post }) => {
                             onSubmit={(e) => { e.preventDefault(); commentHandler(); }}
                             className='flex items-center gap-3 mt-2 border-none'
                         >
-                             <input
+                            <input
                                 type="text"
                                 placeholder='Add a comment...'
                                 value={text}

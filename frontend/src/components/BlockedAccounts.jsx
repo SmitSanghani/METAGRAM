@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Button } from './ui/button';
-import { Dialog, DialogContent } from './ui/dialog';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from './ui/dialog';
 import { toast } from 'sonner';
 import api from '@/api';
 import { useDispatch, useSelector } from 'react-redux';
@@ -13,6 +13,7 @@ const BlockedAccounts = () => {
     const [loading, setLoading] = useState(true);
     const [isUnblockConfirmOpen, setIsUnblockConfirmOpen] = useState(false);
     const [userToUnblock, setUserToUnblock] = useState(null);
+    const [isUnblocking, setIsUnblocking] = useState(false);
     const { user } = useSelector(store => store.auth);
     const dispatch = useDispatch();
 
@@ -42,16 +43,17 @@ const BlockedAccounts = () => {
 
     const confirmUnblock = async () => {
         if (!userToUnblock) return;
+        setIsUnblocking(true); // Start loading
         try {
             const res = await api.post(`/user/unblock/${userToUnblock._id}`);
             if (res.data.success) {
                 toast.success(res.data.message);
-                setBlockedUsers(blockedUsers.filter(u => u._id !== userToUnblock._id));
+                setBlockedUsers(prev => prev.filter(u => u && u._id !== userToUnblock._id));
                 
                 // Update local auth user state (remove from blockedUsers)
                 const updatedAuthUser = {
                     ...user,
-                    blockedUsers: user.blockedUsers.filter(id => id.toString() !== userToUnblock._id.toString())
+                    blockedUsers: (user.blockedUsers || []).filter(id => (id._id || id).toString() !== userToUnblock._id.toString())
                 };
                 dispatch(setAuthUser(updatedAuthUser));
                 
@@ -59,7 +61,10 @@ const BlockedAccounts = () => {
                 setUserToUnblock(null);
             }
         } catch (error) {
+            console.error("Unblock Error:", error);
             toast.error(error.response?.data?.message || "Failed to unblock user");
+        } finally {
+            setIsUnblocking(false); // End loading
         }
     };
 
@@ -113,6 +118,8 @@ const BlockedAccounts = () => {
             {/* Unblock Confirmation Dialog */}
             <Dialog open={isUnblockConfirmOpen} onOpenChange={setIsUnblockConfirmOpen}>
                 <DialogContent className="max-w-[400px] p-0 overflow-hidden border-0 bg-white sm:rounded-xl shadow-2xl">
+                    <DialogTitle className="sr-only">Unblock Confirmation</DialogTitle>
+                    <DialogDescription className="sr-only">Confirm if you want to unblock {userToUnblock?.username}</DialogDescription>
                     <div className="flex flex-col items-center pt-8 pb-6 px-8 border-b border-[#efefef]">
                         <h2 className="text-[18px] font-bold text-[#262626] mb-4">Unblock {userToUnblock?.username}?</h2>
                         <p className="text-[14px] text-center text-gray-500 leading-relaxed">
@@ -123,9 +130,10 @@ const BlockedAccounts = () => {
                         <Button
                             variant="ghost"
                             onClick={confirmUnblock}
-                            className="w-full py-6 text-[14px] font-bold text-[#ED4956] hover:bg-[#fafafa] border-b border-[#efefef] rounded-none h-auto transition-colors"
+                            disabled={isUnblocking}
+                            className="w-full py-6 text-[14px] font-bold text-[#ED4956] hover:bg-[#fafafa] border-b border-[#efefef] rounded-none h-auto transition-colors disabled:opacity-50"
                         >
-                            Unblock
+                            {isUnblocking ? "Unblocking..." : "Unblock"}
                         </Button>
                         <Button
                             variant="ghost"

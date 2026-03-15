@@ -1,11 +1,12 @@
 import React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
-import { Dialog, DialogContent, DialogHeader } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { setAuthUser } from '@/redux/authSlice';
 import api from '@/api';
 import { toast } from 'sonner';
+import { X } from 'lucide-react';
 
 const UserListItem = ({ user: targetUser, currentAuthUser, onClose }) => {
     const navigate = useNavigate();
@@ -84,8 +85,18 @@ const UserListModal = ({ isOpen, onClose, title, users }) => {
     return (
         <Dialog open={isOpen} onOpenChange={setOpen => !setOpen && onClose()}>
             <DialogContent className="max-w-md sm:rounded-[20px] p-0 overflow-hidden border-none shadow-2xl">
-                <DialogHeader className="p-4 border-b border-gray-100">
-                    <h1 className="text-center font-black text-sm uppercase tracking-widest text-gray-800">{title}</h1>
+                <DialogHeader className="p-4 border-b border-gray-100 flex flex-row items-center justify-between">
+                    <div className="w-10" /> {/* Spacer */}
+                    <div>
+                        <DialogTitle className="text-center font-black text-sm uppercase tracking-widest text-gray-800">{title}</DialogTitle>
+                        <DialogDescription className="sr-only">List of {title.toLowerCase()}</DialogDescription>
+                    </div>
+                    <button 
+                        onClick={onClose}
+                        className="p-1 hover:bg-gray-100 rounded-full transition-colors text-gray-400 hover:text-black"
+                    >
+                        <X size={20} />
+                    </button>
                 </DialogHeader>
 
                 <div className="flex flex-col px-4 py-2 max-h-[60vh] overflow-y-auto custom-scrollbar">

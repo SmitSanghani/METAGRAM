@@ -19,16 +19,16 @@ const postSlice = createSlice({
             const post = state.posts.find(p => p._id === postId);
             if (post) {
                 if (type === 'like') {
-                    if (!post.likes.includes(userId)) post.likes.push(userId);
+                    if (!post.likes.some(id => (id._id || id) === userId)) post.likes.push(userId);
                 } else {
-                    post.likes = post.likes.filter(id => id !== userId);
+                    post.likes = post.likes.filter(id => (id._id || id) !== userId);
                 }
             }
             if (state.selectedPost?._id === postId) {
                 if (type === 'like') {
-                    if (!state.selectedPost.likes.includes(userId)) state.selectedPost.likes.push(userId);
+                    if (!state.selectedPost.likes.some(id => (id._id || id) === userId)) state.selectedPost.likes.push(userId);
                 } else {
-                    state.selectedPost.likes = state.selectedPost.likes.filter(id => id !== userId);
+                    state.selectedPost.likes = state.selectedPost.likes.filter(id => (id._id || id) !== userId);
                 }
             }
         },

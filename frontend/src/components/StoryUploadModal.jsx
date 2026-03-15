@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Image as ImageIcon, Video, UserPlus, Check, Globe, Users, Search, Plus, Trash2 } from 'lucide-react';
 import { Button } from './ui/button';
@@ -185,8 +186,8 @@ const StoryUploadModal = ({ isOpen, onClose, user, onUploadSuccess }) => {
 
     if (!isOpen) return null;
 
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+    return createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
             <motion.div
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
@@ -431,7 +432,8 @@ const StoryUploadModal = ({ isOpen, onClose, user, onUploadSuccess }) => {
 
                 <input type="file" hidden ref={fileInputRef} accept="image/*,video/*" multiple onChange={handleFileSelect} />
             </motion.div>
-        </div>
+        </div>,
+        document.body
     );
 };
 

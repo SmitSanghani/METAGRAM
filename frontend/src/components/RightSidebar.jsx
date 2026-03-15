@@ -9,7 +9,7 @@ const RightSidebar = () => {
     const { user } = useSelector(store => store.auth);
 
     return (
-        <div className='w-full bg-white rounded-2xl shadow-sm border border-gray-100 p-6'>
+        <div className='w-full bg-white rounded-xl shadow-sm border border-gray-100 p-6'>
             {/* Current User Info Row */}
             <div className='flex items-center justify-between mb-6'>
                 <div className='flex items-center gap-4'>
@@ -30,17 +30,8 @@ const RightSidebar = () => {
             </div>
 
             <SuggestedUsers />
-
-            {/* Footer Links */}
-            <div className='mt-8 pt-6 border-t border-gray-50 flex flex-wrap gap-x-2 gap-y-1'>
-                {['About', 'Help', 'Press', 'API', 'Jobs', 'Privacy', 'Terms', 'Locations', 'Language', 'Meta Verified'].map((link) => (
-                    <span key={link} className='text-[11px] text-zinc-300 hover:text-zinc-500 cursor-pointer'>{link}</span>
-                ))}
-            </div>
-            <p className='mt-4 text-[10px] text-zinc-300 uppercase font-bold tracking-wider'>
-                © 2026 METAGRAM FROM META
-            </p>
         </div>
+
     )
 }
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Dialog, DialogContent, DialogTrigger } from './ui/dialog'
+import { Dialog, DialogContent, DialogTrigger, DialogClose, DialogTitle, DialogDescription } from './ui/dialog'
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar'
 import { Link } from 'react-router-dom'
 import { MoreHorizontal, X } from 'lucide-react'
@@ -8,8 +8,8 @@ import { useDispatch, useSelector } from 'react-redux'
 import Comment from './Comment.jsx'
 import api from '@/api';
 import { toast } from 'sonner'
-import { setPosts } from '@/redux/postSlice'
-import { DialogClose } from '@radix-ui/react-dialog'
+import { setPosts, setSelectedPost } from '@/redux/postSlice'
+import { updateReelLikes, addReelComment } from '@/redux/reelSlice'
 import { FaHeart, FaRegHeart } from "react-icons/fa";
 import { Send, Heart } from 'lucide-react';
 import SaveButton from './SaveButton';
@@ -20,19 +20,21 @@ const CommentDialog = ({ open, setOpen }) => {
     const [text, setText] = useState("");
     const [replyingTo, setReplyingTo] = useState(null);
     const { selectedPost, posts } = useSelector(store => store.post);
+    const { reels } = useSelector(store => store.reel);
     const { user } = useSelector(store => store.auth);
     const { socket } = useSelector(store => store.socketio);
     const [comment, setComment] = useState([]);
     const [liked, setLiked] = useState(false);
     const [postLike, setPostLike] = useState(0);
     const [showLikers, setShowLikers] = useState(false);
+    const isReel = selectedPost?.feedType === 'reel';
     const dispatch = useDispatch();
     const inputRef = React.useRef(null);
 
     useEffect(() => {
         if (selectedPost) {
             setComment(selectedPost.comments);
-            setLiked(selectedPost.likes.includes(user?._id));
+            setLiked(selectedPost.likes.some(id => (id._id || id) === user?._id));
             setPostLike(selectedPost.likes.length);
         }
     }, [selectedPost, user?._id])
@@ -101,7 +103,8 @@ const CommentDialog = ({ open, setOpen }) => {
 
     const sendMessageHandler = async () => {
         try {
-            const res = await api.post(`/post/${selectedPost?._id}/comment`, {
+            const endpoint = isReel ? `/reels/comment/${selectedPost?._id}` : `/post/${selectedPost?._id}/comment`;
+            const res = await api.post(endpoint, {
                 text,
                 parentId: replyingTo?._id
             }, {
@@ -110,41 +113,65 @@ const CommentDialog = ({ open, setOpen }) => {
                 },
             });
             if (res.data.success) {
-                const updatedCommnetData = [...comment, res.data.comment];
-                setComment(updatedCommnetData);
+                const updatedCommentData = [...comment, res.data.comment];
+                setComment(updatedCommentData);
 
-                const updatedPostData = posts.map(p =>
-                    p._id === selectedPost._id ? {
-                        ...p,
-                        comments: updatedCommnetData
-                    } : p
-                );
-                dispatch(setPosts(updatedPostData));
+                if (isReel) {
+                    dispatch(addReelComment({ reelId: selectedPost._id, comment: res.data.comment }));
+                } else {
+                    const updatedPostData = posts.map(p =>
+                        p._id === selectedPost._id ? {
+                            ...p,
+                            comments: updatedCommentData
+                        } : p
+                    );
+                    dispatch(setPosts(updatedPostData));
+                }
+
+                // Update selected item in redux to keep sync
+                dispatch(setSelectedPost({ ...selectedPost, comments: updatedCommentData }));
+
                 setText("");
                 setReplyingTo(null);
                 toast.success(res.data.message);
             }
         } catch (error) {
             console.log(error);
+            toast.error("Failed to post comment");
         }
     }
 
     const likeOrDislikeHandler = async () => {
         try {
             const action = liked ? "dislike" : "like";
-            const res = await api.get(`/post/${selectedPost._id}/${action}`);
+            const endpoint = isReel ? `/reels/like/${selectedPost._id}` : `/post/${selectedPost._id}/${action}`;
+
+            const res = isReel ? await api.post(endpoint) : await api.get(endpoint);
+
             if (res.data.success) {
                 const updatedLikesCount = liked ? postLike - 1 : postLike + 1;
                 setPostLike(updatedLikesCount);
                 setLiked(!liked);
 
-                const updatedPostData = posts.map(p =>
-                    p._id === selectedPost._id ? {
-                        ...p,
-                        likes: liked ? p.likes.filter(id => id !== user._id) : [...p.likes, user._id]
-                    } : p
-                );
-                dispatch(setPosts(updatedPostData));
+                const updatedLikes = liked
+                    ? selectedPost.likes.filter(id => (id._id || id) !== user._id)
+                    : [...selectedPost.likes, user._id];
+
+                if (isReel) {
+                    dispatch(updateReelLikes({ reelId: selectedPost._id, likes: updatedLikes }));
+                } else {
+                    const updatedPostData = posts.map(p =>
+                        p._id === selectedPost._id ? {
+                            ...p,
+                            likes: updatedLikes
+                        } : p
+                    );
+                    dispatch(setPosts(updatedPostData));
+                }
+
+                // Keep selected post in sync
+                dispatch(setSelectedPost({ ...selectedPost, likes: updatedLikes }));
+
                 toast.success(res.data.message);
             }
         } catch (error) {
@@ -154,15 +181,27 @@ const CommentDialog = ({ open, setOpen }) => {
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            <DialogContent onInteractOutside={() => { setOpen(false); setReplyingTo(null); }} className='max-w-5xl p-0 flex flex-col bg-white overflow-hidden rounded-[15px] border-none shadow-[0_32px_64px_-15px_rgba(0,0,0,0.2)] sm:max-h-[88vh] max-h-[95vh] w-[98vw] sm:w-[90vw] transition-all duration-500'>
+            <DialogContent hideClose onInteractOutside={() => { setOpen(false); setReplyingTo(null); }} className='max-w-5xl p-0 flex flex-col bg-white overflow-hidden rounded-[15px] border-none shadow-[0_32px_64px_-15px_rgba(0,0,0,0.2)] sm:max-h-[88vh] max-h-[95vh] w-[98vw] sm:w-[90vw] transition-all duration-500'>
+                <DialogTitle className="sr-only">Post by {selectedPost?.author?.username}</DialogTitle>
+                <DialogDescription className="sr-only">Post details and comments</DialogDescription>
                 <div className='flex flex-col sm:flex-row flex-1 overflow-hidden'>
                     {/* Media Section */}
                     <div className='w-full sm:w-[55%] bg-[#050505] flex items-center justify-center relative group min-h-[350px] sm:min-h-0'>
-                        <img
-                            src={selectedPost?.image}
-                            alt="post_img"
-                            className='w-full h-full object-contain sm:max-h-[88vh] max-h-[50vh] transition-transform duration-700 group-hover:scale-[1.02]'
-                        />
+                        {isReel ? (
+                            <video
+                                src={selectedPost?.videoUrl}
+                                controls
+                                autoPlay
+                                loop
+                                className='w-full h-full object-contain sm:max-h-[88vh] max-h-[50vh]'
+                            />
+                        ) : (
+                            <img
+                                src={selectedPost?.image}
+                                alt="post_img"
+                                className='w-full h-full object-contain sm:max-h-[88vh] max-h-[50vh] transition-transform duration-700 group-hover:scale-[1.02]'
+                            />
+                        )}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                     </div>
 
@@ -172,7 +211,7 @@ const CommentDialog = ({ open, setOpen }) => {
                         <div className='flex items-center justify-between px-6 py-5 border-b border-gray-50 bg-white/80 backdrop-blur-md sticky top-0 z-20'>
                             <div className='flex gap-4 items-center'>
                                 <Link to={`/profile/${selectedPost?.author?._id}`}>
-                                    <div className="relative p-[1.5px] rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600 transition-transform hover:rotate-12">
+                                    <div className="relative p-[1.5px] rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600 transition-transform">
                                         <Avatar className="w-9 h-9 border-2 border-white">
                                             <AvatarImage src={selectedPost?.author?.profilePicture} className="object-cover" />
                                             <AvatarFallback className="bg-gray-100 font-black text-xs">{selectedPost?.author?.username?.charAt(0)?.toUpperCase()}</AvatarFallback>
@@ -202,6 +241,19 @@ const CommentDialog = ({ open, setOpen }) => {
                                         <DialogClose className='w-full py-4 hover:bg-gray-100 font-black text-gray-400 transition-colors'>Cancel</DialogClose>
                                     </DialogContent>
                                 </Dialog>
+                                <button 
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setOpen(false);
+                                        setReplyingTo(null);
+                                    }}
+                                    type="button"
+                                    className="rounded-full h-10 w-10 flex items-center justify-center text-gray-400 hover:text-black hover:bg-gray-100 transition-all active:scale-95 focus:outline-none relative z-[100] cursor-pointer"
+                                    aria-label="Close dialog"
+                                >
+                                    <X size={24} strokeWidth={3} />
+                                </button>
                             </div>
                         </div>
 

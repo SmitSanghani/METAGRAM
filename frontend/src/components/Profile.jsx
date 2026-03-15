@@ -15,7 +15,7 @@ import { toast } from 'sonner'
 import StoryAvatar from './StoryAvatar'
 import CloseFriendsModal from './CloseFriendsModal'
 import { Star } from 'lucide-react'
-import { Dialog, DialogContent, DialogHeader } from './ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog'
 import ReelCommentsModal from './ReelCommentsModal'
 import CommentDialog from './CommentDialog'
 import { setSelectedPost } from '@/redux/postSlice'
@@ -175,18 +175,21 @@ const Profile = () => {
         // Update local auth user state (remove from blockedUsers)
         const updatedAuthUser = {
           ...user,
-          blockedUsers: user.blockedUsers.filter(id => id.toString() !== userProfile._id.toString())
+          blockedUsers: (user.blockedUsers || []).filter(id => (id._id || id).toString() !== userProfile._id.toString())
         };
         dispatch(setAuthUser(updatedAuthUser));
 
-        dispatch(setUserProfile({
-          ...userProfile,
-          blockedBy: userProfile.blockedBy.filter(id => id.toString() !== user._id.toString())
-        }));
+        if (userProfile) {
+          dispatch(setUserProfile({
+            ...userProfile,
+            blockedBy: (userProfile.blockedBy || []).filter(id => (id._id || id).toString() !== user._id.toString())
+          }));
+        }
 
         setIsOptionsMenuOpen(false);
       }
     } catch (error) {
+      console.error("Unblock Error:", error);
       toast.error(error.response?.data?.message || 'Failed to unblock user');
     }
   };
@@ -549,6 +552,8 @@ const Profile = () => {
       {/* Following Dropdown Menu (Step 1) */}
       <Dialog open={isFollowingMenuOpen} onOpenChange={setIsFollowingMenuOpen}>
         <DialogContent className="max-w-[400px] p-0 overflow-hidden border-0 bg-white sm:rounded-xl shadow-2xl">
+          <DialogTitle className="sr-only">Following Options</DialogTitle>
+          <DialogDescription className="sr-only">Manage your relationship with {userProfile?.username}</DialogDescription>
           <div className="flex flex-col items-center">
             <Button
               variant="ghost"
@@ -604,6 +609,8 @@ const Profile = () => {
       {/* Unfollow Confirmation Dialog (Step 2) */}
       <Dialog open={isUnfollowConfirmOpen} onOpenChange={setIsUnfollowConfirmOpen}>
         <DialogContent className="max-w-[400px] p-0 overflow-hidden border-0 bg-white sm:rounded-xl shadow-2xl">
+          <DialogTitle className="sr-only">Unfollow Confirmation</DialogTitle>
+          <DialogDescription className="sr-only">Confirm if you want to unfollow @{userProfile?.username}</DialogDescription>
           <div className="flex flex-col items-center pt-8 pb-6 px-6 border-b border-[#efefef]">
             <Avatar className="w-[90px] h-[90px] mb-6">
               <AvatarImage src={userProfile?.profilePicture} className="object-cover" />
@@ -637,6 +644,8 @@ const Profile = () => {
       {/* Profile Options Menu */}
       <Dialog open={isOptionsMenuOpen} onOpenChange={setIsOptionsMenuOpen}>
         <DialogContent className="max-w-[400px] p-0 overflow-hidden border-0 bg-white sm:rounded-xl shadow-2xl">
+          <DialogTitle className="sr-only">Profile Options</DialogTitle>
+          <DialogDescription className="sr-only">Additional actions for this profile</DialogDescription>
           <div className="flex flex-col items-center">
             <Button
               variant="ghost"
@@ -689,6 +698,8 @@ const Profile = () => {
       {/* Block Confirmation Dialog */}
       <Dialog open={isBlockConfirmOpen} onOpenChange={setIsBlockConfirmOpen}>
         <DialogContent className="max-w-[400px] p-0 overflow-hidden border-0 bg-white sm:rounded-xl shadow-2xl">
+          <DialogTitle className="sr-only">Block Confirmation</DialogTitle>
+          <DialogDescription className="sr-only">Confirm if you want to block {userProfile?.username}</DialogDescription>
           <div className="flex flex-col items-center pt-8 pb-6 px-8 border-b border-[#efefef]">
             <h2 className="text-[18px] font-bold text-[#262626] mb-4">Block {userProfile?.username}?</h2>
             <p className="text-[14px] text-center text-gray-500 leading-relaxed">
