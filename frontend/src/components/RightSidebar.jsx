@@ -1,12 +1,14 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar'
 import { useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import SuggestedUsers from './SuggestedUsers';
+import SwitchAccountModal from './SwitchAccountModal';
 
 const RightSidebar = () => {
 
     const { user } = useSelector(store => store.auth);
+    const [isSwitchOpen, setIsSwitchOpen] = useState(false);
 
     return (
         <div className='w-full bg-white rounded-xl shadow-sm border border-gray-100 p-6'>
@@ -26,10 +28,19 @@ const RightSidebar = () => {
                         <span className='text-zinc-400 text-[12px] font-medium leading-tight mt-1'>{user?.username}</span>
                     </div>
                 </div>
-                <button className='text-[#3b82f6] hover:text-black text-[12px] font-bold transition-all'>Switch</button>
+                <button
+                    onClick={() => setIsSwitchOpen(true)}
+                    className='text-[#3b82f6] hover:text-black text-[12px] font-bold transition-all'
+                >
+                    Switch
+                </button>
             </div>
 
             <SuggestedUsers />
+            <SwitchAccountModal
+                isOpen={isSwitchOpen}
+                onClose={() => setIsSwitchOpen(false)}
+            />
         </div>
 
     )

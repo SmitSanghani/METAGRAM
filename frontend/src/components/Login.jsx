@@ -49,11 +49,39 @@ const Login = () => {
                 }
             });
             if (res.data.success) {
-                dispatch(setAuthUser(res.data.user));
-                if (res.data.token) {
-                    dispatch(setToken(res.data.token));
+                const loggedInUser = res.data.user;
+                const token = res.data.token;
+
+                dispatch(setAuthUser(loggedInUser));
+                if (token) {
+                    dispatch(setToken(token));
                 }
-                
+
+                // Persist account for quick switching
+                try {
+                    const ACCOUNTS_KEY = 'metagram_accounts';
+                    const existingRaw = localStorage.getItem(ACCOUNTS_KEY);
+                    const existing = existingRaw ? JSON.parse(existingRaw) : [];
+
+                    const newAccount = {
+                        userId: loggedInUser?._id,
+                        username: loggedInUser?.username,
+                        profilePicture: loggedInUser?.profilePicture || null,
+                        email: loggedInUser?.email || input.email,
+                        token: token || null,
+                        user: loggedInUser
+                    };
+
+                    const withoutCurrent = existing.filter(
+                        (acc) => acc.userId !== newAccount.userId
+                    );
+
+                    const updatedAccounts = [newAccount, ...withoutCurrent].slice(0, 5);
+                    localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(updatedAccounts));
+                } catch (e) {
+                    // fail silently if localStorage is not available
+                }
+
                 // Show a small delay to ensure Redux state is updated before navigation
                 setTimeout(() => {
                     navigate("/animation");

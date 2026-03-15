@@ -91,7 +91,7 @@ const UserListModal = ({ isOpen, onClose, title, users }) => {
                         <DialogTitle className="text-center font-black text-sm uppercase tracking-widest text-gray-800">{title}</DialogTitle>
                         <DialogDescription className="sr-only">List of {title.toLowerCase()}</DialogDescription>
                     </div>
-                    <button 
+                    <button
                         onClick={onClose}
                         className="p-1 hover:bg-gray-100 rounded-full transition-colors text-gray-400 hover:text-black"
                     >

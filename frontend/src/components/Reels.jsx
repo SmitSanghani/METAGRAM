@@ -35,7 +35,7 @@ const Reels = () => {
     const fetchReels = async (p = 1) => {
         try {
             setLoading(true);
-            
+
             // If it's the first page and we have a specific ID, fetch that first
             let specificReel = null;
             if (p === 1 && paramReelId) {
@@ -53,10 +53,10 @@ const Reels = () => {
             if (res.data.success) {
                 if (p === 1) {
                     let fedReels = res.data.reels;
-                    
+
                     // Priority: URL Param > Location State
                     const priorityReel = specificReel || initialReel;
-                    
+
                     if (priorityReel) {
                         fedReels = [priorityReel, ...fedReels.filter(r => r._id !== priorityReel._id)];
                     }
@@ -95,7 +95,7 @@ const Reels = () => {
     return (
         <div className="flex h-screen w-full bg-[#f6f7fb] overflow-hidden relative">
             {/* Back Button */}
-            <button 
+            <button
                 onClick={() => navigate('/')}
                 className="absolute top-8 left-8 z-50 flex items-center gap-2 px-4 py-2.5 bg-white/80 backdrop-blur-md rounded-xl shadow-sm border border-gray-100 hover:bg-white transition-all group active:scale-95"
             >
