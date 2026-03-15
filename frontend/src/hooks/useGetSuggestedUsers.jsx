@@ -8,7 +8,7 @@ const useGetSuggestedUsers = () => {
     useEffect(() => {
         const fetchSuggestedUsers = async () => {
             try {
-                const res = await api.get("/user/chatusers");
+                const res = await api.get("/user/suggested");
                 if (res.data.users) {
                     dispatch(setSuggestedUsers(res.data.users));
                 }

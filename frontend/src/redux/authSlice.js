@@ -120,10 +120,20 @@ const authSlice = createSlice({
                     if (comment) comment.likes = likes;
                 }
             }
+        },
+        toggleMuteUserAction: (state, action) => {
+            const userId = action.payload;
+            if (!state.user.mutedUsers) state.user.mutedUsers = [];
+            const isMuted = state.user.mutedUsers.includes(userId);
+            if (isMuted) {
+                state.user.mutedUsers = state.user.mutedUsers.filter(id => id !== userId);
+            } else {
+                state.user.mutedUsers.push(userId);
+            }
         }
     }
 });
 
-export const { setTheme, setAuthUser, setToken, setSuggestedUsers, setUserProfile, updateSuggestedUser, setFollowRelationship, updateUserProfileReelStats, removeUserProfileReelComment, editUserProfileReelComment, updateUserProfileReelCommentLikes } = authSlice.actions;
+export const { setTheme, setAuthUser, setToken, setSuggestedUsers, setUserProfile, updateSuggestedUser, setFollowRelationship, updateUserProfileReelStats, removeUserProfileReelComment, editUserProfileReelComment, updateUserProfileReelCommentLikes, toggleMuteUserAction } = authSlice.actions;
 export default authSlice.reducer;
 

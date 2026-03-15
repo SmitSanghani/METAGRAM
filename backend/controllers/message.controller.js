@@ -321,3 +321,23 @@ export const getUnreadCounts = async (req, res) => {
         res.status(500).json({ success: false });
     }
 };
+
+export const deleteConversation = async (req, res) => {
+    try {
+        const senderId = req.id;
+        const receiverId = req.params.id;
+
+        const conversation = await Conversation.findOneAndDelete({
+            participants: { $all: [senderId, receiverId] }
+        });
+
+        if (!conversation) {
+            return res.status(404).json({ success: false, message: "Conversation not found" });
+        }
+
+        res.status(200).json({ success: true, message: "Chat deleted successfully" });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, message: "Internal server error" });
+    }
+};

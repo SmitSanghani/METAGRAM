@@ -91,6 +91,10 @@ const userSchema = new mongoose.Schema({
     blockedBy: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
+    }],
+    mutedUsers: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
     }]
 }, { timestamps: true });
 

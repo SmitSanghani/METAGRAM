@@ -147,7 +147,8 @@ export const login = async (req, res) => {
             posts: populatedPosts,
             isPrivate: user.isPrivate,
             followRequests: user.followRequests,
-            role: user.role
+            role: user.role,
+            mutedUsers: user.mutedUsers || []
         }
 
         return res.cookie("token", token, { httpOnly: true, sameSite: 'strict', maxAge: 1 * 24 * 60 * 60 * 1000 }).json({
@@ -361,7 +362,7 @@ export const getSuggestedUsers = async (req, res) => {
     try {
         const user = await User.findById(req.id);
         const suggestedUsers = await User.find({
-            _id: { $ne: req.id, $nin: [...user.blockedUsers, ...user.blockedBy] },
+            _id: { $ne: req.id, $nin: [...user.blockedUsers, ...user.blockedBy, ...user.following] },
             isActive: { $ne: false },
             blockedUsers: { $ne: req.id }
         }).select("-password");
@@ -568,18 +569,9 @@ export const getChatUsers = async (req, res) => {
             };
         }).filter(u => u != null && !user.blockedUsers.some(id => String(id) === String(u._id)) && !user.blockedBy.some(id => String(id) === String(u._id)));
 
-        // Get all active users except the current user and blocked users
-        const allUsers = await User.find({
-            _id: { $ne: userId, $nin: [...user.blockedUsers, ...user.blockedBy] },
-            isActive: { $ne: false }
-        }).select("-password");
-
-        // Filter out users we've already chatted with to avoid duplicates in the final list
-        const suggestedUsers = allUsers.filter(u => !chattedUsers.some(cu => cu._id.toString() === u._id.toString()));
-
         return res.status(200).json({
             success: true,
-            users: [...chattedUsers, ...suggestedUsers]
+            users: chattedUsers
         });
     } catch (error) {
         console.error(error);
@@ -840,6 +832,33 @@ export const getBlockedUsers = async (req, res) => {
     } catch (error) {
         console.error(error);
         return res.status(500).json({ message: "Failed to fetch blocked users", success: false });
+    }
+};
+
+export const toggleMuteUser = async (req, res) => {
+    try {
+        const userId = req.id;
+        const targetId = req.params.id;
+
+        const user = await User.findById(userId);
+        if (!user) return res.status(404).json({ message: "User not found", success: false });
+
+        const isMuted = user.mutedUsers.includes(targetId);
+        if (isMuted) {
+            user.mutedUsers = user.mutedUsers.filter(id => id.toString() !== targetId);
+        } else {
+            user.mutedUsers.push(targetId);
+        }
+
+        await user.save();
+        return res.status(200).json({
+            message: `User ${isMuted ? 'unmuted' : 'muted'} successfully`,
+            success: true,
+            isMuted: !isMuted
+        });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: "Internal server error", success: false });
     }
 };
 

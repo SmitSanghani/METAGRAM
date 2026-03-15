@@ -3,21 +3,23 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Button } from './ui/button';
-import { MessageCircle, Send, X, Image as ImageIcon, Smile, Reply, Trash2 } from 'lucide-react';
+import { MessageCircle, Send, X, Image as ImageIcon, Smile, Reply, Trash2, Search, BellOff, Bell, VolumeOff, Volume2 } from 'lucide-react';
 import api from '@/api';
-import { setMessages, addMessage, updateMessageStatus, updateReactions, markUnsent, markStoryUnsent, incrementUnreadCount, clearUnreadCount, updateLastMessage, removeTempMessage, setSelectedUser, setChatUsers, reorderUsers, updateChatUserConversation, addChatUser } from '../redux/chatSlice';
+import { toast } from 'sonner';
+import { toggleMuteUserAction } from '../redux/authSlice';
+import { setMessages, addMessage, updateMessageStatus, updateReactions, markUnsent, markStoryUnsent, incrementUnreadCount, clearUnreadCount, updateLastMessage, removeTempMessage, setSelectedUser, setChatUsers, reorderUsers, updateChatUserConversation, addChatUser, clearChat } from '../redux/chatSlice';
 import ScrollToBottom from 'react-scroll-to-bottom';
 import MessageBubble from './MessageBubble';
-import useGetSuggestedUsers from '@/hooks/useGetSuggestedUsers';
+import useGetChatUsers from '@/hooks/useGetChatUsers';
 import StoryViewer from './StoryViewer';
 
 const NOTIFICATION_SOUND_URL = "/notification.mp3"; // Reference local file
 
 const ChatPage = () => {
     const navigate = useNavigate();
-    useGetSuggestedUsers();
+    useGetChatUsers();
     const [textMessage, setTextMessage] = useState("");
-    const { user, suggestedUsers } = useSelector(store => store.auth);
+    const { user } = useSelector(store => store.auth);
     const { onlineUsers = [], messages = [], unreadCounts = {}, lastMessages = {}, selectedUser, chatUsers = [] } = useSelector(store => store.chat || {});
     const { socket } = useSelector(store => store.socketio);
     const [replyTo, setReplyTo] = useState(null);
@@ -28,27 +30,13 @@ const ChatPage = () => {
 
     const [isTyping, setIsTyping] = useState(false);
     const [highlightedMessageId, setHighlightedMessageId] = useState(null);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [searchResults, setSearchResults] = useState([]);
+    const [isSearching, setIsSearching] = useState(false);
+    const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, targetUser: null });
+    const searchInputRef = useRef(null);
     let typingTimeout = useRef(null);
 
-    // Initial sync of chat users
-    useEffect(() => {
-        if (suggestedUsers && suggestedUsers.length > 0) {
-            const filtered = suggestedUsers.filter(u => String(u._id) !== String(user?._id));
-            
-            // Merge logic: Add users from suggestedUsers that aren't already in chatUsers
-            filtered.forEach(sUser => {
-                const exists = chatUsers.find(u => String(u._id) === String(sUser._id));
-                if (!exists) {
-                    dispatch(addChatUser(sUser));
-                }
-            });
-
-            // If chatUsers was empty, we can just set them all to maintain order from backend
-            if (chatUsers.length === 0) {
-                dispatch(setChatUsers(filtered));
-            }
-        }
-    }, [suggestedUsers, user?._id, dispatch]); // Removed chatUsers.length to allow merging as data arrives
 
     // Clear unread count when chat selected
     const handleSelectUser = (targetUser) => {
@@ -115,10 +103,10 @@ const ChatPage = () => {
                 try {
                     const res = await api.get(`/story/user/${selectedUser._id}`);
                     if (res.data.success) {
-                        setHeaderStories(res.data.stories);
+                        setHeaderStories(res.data.stories || []);
                     }
                 } catch (error) {
-                    console.error("Error fetching header stories:", error);
+                    console.error("Error fetching header stories", error);
                 }
             };
             fetchHeaderStories();
@@ -126,6 +114,32 @@ const ChatPage = () => {
             setHeaderStories([]);
         }
     }, [selectedUser?._id]);
+
+    useEffect(() => {
+        const delayDebounceFn = setTimeout(async () => {
+            if (searchQuery.trim()) {
+                setIsSearching(true);
+                try {
+                    const res = await api.get(`/user/search?query=${searchQuery}`);
+                    if (res.data.success) {
+                        // Filter out users already in active chat list to avoid duplicates
+                        const filtered = res.data.users.filter(u => 
+                            !chatUsers.some(cu => String(cu._id) === String(u._id))
+                        );
+                        setSearchResults(filtered);
+                    }
+                } catch (err) {
+                    console.error("Search error", err);
+                } finally {
+                    setIsSearching(false);
+                }
+            } else {
+                setSearchResults([]);
+            }
+        }, 300);
+
+        return () => clearTimeout(delayDebounceFn);
+    }, [searchQuery, chatUsers]);
 
     useEffect(() => {
         if (selectedUser && messages.length > 0) {
@@ -223,8 +237,6 @@ const ChatPage = () => {
 
     const reactMessageHandler = async (messageId, emoji) => {
         try {
-
-
             const res = await api.post(`/message/react/${messageId}`, { emoji });
             if (res.data.success) {
                 dispatch(updateReactions({ messageId, reactions: res.data.reactions }));
@@ -233,6 +245,75 @@ const ChatPage = () => {
             console.error(error);
         }
     }
+
+    const deleteChatHandler = async (targetUserId) => {
+        const userToDelete = targetUserId || selectedUser?._id;
+        const username = targetUserId ? chatUsers.find(u => u._id === targetUserId)?.username : selectedUser?.username;
+        
+        if (!userToDelete) return;
+        if (!window.confirm(`Are you sure you want to delete the entire chat with ${username}? This action cannot be undone.`)) return;
+
+        try {
+            const res = await api.delete(`/message/delete-chat/${userToDelete}`);
+            if (res.data.success) {
+                toast.success("Chat deleted successfully");
+                dispatch(clearChat(userToDelete));
+                if (selectedUser?._id === userToDelete) {
+                    dispatch(setSelectedUser(null));
+                }
+            }
+        } catch (error) {
+            console.error(error);
+            toast.error(error.response?.data?.message || "Failed to delete chat");
+        }
+    };
+
+    const toggleMuteHandler = async (targetUserId) => {
+        try {
+            const res = await api.post(`/user/toggle-mute/${targetUserId}`);
+            if (res.data.success) {
+                dispatch(toggleMuteUserAction(targetUserId));
+                toast.success(res.data.message);
+            }
+        } catch (error) {
+            console.error(error);
+            toast.error("Failed to toggle mute");
+        }
+    };
+
+    const handleContextMenu = (e, targetUser) => {
+        e.preventDefault();
+        
+        // Safety margin to prevent being cut off (menu is roughly 200x150)
+        const menuWidth = 200;
+        const menuHeight = 160;
+        
+        let x = e.clientX;
+        let y = e.clientY;
+        
+        // If clicking too close to the bottom, spawn menu upwards
+        if (y + menuHeight > window.innerHeight) {
+            y = y - menuHeight;
+        }
+        
+        // If clicking too close to the right edge, spawn menu leftwards
+        if (x + menuWidth > window.innerWidth) {
+            x = x - menuWidth;
+        }
+
+        setContextMenu({
+            visible: true,
+            x,
+            y,
+            targetUser
+        });
+    };
+
+    useEffect(() => {
+        const handleClickOutside = () => setContextMenu(prev => ({ ...prev, visible: false }));
+        window.addEventListener('click', handleClickOutside);
+        return () => window.removeEventListener('click', handleClickOutside);
+    }, []);
 
     const scrollToMessage = (msgId) => {
         const element = document.getElementById(`msg-${msgId}`);
@@ -347,14 +428,39 @@ const ChatPage = () => {
             <section className='hidden md:flex flex-col w-[350px] shrink-0 border-r border-[#efefef] bg-white px-2'>
                 <div className='py-8 px-4 flex items-center justify-between'>
                     <h1 className='font-black text-[22px] tracking-tight text-[#262626]'>{user?.username}</h1>
-                    <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center cursor-pointer hover:bg-gray-100 transition-colors">
+                    <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => searchInputRef.current?.focus()}>
                         <MessageCircle size={18} className="text-[#262626]" />
                     </div>
                 </div>
-                <div className='flex-1 overflow-y-auto custom-scrollbar pb-10 px-2'>
-                    <div className='px-2 mb-4 text-[12px] font-black text-[#8e8e8e] tracking-widest uppercase opacity-60'>Messages</div>
+                <div className='px-4 mb-4'>
+                    <div className='relative group'>
+                        <div className='absolute inset-y-0 left-3 flex items-center pointer-events-none'>
+                            <Search size={16} className='text-gray-400 group-focus-within:text-indigo-500 transition-colors' />
+                        </div>
+                        <input 
+                            ref={searchInputRef}
+                            type="text" 
+                            placeholder='Search people...' 
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className='w-full bg-gray-100/80 border-none rounded-xl py-2.5 pl-10 pr-10 text-[14px] font-medium outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white transition-all'
+                        />
+                        {searchQuery && (
+                            <button 
+                                onClick={() => setSearchQuery("")}
+                                className='absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-gray-600'
+                            >
+                                <X size={14} />
+                            </button>
+                        )}
+                    </div>
+                </div>                <div className='flex-1 overflow-y-auto custom-scrollbar pb-10 px-2'>
+                    <div className='px-2 mb-4 text-[12px] font-black text-[#8e8e8e] tracking-widest uppercase opacity-60'>
+                        {searchQuery ? (isSearching ? 'Searching...' : 'Search Results') : 'Messages'}
+                    </div>
                     <div className='flex flex-col gap-1'>
-                        {chatUsers?.map((suggestedUser) => {
+                        {/* Map filtered chat users */}
+                        {chatUsers?.filter(u => u.username.toLowerCase().includes(searchQuery.toLowerCase())).map((suggestedUser) => {
                             if (!suggestedUser || String(suggestedUser._id) === String(user?._id)) return null;
                             const isOnline = onlineUsers.includes(String(suggestedUser?._id));
                             const isSelected = selectedUser?._id === suggestedUser?._id;
@@ -363,27 +469,28 @@ const ChatPage = () => {
 
                             return (
                                 <div key={suggestedUser?._id}
-                                    className={`relative p-3 rounded-2xl transition-all duration-300 cursor-pointer active:scale-[0.98] group select-none z-10 ${isSelected ? 'bg-white shadow-[0_4px_20px_rgba(0,0,0,0.05)] border border-gray-100/50' : 'hover:bg-gray-100/50'}`}
-                                >
-                                    {/* Clickable Overlay */}
-                                    <div
-                                        className="absolute inset-0 z-20 cursor-pointer"
-                                        onClick={() => handleSelectUser(suggestedUser)}
-                                    />
+                                     onContextMenu={(e) => handleContextMenu(e, suggestedUser)}
+                                     className={`relative p-3 rounded-2xl transition-all duration-300 cursor-pointer active:scale-[0.98] group select-none z-10 ${isSelected ? 'bg-white shadow-[0_4px_20px_rgba(0,0,0,0.05)] border border-gray-100/50' : 'hover:bg-gray-100/50'}`}
+                                 >
+                                     {/* Clickable Overlay */}
+                                     <div
+                                         className="absolute inset-0 z-20 cursor-pointer"
+                                         onClick={() => handleSelectUser(suggestedUser)}
+                                     />
 
-                                    {/* Selection Indicator */}
-                                    {isSelected && <div className="absolute left-0 top-3 bottom-3 w-1 bg-[#4F46E5] rounded-full pointer-events-none"></div>}
+                                     {/* Selection Indicator */}
+                                     {isSelected && <div className="absolute left-0 top-3 bottom-3 w-1 bg-[#4F46E5] rounded-full pointer-events-none"></div>}
 
-                                    <div className="relative flex items-center gap-3 pointer-events-none">
-                                        <div className="relative shrink-0">
-                                            <Avatar className={`w-14 h-14 border-2 ${isSelected ? 'border-white' : 'border-transparent'} shadow-sm transition-all group-hover:scale-105`}>
-                                                <AvatarImage src={suggestedUser?.profilePicture} className="object-cover" />
-                                                <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-indigo-600 text-white font-black text-[15px] uppercase">
-                                                    {suggestedUser?.username?.charAt(0)}
-                                                </AvatarFallback>
-                                            </Avatar>
-                                            {isOnline && <div className="absolute bottom-1 right-1 w-3.5 h-3.5 bg-green-500 border-[2.5px] border-white rounded-full transition-all"></div>}
-                                        </div>
+                                     <div className="relative flex items-center gap-3 pointer-events-none">
+                                         <div className="relative shrink-0">
+                                             <Avatar className={`w-14 h-14 border-2 ${isSelected ? 'border-white' : 'border-transparent'} shadow-sm transition-all group-hover:scale-105`}>
+                                                 <AvatarImage src={suggestedUser?.profilePicture} className="object-cover" />
+                                                 <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-indigo-600 text-white font-black text-[15px] uppercase">
+                                                     {suggestedUser?.username?.charAt(0)}
+                                                 </AvatarFallback>
+                                             </Avatar>
+                                             {isOnline && <div className="absolute bottom-1 right-1 w-3.5 h-3.5 bg-green-500 border-[2.5px] border-white rounded-full transition-all"></div>}
+                                         </div>
 
                                         <div className='flex flex-col flex-1 overflow-hidden ml-1'>
                                             <div className="flex justify-between items-center w-full">
@@ -393,11 +500,16 @@ const ChatPage = () => {
                                                         <div className="w-2 h-2 bg-blue-500 rounded-full shrink-0"></div>
                                                     )}
                                                 </div>
-                                                {lastMsg && (
-                                                    <span className={`text-[11px] font-bold opacity-60 font-sans ${unreadCount > 0 ? 'text-blue-500 opacity-100' : 'text-[#8e8e8e]'}`}>
-                                                        {new Date(lastMsg.createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true })}
-                                                    </span>
-                                                )}
+                                                <div className="flex flex-col items-end shrink-0">
+                                                    {lastMsg && (
+                                                        <span className={`text-[11px] font-bold opacity-60 font-sans ${unreadCount > 0 ? 'text-blue-500 opacity-100' : 'text-[#8e8e8e]'}`}>
+                                                            {new Date(lastMsg.createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true })}
+                                                        </span>
+                                                    )}
+                                                    {user?.mutedUsers?.includes(suggestedUser?._id) && (
+                                                        <BellOff size={12} className="text-gray-400 mt-1" />
+                                                    )}
+                                                </div>
                                             </div>
                                             <div className="flex justify-between items-center w-full mt-0.5">
                                                 <span className={`text-[13px] truncate flex-1 font-medium ${unreadCount > 0 ? 'text-black font-black' : (isSelected ? 'text-indigo-600' : 'text-[#8e8e8e]')}`}>
@@ -426,6 +538,41 @@ const ChatPage = () => {
                                 </div>
                             );
                         })}
+
+                        {/* Map global search results */}
+                        {searchQuery && searchResults.map((suggestedUser) => (
+                            <div key={suggestedUser?._id}
+                                 className={`relative p-3 rounded-2xl transition-all duration-300 cursor-pointer active:scale-[0.98] group select-none z-10 hover:bg-gray-100/50`}
+                             >
+                                 <div
+                                     className="absolute inset-0 z-20 cursor-pointer"
+                                     onClick={() => {
+                                         handleSelectUser(suggestedUser);
+                                         setSearchQuery("");
+                                     }}
+                                 />
+                                 <div className="relative flex items-center gap-3 pointer-events-none">
+                                     <div className="relative shrink-0">
+                                         <Avatar className={`w-14 h-14 border-2 border-transparent shadow-sm transition-all group-hover:scale-105`}>
+                                             <AvatarImage src={suggestedUser?.profilePicture} className="object-cover" />
+                                             <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-indigo-600 text-white font-black text-[15px] uppercase">
+                                                 {suggestedUser?.username?.charAt(0)}
+                                             </AvatarFallback>
+                                         </Avatar>
+                                     </div>
+                                     <div className='flex flex-col flex-1 overflow-hidden ml-1'>
+                                         <div className="flex justify-between items-center w-full">
+                                             <span className={`text-[15px] truncate font-black text-[#262626]`}>{suggestedUser?.username}</span>
+                                         </div>
+                                         <div className="flex justify-between items-center w-full mt-0.5">
+                                             <span className={`text-[12px] truncate flex-1 font-medium text-indigo-500`}>
+                                                 Discovery - Tap to start chat
+                                             </span>
+                                         </div>
+                                     </div>
+                                 </div>
+                            </div>
+                        ))}
                     </div>
                 </div>
             </section>
@@ -462,7 +609,8 @@ const ChatPage = () => {
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
-                                <Button variant="ghost" size="icon" className="rounded-full w-10 h-10 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all"><MessageCircle size={20} /></Button>
+                                <Button variant="ghost" size="icon" onClick={() => searchInputRef.current?.focus()} className="rounded-full w-10 h-10 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all"><MessageCircle size={20} /></Button>
+                                <Button variant="ghost" size="icon" onClick={deleteChatHandler} className="rounded-full w-10 h-10 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"><Trash2 size={20} /></Button>
                                 <Button variant="ghost" size="icon" onClick={() => dispatch(setSelectedUser(null))} className="rounded-full w-10 h-10 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"><X size={20} /></Button>
                             </div>
                         </div>
@@ -641,10 +789,56 @@ const ChatPage = () => {
                         </div>
                         <h2 className='text-3xl font-black mb-2 tracking-tight text-[#262626] uppercase'>Your Messages</h2>
                         <p className='text-[#8e8e8e] mb-8 text-[16px] max-w-xs font-medium'>Send private photos and messages to a friend or group.</p>
-                        <Button className='bg-[#4F46E5] hover:bg-[#4338CA] text-white font-black h-12 px-10 rounded-full transition-all active:scale-95 shadow-lg shadow-indigo-200'>NEW MESSAGE</Button>
+                        <Button 
+                            onClick={() => searchInputRef.current?.focus()}
+                            className='bg-[#4F46E5] hover:bg-[#4338CA] text-white font-black h-12 px-10 rounded-full transition-all active:scale-95 shadow-lg shadow-indigo-200'
+                        >
+                            NEW MESSAGE
+                        </Button>
                     </div>
                 )}
             </section>
+
+            {/* Context Menu */}
+            {contextMenu.visible && (
+                <div 
+                    className="fixed z-[100] bg-white border border-gray-100 shadow-xl rounded-2xl py-2 min-w-[200px] animate-in fade-in zoom-in duration-200"
+                    style={{ top: contextMenu.y, left: contextMenu.x }}
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <div className="px-4 py-2 border-b border-gray-50 mb-1">
+                        <span className="text-[11px] font-black text-gray-400 uppercase tracking-wider">{contextMenu.targetUser?.username}</span>
+                    </div>
+                    
+                    <button 
+                        onClick={() => {
+                            toggleMuteHandler(contextMenu.targetUser._id);
+                            setContextMenu(prev => ({ ...prev, visible: false }));
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-indigo-50 text-gray-700 transition-colors group"
+                    >
+                        <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center group-hover:bg-white">
+                            {user?.mutedUsers?.includes(contextMenu.targetUser._id) ? <Volume2 size={16} className="text-gray-500" /> : <VolumeOff size={16} className="text-gray-500" />}
+                        </div>
+                        <span className="text-[14px] font-bold">
+                            {user?.mutedUsers?.includes(contextMenu.targetUser._id) ? 'Unmute' : 'Mute Notifications'}
+                        </span>
+                    </button>
+
+                    <button 
+                        onClick={() => {
+                            deleteChatHandler(contextMenu.targetUser._id);
+                            setContextMenu(prev => ({ ...prev, visible: false }));
+                        }}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-red-50 text-red-600 transition-colors group"
+                    >
+                        <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center group-hover:bg-white text-red-500">
+                            <Trash2 size={16} />
+                        </div>
+                        <span className="text-[14px] font-bold">Delete Chat History</span>
+                    </button>
+                </div>
+            )}
         </div>
     );
 };

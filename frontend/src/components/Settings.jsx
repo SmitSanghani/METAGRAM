@@ -161,7 +161,7 @@ const Settings = () => {
         <div className='flex justify-center w-full min-h-screen bg-[#f8fafc] pt-8 px-4 md:px-8'>
             <div className='flex w-full max-w-[1200px] bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100 mb-10'>
                 {/* Settings Sidebar */}
-                <div className='w-[280px] border-r border-gray-100 bg-gray-50/50 p-6 hidden md:block'>
+                <div className='w-[320px] border-r border-gray-100 bg-gray-50/50 p-6 hidden md:block'>
                     <h2 className='text-xl font-bold text-gray-900 mb-8 px-2'>Settings</h2>
                     <div className='flex flex-col gap-2'>
                         {menuItems.map((item) => (

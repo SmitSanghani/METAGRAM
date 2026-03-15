@@ -119,6 +119,14 @@ const chatSlice = createSlice({
             if (index !== -1) {
                 state.chatUsers[index].conversationId = conversationId;
             }
+        },
+        clearChat: (state, action) => {
+            const userId = String(action.payload);
+            state.messages = [];
+            if (state.lastMessages && state.lastMessages[userId]) {
+                delete state.lastMessages[userId];
+            }
+            state.chatUsers = state.chatUsers.filter(u => String(u._id) !== userId);
         }
     }
 });
@@ -141,7 +149,8 @@ export const {
     updateLastMessage,
     removeTempMessage,
     updateChatUserConversation,
-    addChatUser
+    addChatUser,
+    clearChat
 } = chatSlice.actions;
 
 export default chatSlice.reducer;

@@ -335,7 +335,8 @@ function App() {
           api.get(`/message/seen/${senderId}`).catch(() => {});
         } else {
           // Play sound and show toast only if NOT looking at this chat
-          if (audioRef.current) {
+          const isMuted = user?.mutedUsers?.includes(senderId);
+          if (audioRef.current && !isMuted) {
             audioRef.current.currentTime = 0;
             audioRef.current.play().catch(() => {});
           }
@@ -447,7 +448,8 @@ function App() {
              dispatch(reorderUsers(senderId));
              
              // ✅ Always show toast for reaction — even while in that chat
-             if (audioRef.current) {
+             const isMuted = user?.mutedUsers?.includes(senderId);
+             if (audioRef.current && !isMuted) {
                audioRef.current.currentTime = 0;
                audioRef.current.play().catch(() => {});
              }
