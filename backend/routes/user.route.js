@@ -1,5 +1,5 @@
 import express from 'express';
-import { editProfile, followOrUnfollow, getProfile, getSuggestedUsers, getChatUsers, login, logout, register, acceptFollowRequest, deleteFollowRequest, toggleUserStatus, changePassword, checkUsername, searchUsers, addToRecentSearch, removeFromRecentSearch, getRecentSearches, clearRecentSearches, getLikedActivity, getCommentActivity, blockUser, unblockUser, getBlockedUsers, toggleMuteUser } from '../controllers/user.controller.js';
+import { editProfile, followOrUnfollow, getProfile, getSuggestedUsers, getChatUsers, login, logout, register, acceptFollowRequest, deleteFollowRequest, toggleUserStatus, changePassword, checkUsername, searchUsers, addToRecentSearch, removeFromRecentSearch, getRecentSearches, clearRecentSearches, getLikedActivity, getCommentActivity, blockUser, unblockUser, getBlockedUsers, toggleMuteUser, linkAccount, deleteAccount } from '../controllers/user.controller.js';
 import isAuthenticated from '../middlewares/isAuthenticated.js';
 import upload from '../middlewares/multer.js';
 
@@ -29,6 +29,8 @@ router.route('/recent-search/clear-all').delete(isAuthenticated, clearRecentSear
 router.route('/block/:id').post(isAuthenticated, blockUser);
 router.route('/unblock/:id').post(isAuthenticated, unblockUser);
 router.route('/blocked-users').get(isAuthenticated, getBlockedUsers);
+router.route('/delete-account').delete(isAuthenticated, deleteAccount);
+router.route('/link-account').post(isAuthenticated, linkAccount);
 router.route('/toggle-mute/:id').post(isAuthenticated, toggleMuteUser);
 
 export default router;

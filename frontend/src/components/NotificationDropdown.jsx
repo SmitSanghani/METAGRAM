@@ -199,18 +199,18 @@ const NotificationDropdown = ({ onClose }) => {
 
                                 {/* Reply + Mark as read actions for message-type notifications */}
                                 {(n.type === 'message' || n.type === 'comment' || n.type === 'story_comment' || n.type === 'like' || n.type === 'story_like') && (
-                                    <div className="flex gap-3 mt-2">
+                                    <div className="flex items-center gap-2 mt-2.5">
                                         <button
                                             onClick={(e) => handleReply(e, n)}
-                                            className="flex items-center gap-1 text-[12px] font-black text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 px-3 py-1.5 rounded-full transition-all active:scale-95"
+                                            className="flex items-center justify-center gap-1 text-[11px] font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-1.5 rounded-full transition-all active:scale-95 shadow-sm shadow-indigo-100 whitespace-nowrap"
                                         >
-                                            <Reply size={12} strokeWidth={3} />
-                                            Reply
+                                            <Reply size={12} strokeWidth={2.5} />
+                                            <span>Reply</span>
                                         </button>
                                         {!n.read && (
                                             <button
                                                 onClick={(e) => handleMarkMessageAsRead(e, n)}
-                                                className="text-[12px] font-black text-gray-500 hover:text-gray-700 hover:bg-gray-100 px-3 py-1.5 rounded-full transition-all active:scale-95"
+                                                className="flex items-center justify-center text-[11px] font-bold text-gray-500 bg-gray-100 hover:bg-gray-200 hover:text-gray-700 px-4 py-1.5 rounded-full transition-all active:scale-95 whitespace-nowrap"
                                             >
                                                 Mark as read
                                             </button>
@@ -220,10 +220,10 @@ const NotificationDropdown = ({ onClose }) => {
                             </div>
                             {/* Content Thumbnail */}
                             {n.post?.image && (
-                                <img src={n.post.image} alt="post" className="w-12 h-12 object-cover rounded-md shadow-sm border border-[#F0F0F0]" />
+                                <img src={n.post.image} alt="post" className="w-12 h-12 object-cover rounded-md shadow-sm border border-[#F0F0F0] shrink-0" />
                             )}
                             {n.reel?.thumbnail && (
-                                <img src={n.reel.thumbnail} alt="reel" className="w-12 h-12 object-cover rounded-md shadow-sm border border-[#F0F0F0]" />
+                                <img src={n.reel.thumbnail} alt="reel" className="w-12 h-12 object-cover rounded-md shadow-sm border border-[#F0F0F0] shrink-0" />
                             )}
                             {n.story?.mediaUrl && (
                                 <div className="w-12 h-12 rounded-md overflow-hidden border border-[#F0F0F0] shadow-sm relative shrink-0">

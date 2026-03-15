@@ -12,32 +12,38 @@ import { getReceiverSocketId, io } from "../socket/socket.js";
 export const addNewPost = async (req, res) => {
     try {
         const { caption } = req.body;
-        const image = req.file;
+        const images = req.files; // Array of files
         const authorId = req.id;
 
-        if (!image) {
+        if (!images || images.length === 0) {
             return res.status(400).json({
-                message: "Image required",
+                message: "At least one image is required",
                 success: false,
             });
         }
 
-        // Image Upload : 
-        const optimizedImageBuffer = await sharp(image.buffer)
-            .resize({ width: 800, height: 800 })
-            .toFormat('jpeg', { quality: 80 })
-            .toBuffer();
+        const uploadedImages = [];
 
-        // Buffer to Data URI : 
-        const fileUri = `data:image/jpeg;base64,${optimizedImageBuffer.toString('base64')}`;
-        const cloudResponse = await cloudinary.uploader.upload(fileUri, {
-            folder: "instagram-clone/posts",
-        });
+        for (const file of images) {
+            // Image Optimization : 
+            const optimizedImageBuffer = await sharp(file.buffer)
+                .resize({ width: 800, height: 800, fit: 'inside' })
+                .toFormat('jpeg', { quality: 80 })
+                .toBuffer();
+
+            // Buffer to Data URI : 
+            const fileUri = `data:image/jpeg;base64,${optimizedImageBuffer.toString('base64')}`;
+            const cloudResponse = await cloudinary.uploader.upload(fileUri, {
+                folder: "instagram-clone/posts",
+            });
+            uploadedImages.push(cloudResponse.secure_url);
+        }
 
         // Create Post : 
         const post = await Post.create({
             caption,
-            image: cloudResponse.secure_url,
+            image: uploadedImages[0], // First image for backward compatibility
+            images: uploadedImages,    // All images
             author: authorId,
             allowComments: req.body.allowComments === 'false' ? false : true
         });
@@ -61,6 +67,7 @@ export const addNewPost = async (req, res) => {
     }
     catch (error) {
         console.error(error);
+        return res.status(500).json({ message: "Internal server error", success: false });
     }
 };
 

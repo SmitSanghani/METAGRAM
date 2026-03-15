@@ -14,6 +14,8 @@ import { FaHeart, FaRegHeart } from "react-icons/fa";
 import { Send, Heart } from 'lucide-react';
 import SaveButton from './SaveButton';
 import UserListModal from './UserListModal';
+import SharePostModal from './SharePostModal';
+import ShareReelModal from './ShareReelModal';
 
 const CommentDialog = ({ open, setOpen }) => {
 
@@ -27,15 +29,16 @@ const CommentDialog = ({ open, setOpen }) => {
     const [liked, setLiked] = useState(false);
     const [postLike, setPostLike] = useState(0);
     const [showLikers, setShowLikers] = useState(false);
+    const [showShare, setShowShare] = useState(false);
     const isReel = selectedPost?.feedType === 'reel';
     const dispatch = useDispatch();
     const inputRef = React.useRef(null);
 
     useEffect(() => {
         if (selectedPost) {
-            setComment(selectedPost.comments);
-            setLiked(selectedPost.likes.some(id => (id._id || id) === user?._id));
-            setPostLike(selectedPost.likes.length);
+            setComment(selectedPost.comments || []);
+            setLiked(selectedPost.likes?.some(id => (id._id || id) === user?._id) || false);
+            setPostLike(selectedPost.likes?.length || 0);
         }
     }, [selectedPost, user?._id])
 
@@ -154,8 +157,8 @@ const CommentDialog = ({ open, setOpen }) => {
                 setLiked(!liked);
 
                 const updatedLikes = liked
-                    ? selectedPost.likes.filter(id => (id._id || id) !== user._id)
-                    : [...selectedPost.likes, user._id];
+                    ? (selectedPost.likes || []).filter(id => (id._id || id) !== user._id)
+                    : [...(selectedPost.likes || []), user._id];
 
                 if (isReel) {
                     dispatch(updateReelLikes({ reelId: selectedPost._id, likes: updatedLikes }));
@@ -179,6 +182,32 @@ const CommentDialog = ({ open, setOpen }) => {
         }
     }
 
+    const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
+    const scrollRef = React.useRef(null);
+
+    useEffect(() => {
+        setCurrentMediaIndex(0);
+        if (scrollRef.current) {
+            scrollRef.current.scrollTo({ left: 0 });
+        }
+    }, [selectedPost]);
+
+    const handleScroll = () => {
+        if (scrollRef.current) {
+            const index = Math.round(scrollRef.current.scrollLeft / scrollRef.current.clientWidth);
+            setCurrentMediaIndex(index);
+        }
+    };
+
+    const scrollToImage = (index) => {
+        if (scrollRef.current) {
+            scrollRef.current.scrollTo({
+                left: index * scrollRef.current.clientWidth,
+                behavior: 'smooth'
+            });
+        }
+    };
+
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogContent hideClose onInteractOutside={() => { setOpen(false); setReplyingTo(null); }} className='max-w-5xl p-0 flex flex-col bg-white overflow-hidden rounded-[15px] border-none shadow-[0_32px_64px_-15px_rgba(0,0,0,0.2)] sm:max-h-[88vh] max-h-[95vh] w-[98vw] sm:w-[90vw] transition-all duration-500'>
@@ -186,7 +215,7 @@ const CommentDialog = ({ open, setOpen }) => {
                 <DialogDescription className="sr-only">Post details and comments</DialogDescription>
                 <div className='flex flex-col sm:flex-row flex-1 overflow-hidden'>
                     {/* Media Section */}
-                    <div className='w-full sm:w-[55%] bg-[#050505] flex items-center justify-center relative group min-h-[350px] sm:min-h-0'>
+                    <div className='w-full sm:w-[55%] bg-[#050505] flex items-center justify-center relative group min-h-[350px] sm:min-h-0 overflow-hidden'>
                         {isReel ? (
                             <video
                                 src={selectedPost?.videoUrl}
@@ -196,13 +225,59 @@ const CommentDialog = ({ open, setOpen }) => {
                                 className='w-full h-full object-contain sm:max-h-[88vh] max-h-[50vh]'
                             />
                         ) : (
-                            <img
-                                src={selectedPost?.image}
-                                alt="post_img"
-                                className='w-full h-full object-contain sm:max-h-[88vh] max-h-[50vh] transition-transform duration-700 group-hover:scale-[1.02]'
-                            />
+                            selectedPost?.images && selectedPost.images.length > 1 ? (
+                                <>
+                                    <div 
+                                        ref={scrollRef}
+                                        onScroll={handleScroll}
+                                        className="flex w-full h-full overflow-x-auto snap-x snap-mandatory no-scrollbar scroll-smooth"
+                                    >
+                                        {selectedPost.images.map((img, index) => (
+                                            <div key={index} className="w-full h-full flex-none snap-center flex items-center justify-center">
+                                                <img 
+                                                    className='w-full h-full object-contain'
+                                                    src={img} 
+                                                    alt={`post_img_${index}`}
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                    
+                                    <div className="absolute top-4 right-4 bg-black/60 text-white text-[12px] px-2 py-1 rounded-full font-medium z-20 pointer-events-none">
+                                        {currentMediaIndex + 1}/{selectedPost.images.length}
+                                    </div>
+
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); scrollToImage(currentMediaIndex > 0 ? currentMediaIndex - 1 : selectedPost.images.length - 1); }}
+                                        className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-2 rounded-full shadow-lg transition-all opacity-0 group-hover:opacity-100 z-30 flex items-center justify-center hover:scale-110 active:scale-90"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                                    </button>
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); scrollToImage(currentMediaIndex < selectedPost.images.length - 1 ? currentMediaIndex + 1 : 0); }}
+                                        className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-2 rounded-full shadow-lg transition-all opacity-0 group-hover:opacity-100 z-30 flex items-center justify-center hover:scale-110 active:scale-90"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                                    </button>
+
+                                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-1.5 z-20 pointer-events-none">
+                                        {selectedPost.images.map((_, index) => (
+                                            <div 
+                                                key={index}
+                                                className={`w-1.5 h-1.5 rounded-full transition-all ${currentMediaIndex === index ? 'bg-[#0095F6] w-3' : 'bg-white/50'}`}
+                                            />
+                                        ))}
+                                    </div>
+                                </>
+                            ) : (
+                                <img
+                                    src={selectedPost?.image || (selectedPost?.images && selectedPost.images[0])}
+                                    alt="post_img"
+                                    className='w-full h-full object-contain sm:max-h-[88vh] max-h-[50vh] transition-transform duration-700 group-hover:scale-[1.02]'
+                                />
+                            )
                         )}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
                     </div>
 
                     {/* Comments Section */}
@@ -311,7 +386,11 @@ const CommentDialog = ({ open, setOpen }) => {
                                     >
                                         {liked ? <FaHeart size={22} className="text-red-500" /> : <FaRegHeart size={22} className="text-gray-800" />}
                                     </button>
-                                    <Send size={22} className="text-gray-800 cursor-pointer" />
+                                    <Send 
+                                        onClick={() => setShowShare(true)}
+                                        size={22} 
+                                        className="text-gray-800 cursor-pointer hover:text-indigo-600 transition-colors" 
+                                    />
                                 </div>
                                 <SaveButton isSaved={user?.bookmarks?.includes(selectedPost?._id)} size={22} />
                             </div>
@@ -385,8 +464,14 @@ const CommentDialog = ({ open, setOpen }) => {
                     isOpen={showLikers}
                     onClose={() => setShowLikers(false)}
                     title="Likes"
-                    users={selectedPost?.likes}
+                    users={selectedPost?.likes || []}
                 />
+            )}
+
+            {isReel ? (
+                <ShareReelModal open={showShare} setOpen={setShowShare} reel={selectedPost} />
+            ) : (
+                <SharePostModal open={showShare} setOpen={setShowShare} post={selectedPost} />
             )}
         </Dialog>
     )

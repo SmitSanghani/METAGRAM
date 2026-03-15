@@ -1,21 +1,69 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
-import { Search, X, CheckCircle2 } from 'lucide-react';
-import { useSelector } from 'react-redux';
+import { Search, X, CheckCircle2, Loader2 } from 'lucide-react';
+import { useSelector, useDispatch } from 'react-redux';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import api from '@/api';
 import { toast } from 'sonner';
+import useGetChatUsers from '@/hooks/useGetChatUsers';
 
 const SharePostModal = ({ open, setOpen, post }) => {
-    const { suggestedUsers } = useSelector(store => store.auth);
+    useGetChatUsers();
+    const { suggestedUsers, user } = useSelector(store => store.auth);
+    const { chatUsers } = useSelector(store => store.chat);
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedUsers, setSelectedUsers] = useState([]);
+    const [searchResults, setSearchResults] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [isSearching, setIsSearching] = useState(false);
+    const dispatch = useDispatch();
 
-    const filteredUsers = suggestedUsers?.filter(u =>
-        u.username.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    // Fetch more users when searching (debounced)
+    useEffect(() => {
+        const fetchSearch = async () => {
+            if (searchTerm.trim().length > 0) {
+                setIsSearching(true);
+                try {
+                    const res = await api.get(`/user/search?query=${searchTerm}`);
+                    if (res.data.success) {
+                        setSearchResults(res.data.users);
+                    }
+                } catch (error) {
+                    console.error("Search error:", error);
+                } finally {
+                    setIsSearching(false);
+                }
+            } else {
+                setSearchResults([]);
+            }
+        };
+
+        const timeoutId = setTimeout(fetchSearch, 300);
+        return () => clearTimeout(timeoutId);
+    }, [searchTerm]);
+
+    // Initial list: Followers + Following + Chat users + Suggested users
+    const combinedInitialUsers = [
+        ...(user?.followers || []),
+        ...(user?.following || []),
+        ...(chatUsers || []),
+        ...(suggestedUsers || [])
+    ].reduce((acc, current) => {
+        // Handle both object and ID-only entries safely
+        const currentId = current?._id || current;
+        if (!currentId) return acc;
+        
+        const existing = acc.find(item => (item?._id || item) === currentId);
+        if (!existing && typeof current === 'object') {
+            return acc.concat([current]);
+        }
+        return acc;
+    }, []);
+
+    const filteredUsers = searchTerm.trim().length > 0
+        ? searchResults
+        : combinedInitialUsers;
 
     const toggleUser = (userId) => {
         if (selectedUsers.includes(userId)) {
@@ -33,7 +81,7 @@ const SharePostModal = ({ open, setOpen, post }) => {
                 await api.post(`/message/send/${userId}`, {
                     messageType: 'post',
                     postId: post._id,
-                    mediaUrl: post.image, // Pass image for immediate display if needed
+                    mediaUrl: post.image || (post.images && post.images[0]), // Pass image for immediate display if needed
                     message: post.caption || "Check out this post",
                 });
             }
@@ -60,9 +108,9 @@ const SharePostModal = ({ open, setOpen, post }) => {
 
                 <div className="p-6 flex flex-col gap-6">
                     {/* Post preview */}
-                    {post?.image && (
+                    {(post?.image || (post?.images && post?.images[0])) && (
                         <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-2xl">
-                            <img src={post.image} className="w-14 h-14 rounded-xl object-cover" alt="post" />
+                            <img src={post.image || (post?.images && post?.images[0])} className="w-14 h-14 rounded-xl object-cover" alt="post" />
                             <div className="flex flex-col overflow-hidden">
                                 <span className="text-[13px] font-black text-gray-800 truncate">{post?.author?.username}</span>
                                 <span className="text-[12px] text-gray-400 truncate">{post?.caption || "Post"}</span>
@@ -82,7 +130,11 @@ const SharePostModal = ({ open, setOpen, post }) => {
                     </div>
 
                     <div className="max-h-[300px] overflow-y-auto custom-scrollbar flex flex-col gap-1">
-                        {filteredUsers?.length > 0 ? (
+                        {isSearching ? (
+                            <div className="py-20 flex items-center justify-center">
+                                <Loader2 className="animate-spin text-indigo-600" size={32} />
+                            </div>
+                        ) : filteredUsers?.length > 0 ? (
                             filteredUsers.map(user => (
                                 <div
                                     key={user._id}

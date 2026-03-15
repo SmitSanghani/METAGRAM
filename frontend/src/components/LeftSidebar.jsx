@@ -1,4 +1,5 @@
 import { Heart, Home, LogOut, MessageCircle, PlusSquare, Search, Settings, Video, Sun, Moon } from 'lucide-react'
+import logo from '../assets/logo2.png';
 import React, { useState } from 'react'
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar'
 import { toast } from 'sonner'
@@ -113,12 +114,19 @@ const LeftSidebar = () => {
         <div className='fixed top-0 z-50 left-0 w-[280px] h-screen bg-white border-r border-gray-100 flex flex-col justify-between pb-6 px-6 transition-all duration-300'>
             <div className='flex flex-col'>
                 <div className='my-10 pl-3 flex flex-col'>
-                    <h1 className='text-3xl font-black tracking-tighter text-gray-900 cursor-pointer'
-                        style={{ fontFamily: "'Outfit', sans-serif" }}
+                    <div
                         onClick={() => navigate('/')}
+                        className='flex items-center gap-3 cursor-pointer group'
                     >
-                        METAGRAM
-                    </h1>
+                        <div className="relative w-10 h-10 flex items-center justify-center group-hover:scale-110 transition-transform duration-500">
+                            <img src={logo} alt="logo" className="w-full h-full object-contain" />
+                        </div>
+                        <h1 className='text-2xl font-black tracking-tighter text-gray-900'
+                            style={{ fontFamily: "'Outfit', sans-serif" }}
+                        >
+                            METAGRAM
+                        </h1>
+                    </div>
                 </div>
 
                 <div className='flex flex-col gap-1.5'>

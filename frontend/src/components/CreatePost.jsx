@@ -13,21 +13,25 @@ import { setPosts } from '@/redux/postSlice';
 const CreatePost = ({ open, setOpen }) => {
 
     const imageRef = useRef();
-    const [file, setFile] = useState("");
+    const [files, setFiles] = useState([]);
     const [caption, setCaption] = useState("");
-    const [imagePreview, setImagePreview] = useState("");
+    const [imagePreviews, setImagePreviews] = useState([]);
     const [allowComments, setAllowComments] = useState(true);
     const [loading, setLoading] = useState(false);
+    const [currentIndex, setCurrentIndex] = useState(0);
     const { user } = useSelector((store) => store.auth);
     const { posts } = useSelector((store) => store.post);
     const dispatch = useDispatch();
 
     const fileChangeHandler = async (e) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            setFile(file);
-            const dataUrl = await readFileAsDataURL(file);
-            setImagePreview(dataUrl);
+        const selectedFiles = Array.from(e.target.files || []);
+        if (selectedFiles.length > 0) {
+            setFiles(selectedFiles);
+            const previews = await Promise.all(
+                selectedFiles.map(file => readFileAsDataURL(file))
+            );
+            setImagePreviews(previews);
+            setCurrentIndex(0);
         }
     }
 
@@ -36,7 +40,10 @@ const CreatePost = ({ open, setOpen }) => {
         const formData = new FormData();
         formData.append("caption", caption);
         formData.append("allowComments", allowComments);
-        if (imagePreview) formData.append("image", file);
+        files.forEach((file) => {
+            formData.append("image", file);
+        });
+
         try {
             setLoading(true);
             const res = await api.post("/post/addpost", formData, {
@@ -45,18 +52,56 @@ const CreatePost = ({ open, setOpen }) => {
                 }
             });
             if (res.data.success) {
-                dispatch(setPosts([res.data.post, ...posts]));      // [1] -> [1,2] -> total element = 2 
+                dispatch(setPosts([res.data.post, ...posts]));
                 toast.success(res.data.message);
                 setOpen(false);
                 setCaption("");
-                setImagePreview("");
-                setFile("");
+                setImagePreviews([]);
+                setFiles([]);
             }
         } catch (error) {
-            toast.error(error.response.data.message);
+            toast.error(error.response?.data?.message || "Something went wrong");
         } finally {
             setLoading(false);
         }
+    }
+
+    const removeImage = (index) => {
+        const newFiles = [...files];
+        newFiles.splice(index, 1);
+        setFiles(newFiles);
+
+        const newPreviews = [...imagePreviews];
+        newPreviews.splice(index, 1);
+        setImagePreviews(newPreviews);
+
+        if (currentIndex >= newPreviews.length) {
+            setCurrentIndex(Math.max(0, newPreviews.length - 1));
+        }
+    }
+
+    const scrollRef = useRef(null);
+
+    const handleScroll = () => {
+        if (scrollRef.current) {
+            const index = Math.round(scrollRef.current.scrollLeft / scrollRef.current.clientWidth);
+            setCurrentIndex(index);
+        }
+    };
+
+    const scrollToImage = (index) => {
+        if (scrollRef.current) {
+            scrollRef.current.scrollTo({
+                left: index * scrollRef.current.clientWidth,
+                behavior: 'smooth'
+            });
+        }
+    };
+
+    // Auto-scroll when clicking thumbnails
+    const onSelectThumbnail = (index) => {
+        setCurrentIndex(index);
+        scrollToImage(index);
     }
 
     return (
@@ -65,7 +110,7 @@ const CreatePost = ({ open, setOpen }) => {
                 <DialogHeader className='relative flex-none flex-row items-center justify-between py-4 px-4 border-b border-[#efefef] m-0 bg-white'>
                     <div className="w-8" /> {/* Spacer */}
                     <DialogTitle className='text-center font-bold text-[16px] text-[#262626]'>Create new post</DialogTitle>
-                    <DialogDescription className="sr-only">Upload a photo and write a caption for your new post</DialogDescription>
+                    <DialogDescription className="sr-only">Upload photos and write a caption for your new post</DialogDescription>
                     <button 
                         onClick={() => setOpen(false)}
                         className="p-1 hover:bg-gray-100 rounded-full transition-colors text-gray-400 hover:text-black"
@@ -92,14 +137,72 @@ const CreatePost = ({ open, setOpen }) => {
                     />
 
                     {
-                        imagePreview && (
-                            <div className='w-full aspect-square flex items-center justify-center rounded-lg overflow-hidden bg-black/5'>
-                                <img src={imagePreview} alt="Preview_img" className="w-full h-full object-cover" />
+                        imagePreviews.length > 0 && (
+                            <div className='relative w-full aspect-square flex items-center justify-center rounded-lg overflow-hidden bg-black/5 group'>
+                                <div 
+                                    ref={scrollRef}
+                                    onScroll={handleScroll}
+                                    className="flex w-full h-full overflow-x-auto snap-x snap-mandatory no-scrollbar scroll-smooth"
+                                >
+                                    {imagePreviews.map((preview, index) => (
+                                        <div key={index} className="w-full h-full flex-none snap-center">
+                                            <img src={preview} alt="Preview_img" className="w-full h-full object-cover" />
+                                        </div>
+                                    ))}
+                                </div>
+                                
+                                {imagePreviews.length > 1 && (
+                                    <>
+                                        <div className="absolute top-2 right-2 bg-black/60 text-white text-[12px] px-2 py-1 rounded-full font-medium z-10 pointer-events-none">
+                                            {currentIndex + 1}/{imagePreviews.length}
+                                        </div>
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); scrollToImage(currentIndex > 0 ? currentIndex - 1 : imagePreviews.length - 1); }}
+                                            className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-1 rounded-full shadow-lg transition-all opacity-0 group-hover:opacity-100 z-20"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                                        </button>
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); scrollToImage(currentIndex < imagePreviews.length - 1 ? currentIndex + 1 : 0); }}
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-1 rounded-full shadow-lg transition-all opacity-0 group-hover:opacity-100 z-20"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                                        </button>
+                                    </>
+                                )}
+
+                                <button 
+                                    onClick={() => removeImage(currentIndex)}
+                                    className="absolute top-2 left-2 bg-red-500/80 hover:bg-red-500 text-white p-1 rounded-full shadow-md transition-all z-10"
+                                    title="Remove this image"
+                                >
+                                    <X size={14} />
+                                </button>
                             </div>
                         )
                     }
 
-                    <div className="flex items-center justify-between py-2 border-t border-gray-50 mt-2">
+                    {imagePreviews.length > 1 && (
+                        <div className="flex gap-3 overflow-x-auto no-scrollbar py-4 px-1 min-h-[96px]">
+                            {imagePreviews.map((preview, index) => (
+                                <div 
+                                    key={index} 
+                                    onClick={() => onSelectThumbnail(index)}
+                                    className={`relative flex-none w-16 h-16 rounded-lg overflow-hidden cursor-pointer border-2 transition-all shadow-sm ${currentIndex === index ? 'border-[#0095F6] scale-105 shadow-md' : 'border-transparent opacity-60 hover:opacity-100'}`}
+                                >
+                                    <img src={preview} alt="" className="w-full h-full object-cover" />
+                                </div>
+                            ))}
+                            <button 
+                                onClick={() => imageRef.current.click()}
+                                className="flex-none w-16 h-16 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400 hover:border-[#0095F6] hover:text-[#0095F6] hover:bg-gray-50 transition-all"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                            </button>
+                        </div>
+                    )}
+
+                    <div className="flex items-center justify-between py-2 border-t border-gray-50 mt-6 pt-4">
                         <span className="text-[14px] font-medium text-gray-700">Allow comments</span>
                         <div
                             onClick={() => setAllowComments(!allowComments)}
@@ -109,9 +212,9 @@ const CreatePost = ({ open, setOpen }) => {
                         </div>
                     </div>
 
-                    <input ref={imageRef} type="file" className='hidden' onChange={fileChangeHandler} />
+                    <input ref={imageRef} type="file" multiple className='hidden' onChange={fileChangeHandler} />
 
-                    {!imagePreview && (
+                    {imagePreviews.length === 0 && (
                         <div
                             onClick={() => imageRef.current.click()}
                             className="w-full h-[220px] flex flex-col items-center justify-center gap-4 cursor-pointer hover:bg-gray-50 transition-all group"
@@ -127,7 +230,7 @@ const CreatePost = ({ open, setOpen }) => {
                     )}
 
                     {
-                        imagePreview && (
+                        imagePreviews.length > 0 && (
                             loading ? (
                                 <Button disabled className="w-full bg-[#0095F6]/70 text-white font-bold h-10 rounded-lg mt-4">
                                     <Loader2 className='mr-2 h-5 w-5 animate-spin' />

@@ -105,10 +105,6 @@ const browserRouter = createBrowserRouter([
     element: <AnimationPage />
   },
   {
-    path: '/admin/login',
-    element: <AdminLogin />
-  },
-  {
     path: "/admin",
     element: <AdminProtectedRoute><AdminLayout /></AdminProtectedRoute>,
     children: [

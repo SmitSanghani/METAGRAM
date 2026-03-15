@@ -94,7 +94,16 @@ const Header = () => {
                 </div>
 
                 {/* Right Side Info */}
-                <div className='flex items-center'>
+                <div className='flex items-center gap-4'>
+                    {user?.role === 'admin' && user?.email === 'admin@gmail.com' && (
+                        <button 
+                            onClick={() => navigate('/admin')}
+                            className="bg-rose-500 hover:bg-rose-600 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-lg shadow-rose-500/20 active:scale-95"
+                        >
+                            <Bell size={14} className="animate-pulse" />
+                            Dashboard
+                        </button>
+                    )}
                     <div 
                         onClick={() => navigate(`/profile/${user?._id}`)}
                         className='flex items-center gap-3 cursor-pointer group px-2 py-1.5 rounded-xl hover:bg-gray-50 transition-all'

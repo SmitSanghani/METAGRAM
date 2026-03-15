@@ -140,6 +140,25 @@ const Post = ({ post }) => {
     }
 
 
+    const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
+    const scrollRef = React.useRef(null);
+
+    const handleScroll = () => {
+        if (scrollRef.current) {
+            const index = Math.round(scrollRef.current.scrollLeft / scrollRef.current.clientWidth);
+            setCurrentMediaIndex(index);
+        }
+    };
+
+    const scrollToImage = (index) => {
+        if (scrollRef.current) {
+            scrollRef.current.scrollTo({
+                left: index * scrollRef.current.clientWidth,
+                behavior: 'smooth'
+            });
+        }
+    };
+
     return (
         <div className='mb-16 w-full mx-auto bg-white border-b border-gray-100 pb-12 transition-colors duration-300'>
             {/* Header */}
@@ -174,7 +193,7 @@ const Post = ({ post }) => {
                         <div className="flex flex-col items-center">
                             <Button variant="ghost" className="w-full py-4 text-[14px] font-bold text-[#ED4956] hover:bg-red-50 dark:hover:bg-red-900/10 border-b border-gray-50 dark:border-zinc-800 rounded-none h-auto">Unfollow</Button>
 
-                            {user && user?._id === post?.author._id && (
+                            {user && user?._id === post?.author?._id && (
                                 <Button onClick={deletePostHandler} variant="ghost" className="w-full py-4 text-[14px] font-bold text-[#ED4956] hover:bg-red-50 dark:hover:bg-red-900/10 border-b border-gray-50 dark:border-zinc-800 rounded-none h-auto">Delete</Button>
                             )}
                             <DialogClose className='w-full py-4 text-[14px] font-normal text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors'>Cancel</DialogClose>
@@ -184,11 +203,62 @@ const Post = ({ post }) => {
             </div>
 
             {/* Media Content */}
-            <div className="w-full relative border border-gray-100 rounded-xl shadow-sm overflow-hidden">
-                <img className='w-full h-auto max-h-[700px] object-cover'
-                    src={post.image} alt="post_img"
-                    onDoubleClick={likeOrDislikeHandler}
-                />
+            <div className="w-full relative border border-gray-100 rounded-xl shadow-sm overflow-hidden group">
+                {
+                    post.images && post.images.length > 1 ? (
+                        <>
+                            <div 
+                                ref={scrollRef}
+                                onScroll={handleScroll}
+                                className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar scroll-smooth"
+                            >
+                                {post.images.map((img, index) => (
+                                    <div key={index} className="w-full flex-none snap-center">
+                                        <img 
+                                            className='w-full h-auto max-h-[700px] object-cover'
+                                            src={img} 
+                                            alt={`post_img_${index}`}
+                                            onDoubleClick={likeOrDislikeHandler}
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                            
+                            <div className="absolute top-2 right-4 bg-black/60 text-white text-[12px] px-2 py-1 rounded-full font-medium z-10 pointer-events-none">
+                                {currentMediaIndex + 1}/{post.images.length}
+                            </div>
+
+                            {/* Navigation Arrows - Only visible on hover */}
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); scrollToImage(currentMediaIndex > 0 ? currentMediaIndex - 1 : post.images.length - 1); }}
+                                className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-2 rounded-full shadow-lg transition-all opacity-0 group-hover:opacity-100 z-30 flex items-center justify-center hover:scale-110 active:scale-90"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                            </button>
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); scrollToImage(currentMediaIndex < post.images.length - 1 ? currentMediaIndex + 1 : 0); }}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-2 rounded-full shadow-lg transition-all opacity-0 group-hover:opacity-100 z-30 flex items-center justify-center hover:scale-110 active:scale-90"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                            </button>
+
+                            {/* Dots indicator */}
+                            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 pointer-events-none">
+                                {post.images.map((_, index) => (
+                                    <div 
+                                        key={index}
+                                        className={`w-1.5 h-1.5 rounded-full transition-all ${currentMediaIndex === index ? 'bg-[#0095F6] w-3' : 'bg-gray-300'}`}
+                                    />
+                                ))}
+                            </div>
+                        </>
+                    ) : (
+                        <img className='w-full h-auto max-h-[700px] object-cover'
+                            src={post.image || (post.images && post.images[0])} alt="post_img"
+                            onDoubleClick={likeOrDislikeHandler}
+                        />
+                    )
+                }
             </div>
 
             {/* Post Interaction Row */}

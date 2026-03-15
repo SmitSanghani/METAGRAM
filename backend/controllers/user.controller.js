@@ -135,6 +135,8 @@ export const login = async (req, res) => {
                 return null;
             })
         );
+        const userWithLinked = await User.findById(user._id).populate('linkedAccounts', 'username profilePicture email');
+
         const userData = {
             _id: user._id,
             username: user.username,
@@ -148,7 +150,8 @@ export const login = async (req, res) => {
             isPrivate: user.isPrivate,
             followRequests: user.followRequests,
             role: user.role,
-            mutedUsers: user.mutedUsers || []
+            mutedUsers: user.mutedUsers || [],
+            linkedAccounts: userWithLinked.linkedAccounts || []
         }
 
         return res.cookie("token", token, { httpOnly: true, sameSite: 'strict', maxAge: 1 * 24 * 60 * 60 * 1000 }).json({
@@ -741,7 +744,7 @@ export const blockUser = async (req, res) => {
             user.followers = user.followers.filter(id => id.toString() !== targetId.toString());
             target.following = target.following.filter(id => id.toString() !== userId.toString());
             target.followers = target.followers.filter(id => id.toString() !== userId.toString());
-            
+
             // Clear pending requests
             user.followRequests = user.followRequests.filter(id => id.toString() !== targetId.toString());
             target.followRequests = target.followRequests.filter(id => id.toString() !== userId.toString());
@@ -822,7 +825,7 @@ export const getBlockedUsers = async (req, res) => {
     try {
         const userId = req.id;
         const user = await User.findById(userId).populate('blockedUsers', 'username profilePicture fullName');
-        
+
         if (!user) return res.status(404).json({ message: "User not found", success: false });
 
         return res.status(200).json({
@@ -858,6 +861,112 @@ export const toggleMuteUser = async (req, res) => {
         });
     } catch (error) {
         console.error(error);
+        return res.status(500).json({ message: "Internal server error", success: false });
+    }
+};
+
+export const deleteAccount = async (req, res) => {
+    try {
+        const userId = req.id;
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({
+                message: "User not found",
+                success: false
+            });
+        }
+
+        // 1. Delete all assets (Posts, Reels)
+        // Note: For production, you'd also delete media from Cloudinary
+        await Post.deleteMany({ author: userId });
+        await Reel.deleteMany({ author: userId });
+
+        // 2. Delete all interactions (Comments, Notifications)
+        await Comment.deleteMany({ author: userId });
+        await ReelComment.deleteMany({ author: userId });
+        await Notification.deleteMany({ $or: [{ sender: userId }, { receiver: userId }] });
+
+        // 3. Cleanup relationships (Followers, Following, Linked Accounts, etc.)
+        await User.updateMany(
+            {}, 
+            { 
+                $pull: { 
+                    followers: userId, 
+                    following: userId, 
+                    blockedUsers: userId, 
+                    blockedBy: userId, 
+                    recentSearches: userId, 
+                    mutedUsers: userId,
+                    linkedAccounts: userId,
+                    followRequests: userId
+                } 
+            }
+        );
+
+        // 4. Delete conversations where user was a participant
+        await Conversation.deleteMany({ participants: userId });
+
+        // 5. Finally, delete the user record
+        await User.findByIdAndDelete(userId);
+
+        return res.status(200).cookie("token", "", { maxAge: 0 }).json({
+            message: "Account and all associated data deleted successfully.",
+            success: true
+        });
+
+    } catch (error) {
+        console.error("Delete Account Error:", error);
+        return res.status(500).json({
+            message: "Internal server error",
+            success: false
+        });
+    }
+}
+
+export const linkAccount = async (req, res) => {
+    try {
+        const primaryUserId = req.id;
+        const { email, password } = req.body;
+
+        if (!email || !password) {
+            return res.status(400).json({ message: "Email and password are required", success: false });
+        }
+
+        const secondaryUser = await User.findOne({ email });
+        if (!secondaryUser) {
+            return res.status(401).json({ message: "Invalid credentials for account to link", success: false });
+        }
+
+        const isMatch = await bcrypt.compare(password, secondaryUser.password);
+        if (!isMatch) {
+            return res.status(401).json({ message: "Invalid credentials for account to link", success: false });
+        }
+
+        if (String(primaryUserId) === String(secondaryUser._id)) {
+            return res.status(400).json({ message: "You cannot link the same account", success: false });
+        }
+
+        // Mutual linking
+        await User.findByIdAndUpdate(primaryUserId, { $addToSet: { linkedAccounts: secondaryUser._id } });
+        await User.findByIdAndUpdate(secondaryUser._id, { $addToSet: { linkedAccounts: primaryUserId } });
+
+        // Get the secondary user's token so we could potentially use it
+        const secondaryToken = await jwt.sign({ userId: secondaryUser._id, role: secondaryUser.role }, process.env.SECRET_KEY, { expiresIn: '1d' });
+
+        return res.status(200).json({
+            message: `Account @${secondaryUser.username} linked successfully`,
+            success: true,
+            account: {
+                userId: secondaryUser._id,
+                username: secondaryUser.username,
+                profilePicture: secondaryUser.profilePicture,
+                email: secondaryUser.email,
+                token: secondaryToken,
+                user: secondaryUser
+            }
+        });
+    } catch (error) {
+        console.error("Link Account Error:", error);
         return res.status(500).json({ message: "Internal server error", success: false });
     }
 };

@@ -107,6 +107,13 @@ const chatSlice = createSlice({
             if (msg) {
                 msg.isDeleted = true;
             }
+            if (state.lastMessages) {
+                for (const userId in state.lastMessages) {
+                    if (state.lastMessages[userId]?._id === messageId) {
+                        state.lastMessages[userId].isDeleted = true;
+                    }
+                }
+            }
         },
         markStoryUnsent: (state, action) => {
             const { storyId } = action.payload;
@@ -115,6 +122,13 @@ const chatSlice = createSlice({
                     msg.isDeleted = true;
                 }
             });
+            if (state.lastMessages) {
+                for (const userId in state.lastMessages) {
+                    if (state.lastMessages[userId]?.storyId === storyId) {
+                        state.lastMessages[userId].isDeleted = true;
+                    }
+                }
+            }
         },
         updateChatUserConversation: (state, action) => {
             const { userId, conversationId } = action.payload;

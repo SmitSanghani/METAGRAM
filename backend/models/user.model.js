@@ -95,6 +95,10 @@ const userSchema = new mongoose.Schema({
     mutedUsers: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
+    }],
+    linkedAccounts: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
     }]
 }, { timestamps: true });
 

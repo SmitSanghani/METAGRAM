@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { useNavigate } from 'react-router-dom';
 
-const MessageBubble = ({ msg, isSender, onReply, onDelete, onReact, onScrollTo, onStoryClick, isHighlighted, currentUser, otherUser }) => {
+const MessageBubble = ({ msg, isSender, onReply, onDelete, onReact, onScrollTo, onStoryClick, onPostClick, isHighlighted, currentUser, otherUser }) => {
     const navigate = useNavigate();
     const [showReactions, setShowReactions] = useState(false);
     const [showReactionInfo, setShowReactionInfo] = useState(false);
@@ -211,7 +211,11 @@ const MessageBubble = ({ msg, isSender, onReply, onDelete, onReact, onScrollTo, 
                         ) : msg.messageType === 'post' ? (
                             <div
                                 className="flex flex-col min-w-[200px] max-w-[260px] cursor-pointer group/post shadow-xl rounded-[26px]"
-                                onClick={() => navigate(`/profile/${msg.postId?.author?._id || ''}`)} // Navigate to author profile or post detail if available
+                                onClick={() => {
+                                    if(msg.postId) {
+                                        onPostClick(msg.postId);
+                                    }
+                                }} 
                             >
                                 <div className={`bg-[#F1F5F9] ${isSender ? '-mx-4 -my-2.5' : '-mx-4 -my-2.5'} p-4 rounded-[26px] overflow-hidden transition-all hover:brightness-110 active:scale-[0.98]`}>
                                     {/* Header Section */}

@@ -18,9 +18,11 @@ import { Star } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog'
 import ReelCommentsModal from './ReelCommentsModal'
 import CommentDialog from './CommentDialog'
+import PostModal from './PostModal'
 import { setSelectedPost } from '@/redux/postSlice'
 
 const Profile = () => {
+  const { selectedPost } = useSelector(store => store.post);
   const navigate = useNavigate();
   const params = useParams();
   const userId = params.id;
@@ -58,6 +60,7 @@ const Profile = () => {
   const [isUnfollowConfirmOpen, setIsUnfollowConfirmOpen] = useState(false);
 
   const [openCommentDialog, setOpenCommentDialog] = useState(false);
+  const [openPostModal, setOpenPostModal] = useState(false);
   const [isOptionsMenuOpen, setIsOptionsMenuOpen] = useState(false);
   const [isBlockConfirmOpen, setIsBlockConfirmOpen] = useState(false);
   const [selectedReelForComments, setSelectedReelForComments] = useState(null);
@@ -460,7 +463,7 @@ const Profile = () => {
                                   if (item.videoUrl) setSelectedReelForComments(item);
                                   else {
                                     dispatch(setSelectedPost(item));
-                                    setOpenCommentDialog(true);
+                                    setOpenPostModal(true);
                                   }
                                 }}
                                 className='flex items-center gap-1.5 group/btn'
@@ -548,6 +551,8 @@ const Profile = () => {
           )}
 
           <CommentDialog open={openCommentDialog} setOpen={setOpenCommentDialog} />
+
+          <PostModal open={openPostModal} setOpen={setOpenPostModal} post={selectedPost} /> 
 
           {/* Following Dropdown Menu (Step 1) */}
           <Dialog open={isFollowingMenuOpen} onOpenChange={setIsFollowingMenuOpen}>

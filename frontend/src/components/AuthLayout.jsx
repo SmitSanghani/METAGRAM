@@ -10,10 +10,10 @@ const AuthLayout = ({ children }) => {
         <div className="min-h-screen flex items-center justify-center font-inter bg-gradient-to-br from-[#f7faf9] via-[#e6f4f1] to-[#d4ebe6] px-6 py-6 relative overflow-hidden">
             <InteractiveDots />
             <div className="w-full max-w-[450px] flex flex-col items-center relative z-10">
-                <GlowWrapper 
-                    color="#32b096" 
-                    spread={200} 
-                    blur={5} 
+                <GlowWrapper
+                    color="#32b096"
+                    spread={200}
+                    blur={5}
                     proximity={300}
                     className="w-full bg-[#0f0f10] rounded-[28px] cursor-pointer shadow-2xl relative overflow-hidden"
                 >

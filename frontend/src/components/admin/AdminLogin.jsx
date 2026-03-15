@@ -4,7 +4,8 @@ import api from '@/api';
 import { toast } from 'sonner';
 import { useDispatch } from 'react-redux';
 import { setAuthUser, setToken } from '../../redux/authSlice';
-import { Loader2, Mail, Lock, ShieldCheck } from 'lucide-react';
+import { Loader2, Mail, Lock } from 'lucide-react';
+import logo from '../../assets/logo2.png';
 
 const AdminLogin = () => {
     const [input, setInput] = useState({ email: '', password: '' });
@@ -26,7 +27,7 @@ const AdminLogin = () => {
 
             if (res.data.success) {
                 const user = res.data.user;
-                if (user.role === 'admin') {
+                if (user.role === 'admin' && user.email === 'admin@gmail.com') {
                     dispatch(setAuthUser(user));
                     if (res.data.token) {
                         dispatch(setToken(res.data.token));
@@ -34,8 +35,8 @@ const AdminLogin = () => {
                     toast.success(res.data.message);
                     navigate('/admin');
                 } else {
-                    toast.error('Access denied. Admin privileges required.');
-                    // Optionally log them out immediately if they are not an admin
+                    toast.error('Access denied. This portal is restricted to the platform administrator.');
+                    // Optionally log them out immediately if they are not the authorized admin
                     await api.get('/user/logout');
                 }
             }
@@ -51,8 +52,8 @@ const AdminLogin = () => {
         <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
             <div className="sm:mx-auto sm:w-full sm:max-w-md">
                 <div className="flex justify-center flex-col items-center gap-2">
-                    <div className="w-16 h-16 bg-sky-100 rounded-2xl flex items-center justify-center border-2 border-sky-200 shadow-inner">
-                        <ShieldCheck className="w-8 h-8 text-sky-500" />
+                    <div className="w-20 h-20 flex items-center justify-center">
+                        <img src={logo} alt="logo" className="w-full h-full object-contain" />
                     </div>
                     <h2 className="mt-4 text-center text-3xl font-extrabold text-gray-900 tracking-tight">
                         Admin Portal

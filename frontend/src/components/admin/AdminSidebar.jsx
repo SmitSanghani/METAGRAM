@@ -1,17 +1,19 @@
 import React from 'react';
-import { 
-    LayoutDashboard, 
-    Users, 
-    Image, 
-    Video, 
-    MessageSquare, 
-    AlertTriangle, 
-    Settings, 
+import {
+    LayoutDashboard,
+    Users,
+    Image,
+    Video,
+    MessageSquare,
+    AlertTriangle,
+    Settings,
     LogOut,
     MessageCircle,
-    Flag
+    Flag,
+    ExternalLink
 } from 'lucide-react';
-import { NavLink } from 'react-router-dom';
+import logo from '../../assets/logo2.png';
+import { NavLink, Link } from 'react-router-dom';
 
 const AdminSidebar = () => {
     const menuItems = [
@@ -26,6 +28,16 @@ const AdminSidebar = () => {
 
     return (
         <aside className="w-64 bg-white border-r border-gray-100 h-screen sticky top-0 flex flex-col pt-6">
+            {/* Logo Section */}
+            <Link to="/" className="px-6 pb-10 flex items-center gap-2.5 group transition-all">
+                <div className="relative w-9 h-9 flex items-center justify-center group-hover:scale-110 transition-transform duration-500">
+                    <img src={logo} alt="logo" className="w-full h-full object-contain" />
+                </div>
+                <h1 className="text-xl font-black tracking-tighter text-gray-900 group-hover:text-black transition-colors" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                    METAGRAM
+                </h1>
+            </Link>
+
             <nav className="flex-1 px-4 space-y-1">
                 {menuItems.map((item) => (
                     <NavLink
@@ -34,8 +46,8 @@ const AdminSidebar = () => {
                         end={item.path === '/admin'}
                         className={({ isActive }) => `
                             flex items-center gap-3 px-4 py-3 rounded-xl text-[14px] font-medium transition-all duration-200
-                            ${isActive 
-                                ? 'bg-sky-50 text-sky-600' 
+                            ${isActive
+                                ? 'bg-sky-50 text-sky-600'
                                 : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'}
                         `}
                     >
@@ -45,7 +57,14 @@ const AdminSidebar = () => {
                 ))}
             </nav>
 
-            <div className="p-4 border-t border-gray-50 mb-4">
+            <div className="p-4 border-t border-gray-50 mb-4 space-y-1">
+                <NavLink
+                    to="/"
+                    className="flex items-center gap-3 px-4 py-3 rounded-xl text-[14px] font-medium text-gray-500 hover:bg-sky-50 hover:text-sky-600 transition-all duration-200"
+                >
+                    <ExternalLink size={18} />
+                    <span>Return to Site</span>
+                </NavLink>
                 <button className="flex items-center gap-3 px-4 py-3 w-full rounded-xl text-[14px] font-medium text-rose-500 hover:bg-rose-50 transition-all duration-200">
                     <LogOut size={18} />
                     <span>Logout</span>

@@ -1,18 +1,25 @@
 import React, { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { TrendingUp, BarChart2, User, Lock, Bell, Moon, Sun, ChevronRight, Activity as ActivityIcon, Key, UserX } from 'lucide-react';
+import { TrendingUp, BarChart2, User, Lock, Bell, Moon, Sun, ChevronRight, Activity as ActivityIcon, Key, UserX, Trash2, AlertTriangle, Loader2 } from 'lucide-react';
 import YourActivity from './YourActivity';
 import BlockedAccounts from './BlockedAccounts';
 import ReactECharts from 'echarts-for-react';
-import { setAuthUser } from '@/redux/authSlice';
+import { setAuthUser, setToken } from '@/redux/authSlice';
 import api from '@/api';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from './ui/dialog';
+import { Button } from './ui/button';
 
 const Settings = () => {
     const [activeSection, setActiveSection] = useState('insights');
     const { user } = useSelector(store => store.auth);
     const dispatch = useDispatch();
+    const navigate = useNavigate();
     const [isPrivate, setIsPrivate] = useState(user?.isPrivate || false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
     const handlePrivacyToggle = async (checked) => {
         try {
@@ -30,12 +37,38 @@ const Settings = () => {
         }
     };
 
+    const handleDeleteAccount = async () => {
+        if (deleteConfirmText !== user?.username) {
+            toast.error("Username does not match.");
+            return;
+        }
+
+        try {
+            setIsDeleting(true);
+            const res = await api.delete('/user/delete-account');
+            if (res.data.success) {
+                toast.success("Account deleted successfully");
+                dispatch(setAuthUser(null));
+                dispatch(setToken(null));
+                localStorage.removeItem('token');
+                localStorage.removeItem('metagram_accounts');
+                navigate('/login');
+            }
+        } catch (error) {
+            toast.error(error.response?.data?.message || "Failed to delete account");
+        } finally {
+            setIsDeleting(false);
+            setShowDeleteModal(false);
+        }
+    };
+
     const menuItems = [
         { id: 'insights', icon: <BarChart2 size={20} />, label: 'Follower Insights' },
         { id: 'activity', icon: <ActivityIcon size={20} />, label: 'Your Activity' },
         { id: 'account', icon: <User size={20} />, label: 'Account Settings' },
         { id: 'privacy', icon: <Lock size={20} />, label: 'Privacy & Security' },
         { id: 'blocked', icon: <UserX size={20} />, label: 'Blocked Accounts' },
+        { id: 'danger', icon: <Trash2 size={20} />, label: 'Danger Zone', className: 'text-rose-500 hover:bg-rose-50 hover:text-rose-600' },
     ];
 
     // Mock Followers Growth Data for ECharts
@@ -166,29 +199,111 @@ const Settings = () => {
                     <div className='flex flex-col gap-2'>
                         {menuItems.map((item) => (
                             <button
-                                key={item.id}
-                                onClick={() => setActiveSection(item.id)}
-                                className={`flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 group relative ${
-                                    activeSection === item.id 
-                                    ? 'bg-[#3b82f6]/10 text-[#3b82f6] font-bold' 
-                                    : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'
-                                }`}
-                            >
-                                {activeSection === item.id && (
-                                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-[#3b82f6] rounded-r-full" />
-                                )}
-                                <div className={`transition-transform duration-200 ${activeSection === item.id ? 'scale-110' : 'group-hover:scale-110'}`}>
-                                    {item.icon}
-                                </div>
-                                <span className="text-[15px]">{item.label}</span>
-                                {activeSection === item.id && <ChevronRight size={16} className="ml-auto opacity-50" />}
-                            </button>
-                        ))}
-                    </div>
-                </div>
+                                 key={item.id}
+                                 onClick={() => setActiveSection(item.id)}
+                                 className={`flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-200 group relative ${
+                                     activeSection === item.id 
+                                     ? activeSection === 'danger' ? 'bg-rose-50 text-rose-600 font-bold' : 'bg-[#3b82f6]/10 text-[#3b82f6] font-bold' 
+                                     : item.className || 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'
+                                 }`}
+                             >
+                                 {activeSection === item.id && (
+                                     <div className={`absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 ${activeSection === 'danger' ? 'bg-rose-500' : 'bg-[#3b82f6]'} rounded-r-full`} />
+                                 )}
+                                 <div className={`transition-transform duration-200 ${activeSection === item.id ? 'scale-110' : 'group-hover:scale-110'}`}>
+                                     {item.icon}
+                                 </div>
+                                 <span className="text-[15px]">{item.label}</span>
+                                 {activeSection === item.id && <ChevronRight size={16} className="ml-auto opacity-50" />}
+                             </button>
+                         ))}
+                     </div>
+                 </div>
+ 
+                 {/* Main Content Area */}
+                 <div className='flex-1 flex flex-col min-h-[700px] bg-white overflow-y-auto'>
+                     {activeSection === 'danger' && (
+                         <div className='p-8 animate-in fade-in slide-in-from-right-4 duration-500'>
+                             <div className='mb-8'>
+                                 <h1 className='text-2xl font-bold text-gray-900'>Danger Zone</h1>
+                                 <p className='text-gray-500 text-sm'>Irreversible actions and account deletion.</p>
+                             </div>
+ 
+                             <div className='max-w-2xl'>
+                                 <div className='p-8 bg-rose-50 border border-rose-100 rounded-[32px]'>
+                                     <div className='flex items-start gap-5'>
+                                         <div className='p-4 bg-rose-100 text-rose-600 rounded-2xl'>
+                                             <AlertTriangle size={32} />
+                                         </div>
+                                         <div className='flex-1'>
+                                             <h3 className='text-lg font-bold text-rose-900 mb-2'>Delete Account</h3>
+                                             <p className='text-rose-700/80 text-[15px] leading-relaxed mb-6'>
+                                                 Once you delete your account, there is no going back. All your posts, followers, chat history, and profile data will be permanently wiped from our servers.
+                                             </p>
+                                             <Button 
+                                                 variant="destructive" 
+                                                 onClick={() => setShowDeleteModal(true)}
+                                                 className="rounded-xl h-12 px-8 font-bold bg-rose-600 hover:bg-rose-700 shadow-lg shadow-rose-200"
+                                             >
+                                                 Permanently Delete My Account
+                                             </Button>
+                                         </div>
+                                     </div>
+                                 </div>
+                             </div>
+                         </div>
+                     )}
 
-                {/* Main Content Area */}
-                <div className='flex-1 flex flex-col min-h-[700px] bg-white overflow-y-auto'>
+                     {showDeleteModal && (
+                         <Dialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
+                             <DialogContent className="sm:max-w-[425px] rounded-[32px] border-none shadow-2xl p-0 overflow-hidden">
+                                 <div className="bg-rose-50 p-6 flex flex-col items-center gap-4 border-b border-rose-100">
+                                     <div className="w-16 h-16 bg-rose-100 rounded-full flex items-center justify-center text-rose-600">
+                                         <Trash2 size={32} />
+                                     </div>
+                                     <div className="text-center">
+                                         <h2 className="text-xl font-bold text-rose-900">Are you absolutely sure?</h2>
+                                         <p className="text-sm text-rose-700/70 mt-1">This action cannot be undone.</p>
+                                     </div>
+                                 </div>
+                                 
+                                 <div className="p-6 space-y-6">
+                                     <div className="space-y-3">
+                                         <p className="text-[13px] font-medium text-gray-600">
+                                             Please type <span className="font-bold text-gray-900">@{user?.username}</span> to confirm deletion.
+                                         </p>
+                                         <input 
+                                             type="text"
+                                             value={deleteConfirmText}
+                                             onChange={(e) => setDeleteConfirmText(e.target.value)}
+                                             placeholder={`@${user?.username}`}
+                                             className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all text-sm font-medium"
+                                         />
+                                     </div>
+
+                                     <div className="flex flex-col gap-3">
+                                         <Button 
+                                             onClick={handleDeleteAccount}
+                                             disabled={isDeleting || deleteConfirmText !== user?.username}
+                                             className="w-full h-12 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl shadow-lg shadow-rose-200 disabled:opacity-50"
+                                         >
+                                             {isDeleting ? <Loader2 className="animate-spin mr-2" /> : "I understand, delete my account"}
+                                         </Button>
+                                         <Button 
+                                             variant="ghost" 
+                                             onClick={() => {
+                                                 setShowDeleteModal(false);
+                                                 setDeleteConfirmText('');
+                                             }}
+                                             className="w-full h-12 text-gray-500 font-bold hover:bg-gray-100 rounded-xl"
+                                         >
+                                             Cancel
+                                         </Button>
+                                     </div>
+                                 </div>
+                             </DialogContent>
+                         </Dialog>
+                     )}
                     {activeSection === 'insights' && (
                         <div className='p-8 animate-in fade-in slide-in-from-right-4 duration-500'>
                             <div className='mb-8'>

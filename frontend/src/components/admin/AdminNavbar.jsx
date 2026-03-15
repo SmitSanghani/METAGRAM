@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '@/api';
 import { toast } from 'sonner';
 import { setAuthUser } from '../../redux/authSlice';
+import logo from '../../assets/logo2.png';
 
 const AdminNavbar = () => {
     const { user } = useSelector(store => store.auth);
@@ -82,11 +83,10 @@ const AdminNavbar = () => {
 
     return (
         <header className="h-20 bg-white border-b border-gray-100 flex items-center justify-between px-8 sticky top-0 z-30">
-            {/* Logo */}
-            <div className="flex items-center gap-2 shrink-0">
-                <h1 className="text-2xl font-serif italic text-gray-900" style={{ fontFamily: "'Dancing Script', cursive" }}>
-                    Metagram <span className="text-[10px] font-sans not-italic bg-sky-500 text-white px-2 py-0.5 rounded ml-1 align-top uppercase tracking-tighter">Admin</span>
-                </h1>
+            {/* Logo for mobile/dashboard */}
+            <div className="lg:hidden flex items-center gap-2 mr-4">
+                <img src={logo} alt="logo" className="w-8 h-8 object-contain" />
+                <span className="font-black text-lg tracking-tighter" style={{ fontFamily: "'Outfit', sans-serif" }}>METAGRAM</span>
             </div>
 
             {/* Search Bar */}

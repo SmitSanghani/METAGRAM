@@ -8,14 +8,14 @@ const AdminProtectedRoute = ({ children }) => {
 
     useEffect(() => {
         if (!user) {
-            navigate("/admin/login");
-        } else if (user.role !== 'admin') {
+            navigate("/login");
+        } else if (user.role !== 'admin' || user.email !== 'admin@gmail.com') {
             navigate("/");
         }
     }, [user, navigate]);
 
-    // Show nothing while checking/redirecting if user is not an admin
-    if (!user || user.role !== 'admin') {
+    // Show nothing while checking/redirecting if user is not authorized
+    if (!user || user.role !== 'admin' || user.email !== 'admin@gmail.com') {
         return null;
     }
 

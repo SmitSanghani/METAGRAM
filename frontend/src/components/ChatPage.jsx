@@ -11,7 +11,9 @@ import { setMessages, addMessage, updateMessageStatus, updateReactions, markUnse
 import ScrollToBottom from 'react-scroll-to-bottom';
 import MessageBubble from './MessageBubble';
 import useGetChatUsers from '@/hooks/useGetChatUsers';
+import { setSelectedPost } from '@/redux/postSlice';
 import StoryViewer from './StoryViewer';
+import PostModal from './PostModal';
 
 const NOTIFICATION_SOUND_URL = "/notification.mp3"; // Reference local file
 
@@ -26,6 +28,8 @@ const ChatPage = () => {
     const [storyToView, setStoryToView] = useState(null);
     const [headerStories, setHeaderStories] = useState([]);
     const [isHeaderStoryOpen, setIsHeaderStoryOpen] = useState(false);
+    const [openPostModal, setOpenPostModal] = useState(false);
+    const [selectedPostForModal, setSelectedPostForModal] = useState(null);
     const dispatch = useDispatch();
 
     const [isTyping, setIsTyping] = useState(false);
@@ -513,6 +517,7 @@ const ChatPage = () => {
                                             <div className="flex justify-between items-center w-full mt-0.5">
                                                 <span className={`text-[13px] truncate flex-1 font-medium ${unreadCount > 0 ? 'text-black font-black' : (isSelected ? 'text-indigo-600' : 'text-[#8e8e8e]')}`}>
                                                     {lastMsg ? (() => {
+                                                        if (lastMsg.isDeleted) return "Message unsent";
                                                         const isMe = String(lastMsg.senderId) === String(user?._id);
                                                         const prefix = isMe ? "You: " : `${suggestedUser.username}: `;
                                                         let body = lastMsg.message;
@@ -638,6 +643,11 @@ const ChatPage = () => {
                                                     onReact={reactMessageHandler}
                                                     onScrollTo={scrollToMessage}
                                                     onStoryClick={(story) => setStoryToView(story)}
+                                                    onPostClick={(post) => {
+                                                        dispatch(setSelectedPost(post));
+                                                        setSelectedPostForModal(post);
+                                                        setOpenPostModal(true);
+                                                    }}
                                                     isHighlighted={highlightedMessageId === msg._id}
                                                 />
                                             ))}
@@ -838,6 +848,8 @@ const ChatPage = () => {
                     </button>
                 </div>
             )}
+
+            <PostModal open={openPostModal} setOpen={setOpenPostModal} post={selectedPostForModal} />
         </div>
     );
 };

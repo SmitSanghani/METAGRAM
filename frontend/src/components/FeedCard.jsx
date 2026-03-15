@@ -1,14 +1,17 @@
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Heart, MessageCircle, Eye, Video, MoreHorizontal, Send } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { FaHeart, FaRegHeart } from "react-icons/fa";
+import { motion, AnimatePresence } from 'framer-motion';
 import api from '@/api';
 import { setPosts, setSelectedPost } from '@/redux/postSlice';
 import { updateReelLikes } from '@/redux/reelSlice';
 import { toast } from 'sonner';
 import CommentDialog from './CommentDialog';
+import SharePostModal from './SharePostModal';
+import PostModal from './PostModal';
 
 const FeedCard = ({ item, type = 'post' }) => {
     const navigate = useNavigate();
@@ -16,6 +19,47 @@ const FeedCard = ({ item, type = 'post' }) => {
     const { user } = useSelector(store => store.auth);
     const { posts } = useSelector(store => store.post);
     const [openComment, setOpenComment] = useState(false);
+    const [openPost, setOpenPost] = useState(false);
+    const [openShare, setOpenShare] = useState(false);
+    const [currentIndex, setCurrentIndex] = useState(0);
+    const [isHovered, setIsHovered] = useState(false);
+    const carouselRef = useRef(null);
+    const images = (item.images && item.images.length > 0) ? item.images : (item.image ? [item.image] : []);
+    const hasMultipleImages = images.length > 1;
+
+    // Preload images
+    useEffect(() => {
+        if (hasMultipleImages) {
+            images.forEach(src => {
+                const img = new Image();
+                img.src = src;
+            });
+        }
+    }, [images, hasMultipleImages]);
+
+    // Non-passive wheel listener to prevent page scroll
+    useEffect(() => {
+        const el = carouselRef.current;
+        if (!el || !hasMultipleImages) return;
+
+        const handleWheel = (e) => {
+            if (!isHovered) return;
+            
+            // Prevent actual page scroll
+            e.preventDefault();
+            
+            if (e.deltaY > 0) {
+                // Next image
+                setCurrentIndex(prev => (prev + 1) % images.length);
+            } else if (e.deltaY < 0) {
+                // Previous image
+                setCurrentIndex(prev => (prev - 1 + images.length) % images.length);
+            }
+        };
+
+        el.addEventListener('wheel', handleWheel, { passive: false });
+        return () => el.removeEventListener('wheel', handleWheel);
+    }, [hasMultipleImages, isHovered, images.length]);
 
     // Common data mapping
     const isReel = type === 'reel';
@@ -61,12 +105,23 @@ const FeedCard = ({ item, type = 'post' }) => {
 
     const handleCardClick = () => {
         dispatch(setSelectedPost({ ...item, feedType: type }));
-        setOpenComment(true);
+        if (type === 'post') {
+            setOpenPost(true);
+        } else {
+            setOpenComment(true); // For reels or other types
+        }
     };
 
     return (
+        <>
         <div
             onClick={handleCardClick}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => {
+                setIsHovered(false);
+                setCurrentIndex(0); // Reset to first image on leave
+            }}
+            ref={carouselRef}
             className='feed-card group cursor-pointer animate-soft-in rounded-xl overflow-hidden'
         >
             {/* Media Area - Rounded inside the card */}
@@ -87,13 +142,32 @@ const FeedCard = ({ item, type = 'post' }) => {
                         </div>
                     </div>
                 ) : (
-                    <div className='w-full overflow-hidden'>
-                        <img
-                            src={mediaUrl}
-                            alt='post'
-                            className='w-full h-auto object-cover media-zoom'
-                            loading="lazy"
-                        />
+                    <div className='w-full overflow-hidden relative bg-gray-50 flex items-center justify-center aspect-square'>
+                        <AnimatePresence mode='wait'>
+                            <motion.img
+                                key={currentIndex}
+                                src={images[currentIndex]}
+                                alt='post'
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.3 }}
+                                className='w-full h-full object-cover'
+                                loading="eager"
+                            />
+                        </AnimatePresence>
+                        
+                        {hasMultipleImages && (
+                            <>
+                                {/* Image Counter Badge */}
+                                <div className='absolute top-3 right-3 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full text-white z-10 flex items-center gap-2 border border-white/10 transition-transform duration-300 scale-90 group-hover:scale-100'>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                                    <span className='text-[11px] font-black tracking-tighter font-mono'>
+                                        {currentIndex + 1} / {images.length}
+                                    </span>
+                                </div>
+                            </>
+                        )}
                     </div>
                 )}
 
@@ -124,6 +198,14 @@ const FeedCard = ({ item, type = 'post' }) => {
                             <MessageCircle size={14} />
                             <span className='text-[12px] font-bold text-gray-600'>{commentCount.toLocaleString()}</span>
                         </div>
+                        {!isReel && (
+                            <div 
+                                onClick={(e) => { e.stopPropagation(); setOpenShare(true); }}
+                                className='flex items-center gap-1 text-gray-400 hover:text-indigo-600 transition-colors'
+                            >
+                                <Send size={14} className="-rotate-12" />
+                            </div>
+                        )}
                         {isReel && (
                             <div className='flex items-center gap-1 text-gray-400'>
                                 <Eye size={12} />
@@ -133,9 +215,12 @@ const FeedCard = ({ item, type = 'post' }) => {
                     </div>
                 </div>
             </div>
-
-            <CommentDialog open={openComment} setOpen={setOpenComment} />
         </div>
+
+        <CommentDialog open={openComment} setOpen={setOpenComment} />
+        <PostModal open={openPost} setOpen={setOpenPost} post={item} />
+        <SharePostModal open={openShare} setOpen={setOpenShare} post={item} />
+        </>
     );
 };
 

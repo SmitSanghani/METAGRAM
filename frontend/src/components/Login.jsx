@@ -41,29 +41,36 @@ const Login = () => {
         e.preventDefault();
         if (!validate()) return;
 
+        const isLinkFlow = window.location.search.includes('link=true');
+
         try {
             setLoading(true);
-            const res = await api.post('/user/login', input, {
+            const endpoint = isLinkFlow ? '/user/link-account' : '/user/login';
+            const res = await api.post(endpoint, input, {
                 headers: {
                     'Content-Type': 'application/json'
                 }
             });
-            if (res.data.success) {
-                const loggedInUser = res.data.user;
-                const token = res.data.token;
 
-                dispatch(setAuthUser(loggedInUser));
-                if (token) {
-                    dispatch(setToken(token));
+            if (res.data.success) {
+                const loggedInUser = res.data.user || res.data.account?.user;
+                const token = res.data.token || res.data.account?.token;
+
+                // For normal login, update dispatch. For linking, we stay as the primary user but save details.
+                if (!isLinkFlow) {
+                    dispatch(setAuthUser(loggedInUser));
+                    if (token) {
+                        dispatch(setToken(token));
+                    }
                 }
 
-                // Persist account for quick switching
+                // Persist account metadata for quick switching (Metadata always in LocalStorage, Relationships in DB)
                 try {
                     const ACCOUNTS_KEY = 'metagram_accounts';
                     const existingRaw = localStorage.getItem(ACCOUNTS_KEY);
                     const existing = existingRaw ? JSON.parse(existingRaw) : [];
 
-                    const newAccount = {
+                    const metadata = isLinkFlow ? res.data.account : {
                         userId: loggedInUser?._id,
                         username: loggedInUser?.username,
                         profilePicture: loggedInUser?.profilePicture || null,
@@ -73,16 +80,18 @@ const Login = () => {
                     };
 
                     const withoutCurrent = existing.filter(
-                        (acc) => acc.userId !== newAccount.userId
+                        (acc) => acc.userId !== metadata.userId
                     );
 
-                    const updatedAccounts = [newAccount, ...withoutCurrent].slice(0, 5);
+                    const updatedAccounts = [metadata, ...withoutCurrent].slice(0, 5);
                     localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(updatedAccounts));
+                    localStorage.removeItem('metagram_add_account_flow');
                 } catch (e) {
-                    // fail silently if localStorage is not available
+                    // fail silently
                 }
 
-                // Show a small delay to ensure Redux state is updated before navigation
+                toast.success(res.data.message || (isLinkFlow ? "Account linked!" : "Welcome back!"));
+
                 setTimeout(() => {
                     navigate("/animation");
                 }, 500);
@@ -98,10 +107,12 @@ const Login = () => {
         <AuthLayout>
             <form onSubmit={loginHandler} className="space-y-4">
                 <div className="space-y-2">
-                    <label className="text-[11px] font-bold text-gray-500 tracking-wider uppercase ml-1">IDENTITY</label>
+                    <label className="text-[11px] font-bold tracking-wider uppercase ml-1 transition-colors duration-500 text-gray-500">
+                        IDENTITY
+                    </label>
                     <div className="relative group">
                         <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                            <Mail className="h-5 w-5 text-[#9ca3af] group-focus-within:text-[#32b096] transition-colors" />
+                            <Mail className="h-5 w-5 transition-colors duration-500 text-[#9ca3af]" />
                         </div>
                         <input
                             type="email"
@@ -117,14 +128,16 @@ const Login = () => {
 
                 <div className="space-y-2">
                     <div className="flex justify-between items-center ml-1">
-                        <label className="text-[11px] font-bold text-gray-500 tracking-wider uppercase">KEY</label>
+                        <label className="text-[11px] font-bold tracking-wider uppercase transition-colors duration-500 text-gray-500">
+                            KEY
+                        </label>
                         <Link to="/forgot-password" size="sm" className="text-[11px] font-bold text-gray-500 hover:text-white transition-colors">
                             Forgot your key?
                         </Link>
                     </div>
                     <div className="relative group">
                         <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                            <Lock className="h-5 w-5 text-[#9ca3af] group-focus-within:text-[#32b096] transition-colors" />
+                            <Lock className="h-5 w-5 transition-colors duration-500 text-[#9ca3af]" />
                         </div>
                         <input
                             type={showPassword ? "text" : "password"}

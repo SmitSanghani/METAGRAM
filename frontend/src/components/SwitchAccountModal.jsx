@@ -53,15 +53,23 @@ const SwitchAccountModal = ({ isOpen, onClose }) => {
   };
 
   const handleAddAccount = () => {
-    // Clear current auth state so /login does NOT auto-redirect
-    dispatch(setAuthUser(null));
-    dispatch(setToken(null));
+    // Set a flag to indicate this login should be saved/linked in DB
+    localStorage.setItem('metagram_add_account_flow', 'true');
+    // Navigate to login with link param, do NOT clear current user yet
     onClose();
-    navigate('/login');
+    navigate('/login?link=true');
   };
 
-  const currentAccount = accounts.find(acc => acc.userId === currentUser?._id) || null;
-  const otherAccounts = accounts.filter(acc => acc.userId !== currentUser?._id);
+  const currentAccount = accounts.find(acc => String(acc.userId) === String(currentUser?._id)) || null;
+
+  // DB-Backed Filtering: Only show accounts that are physically linked to this user in the Database
+  const linkedAccountIds = (currentUser?.linkedAccounts || []).map(acc => String(acc._id || acc));
+
+  const otherAccounts = accounts.filter(acc => {
+    const isSelf = String(acc.userId) === String(currentUser?._id);
+    const isLinked = linkedAccountIds.includes(String(acc.userId));
+    return !isSelf && isLinked;
+  });
 
   return (
     <Dialog open={isOpen} onOpenChange={open => !open && onClose()}>

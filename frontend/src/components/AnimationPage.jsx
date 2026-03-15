@@ -1,22 +1,32 @@
 import React, { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import animationVideo from '../assets/animation_video.mp4';
+import { useSelector } from 'react-redux';
 
 const AnimationPage = () => {
     const navigate = useNavigate();
     const videoRef = useRef(null);
+    const { user } = useSelector(store => store.auth);
 
     useEffect(() => {
         // Set a maximum timeout as a fallback (slightly shorter for a logo animation)
         const timer = setTimeout(() => {
-            navigate('/');
+            if (user?.role === 'admin') {
+                navigate('/admin');
+            } else {
+                navigate('/');
+            }
         }, 6000); 
 
         return () => clearTimeout(timer);
-    }, [navigate]);
+    }, [navigate, user]);
 
     const handleVideoEnd = () => {
-        navigate('/');
+        if (user?.role === 'admin') {
+            navigate('/admin');
+        } else {
+            navigate('/');
+        }
     };
 
     return (
