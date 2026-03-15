@@ -1,5 +1,5 @@
 import express from 'express';
-import { editProfile, followOrUnfollow, getProfile, getSuggestedUsers, getChatUsers, login, logout, register, acceptFollowRequest, deleteFollowRequest, toggleUserStatus, changePassword, checkUsername, checkEmail, searchUsers, addToRecentSearch, removeFromRecentSearch, getRecentSearches, clearRecentSearches, getLikedActivity, getCommentActivity, blockUser, unblockUser, getBlockedUsers, toggleMuteUser, linkAccount, deleteAccount } from '../controllers/user.controller.js';
+import { editProfile, followOrUnfollow, getProfile, getSuggestedUsers, getAllUsers, getChatUsers, login, logout, register, acceptFollowRequest, deleteFollowRequest, toggleUserStatus, changePassword, checkUsername, checkEmail, searchUsers, addToRecentSearch, removeFromRecentSearch, getRecentSearches, clearRecentSearches, getLikedActivity, getCommentActivity, blockUser, unblockUser, getBlockedUsers, toggleMuteUser, linkAccount, deleteAccount } from '../controllers/user.controller.js';
 import isAuthenticated from '../middlewares/isAuthenticated.js';
 import upload from '../middlewares/multer.js';
 
@@ -16,6 +16,7 @@ router.route("/check-email").post(checkEmail);
 router.route('/:id/profile').get(isAuthenticated, getProfile);
 router.route('/profile/edit').post(isAuthenticated, upload.single('profilePicture'), editProfile);
 router.route('/suggested').get(isAuthenticated, getSuggestedUsers);
+router.route('/all').get(isAuthenticated, getAllUsers);
 router.route('/chatusers').get(isAuthenticated, getChatUsers);
 router.route('/followorunfollow/:id').post(isAuthenticated, followOrUnfollow);
 router.route('/follow/accept/:id').post(isAuthenticated, acceptFollowRequest);
