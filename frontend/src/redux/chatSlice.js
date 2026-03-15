@@ -41,11 +41,14 @@ const chatSlice = createSlice({
         },
         addMessage: (state, action) => {
             const newMessage = action.payload;
-            const exists = state.messages.find(m =>
+            const index = state.messages.findIndex(m =>
                 (newMessage._id && m._id === newMessage._id) ||
                 (newMessage.tempId && m.tempId === newMessage.tempId)
             );
-            if (!exists) {
+            if (index !== -1) {
+                // Replace existing message (clearing isLoading and updating IDs)
+                state.messages[index] = { ...newMessage, isLoading: false };
+            } else {
                 state.messages.push(newMessage);
             }
         },

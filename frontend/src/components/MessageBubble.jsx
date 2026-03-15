@@ -102,22 +102,32 @@ const MessageBubble = ({ msg, isSender, onReply, onDelete, onReact, onScrollTo, 
                             } ${isHighlighted ? 'ring-2 ring-indigo-400 ring-offset-2' : ''}`}
                     >
                         {msg.messageType === 'image' ? (
-                            <div className="relative">
-                                <img src={msg.mediaUrl} alt="media" className={`rounded-xl max-w-[220px] h-auto mb-1 border border-white/10 ${msg.isLoading ? 'opacity-40 grayscale blur-[2px]' : ''}`} />
+                            <div className="relative -mx-4 -my-2.5 overflow-hidden rounded-[20px]">
+                                <img 
+                                    src={msg.mediaUrl} 
+                                    alt="media" 
+                                    className={`w-full max-w-[280px] h-auto object-cover transition-all ${msg.isLoading ? 'opacity-40 grayscale blur-[4px]' : 'hover:scale-105'}`} 
+                                    style={{ display: 'block' }}
+                                />
                                 {msg.isLoading && (
-                                    <div className="absolute inset-0 flex items-center justify-center">
-                                        <div className="bg-black/20 backdrop-blur-md p-3 rounded-full shadow-lg">
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/5">
+                                        <div className="bg-white/20 backdrop-blur-md p-3 rounded-full shadow-lg">
                                             <Loader2 size={24} className="text-white animate-spin" />
                                         </div>
                                     </div>
                                 )}
                             </div>
                         ) : msg.messageType === 'video' ? (
-                            <div className="relative">
-                                <video src={msg.mediaUrl} controls className={`rounded-xl max-w-[220px] h-auto mb-1 ${msg.isLoading ? 'opacity-40 blur-[2px]' : ''}`} />
+                            <div className="relative -mx-4 -my-2.5 overflow-hidden rounded-[20px]">
+                                <video 
+                                    src={msg.mediaUrl} 
+                                    controls 
+                                    className={`w-full max-w-[280px] h-auto object-cover transition-all ${msg.isLoading ? 'opacity-40 blur-[4px]' : ''}`} 
+                                    style={{ display: 'block' }}
+                                />
                                 {msg.isLoading && (
-                                    <div className="absolute inset-0 flex items-center justify-center">
-                                        <div className="bg-black/20 backdrop-blur-md p-3 rounded-full shadow-lg">
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/5">
+                                        <div className="bg-white/20 backdrop-blur-md p-3 rounded-full shadow-lg">
                                             <Loader2 size={24} className="text-white animate-spin" />
                                         </div>
                                     </div>

@@ -199,7 +199,6 @@ const ChatPage = () => {
                     replyTo: replyTo ? { ...replyTo } : null
                 };
 
-                dispatch(removeTempMessage({ tempId })); // Ensure duplicate not kept
                 dispatch(addMessage(populatedNewMsg));
                 dispatch(updateLastMessage({ userId: selectedUser._id, message: populatedNewMsg }));
                 dispatch(reorderUsers(selectedUser._id));
@@ -745,6 +744,7 @@ const ChatPage = () => {
                                                         formData.append("message", "");
                                                         formData.append("messageType", file.type.startsWith('image/') ? 'image' : 'video');
                                                         formData.append("media", file);
+                                                        formData.append("tempId", tempId);
                                                         if (replyTo?._id) {
                                                             formData.append("replyTo", replyTo._id);
                                                         }
@@ -753,13 +753,12 @@ const ChatPage = () => {
                                                             headers: { 'Content-Type': 'multipart/form-data' }
                                                         });
                                                         if (res.data.success) {
-                                                            dispatch(removeTempMessage(tempId));
                                                             dispatch(addMessage(res.data.newMessage));
                                                             setReplyTo(null);
                                                         }
                                                     } catch (err) {
                                                         console.log(err);
-                                                        dispatch(removeTempMessage(tempId));
+                                                        dispatch(removeTempMessage({ tempId }));
                                                     }
                                                 }
                                             }}
