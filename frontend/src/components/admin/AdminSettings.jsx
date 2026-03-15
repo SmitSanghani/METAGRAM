@@ -8,13 +8,9 @@ import { setAuthUser } from '../../redux/authSlice';
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
 const SectionCard = ({ icon, title, description, color, children }) => {
-    const [open, setOpen] = useState(false);
     return (
         <div className="bg-white rounded-[32px] border border-gray-100 shadow-sm overflow-hidden transition-all duration-300">
-            <button
-                onClick={() => setOpen(o => !o)}
-                className="w-full p-6 flex items-center justify-between group hover:bg-gray-50 transition-colors text-left"
-            >
+            <div className="w-full p-6 flex items-center justify-between text-left border-b border-gray-50">
                 <div className="flex items-center gap-4">
                     <div className={`p-3 rounded-2xl bg-gray-50 ${color}`}>{icon}</div>
                     <div>
@@ -22,13 +18,10 @@ const SectionCard = ({ icon, title, description, color, children }) => {
                         <p className="text-xs text-gray-500 mt-0.5">{description}</p>
                     </div>
                 </div>
-                {open ? <ChevronUp size={18} className="text-gray-400" /> : <ChevronDown size={18} className="text-gray-400" />}
-            </button>
-            {open && (
-                <div className="px-6 pb-6 border-t border-gray-50 pt-5 animate-in slide-in-from-top-2 duration-200">
-                    {children}
-                </div>
-            )}
+            </div>
+            <div className="px-6 pb-6 pt-5">
+                {children}
+            </div>
         </div>
     );
 };
@@ -202,47 +195,6 @@ const AdminSettings = () => {
                     </div>
                 </SectionCard>
 
-                {/* ── Permissions ── */}
-                <SectionCard
-                    icon={<ShieldCheck size={20} />}
-                    title="Permissions"
-                    description="Manage administrator roles and access levels"
-                    color="text-emerald-500"
-                >
-                    <div className="space-y-1">
-                        <Toggle label="Manage Users" description="Activate/suspend user accounts" checked={permissions.manageUsers} onChange={v => setPermissions(p => ({ ...p, manageUsers: v }))} />
-                        <Toggle label="Manage Posts" description="View and remove platform posts" checked={permissions.managePosts} onChange={v => setPermissions(p => ({ ...p, managePosts: v }))} />
-                        <Toggle label="Manage Reels" description="View and remove platform reels" checked={permissions.manageReels} onChange={v => setPermissions(p => ({ ...p, manageReels: v }))} />
-                        <Toggle label="Manage Comments" description="Delete inappropriate comments" checked={permissions.manageComments} onChange={v => setPermissions(p => ({ ...p, manageComments: v }))} />
-                        <Toggle label="Monitor Messages" description="Access the messages monitoring tab" checked={permissions.viewMessages} onChange={v => setPermissions(p => ({ ...p, viewMessages: v }))} />
-                        <Toggle label="Access Settings" description="Modify administrative settings" checked={permissions.accessSettings} onChange={v => setPermissions(p => ({ ...p, accessSettings: v }))} />
-                        <button onClick={handlePermSave} className="mt-4 flex items-center gap-2 bg-emerald-500 text-white px-5 py-2.5 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-emerald-600 transition-all">
-                            <Save size={14} />
-                            Save Permissions
-                        </button>
-                    </div>
-                </SectionCard>
-
-                {/* ── System Notifications ── */}
-                <SectionCard
-                    icon={<Bell size={20} />}
-                    title="System Notifications"
-                    description="Configure alerts for unusual activity"
-                    color="text-amber-500"
-                >
-                    <div className="space-y-1">
-                        <Toggle label="New User Registration" description="Alert when new users sign up" checked={notifications.newUserRegistration} onChange={v => setNotifications(n => ({ ...n, newUserRegistration: v }))} />
-                        <Toggle label="Suspicious Login Activity" description="Alert for multiple failed logins" checked={notifications.suspiciousLogin} onChange={v => setNotifications(n => ({ ...n, suspiciousLogin: v }))} />
-                        <Toggle label="Reported Content" description="Alert when users report content" checked={notifications.reportedContent} onChange={v => setNotifications(n => ({ ...n, reportedContent: v }))} />
-                        <Toggle label="System Errors" description="Alert for server/API errors" checked={notifications.systemErrors} onChange={v => setNotifications(n => ({ ...n, systemErrors: v }))} />
-                        <Toggle label="Weekly Summary Report" description="Receive weekly platform analytics" checked={notifications.weeklyReport} onChange={v => setNotifications(n => ({ ...n, weeklyReport: v }))} />
-                        <Toggle label="Email Digest" description="Daily digest of admin activity" checked={notifications.emailDigest} onChange={v => setNotifications(n => ({ ...n, emailDigest: v }))} />
-                        <button onClick={handleNotifSave} className="mt-4 flex items-center gap-2 bg-amber-500 text-white px-5 py-2.5 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-amber-600 transition-all">
-                            <Save size={14} />
-                            Save Notifications
-                        </button>
-                    </div>
-                </SectionCard>
 
                 {/* ── Security ── */}
                 <SectionCard
@@ -299,35 +251,7 @@ const AdminSettings = () => {
                 </SectionCard>
             </div>
 
-            {/* ── Dashboard Theme ── */}
-            <div className="bg-white rounded-[32px] border border-gray-100 shadow-sm overflow-hidden">
-                <button
-                    onClick={() => {}}
-                    className="w-full p-6 flex items-center justify-between group hover:bg-gray-50 transition-colors text-left"
-                >
-                    <div className="flex items-center gap-4">
-                        <div className="p-3 rounded-2xl bg-gray-50 text-purple-500"><Palette size={20} /></div>
-                        <div>
-                            <h3 className="font-black text-gray-900">Dashboard Theme</h3>
-                            <p className="text-xs text-gray-500 mt-0.5">Customize admin panel appearance</p>
-                        </div>
-                    </div>
-                </button>
-                <div className="px-6 pb-6 border-t border-gray-50 pt-5">
-                    <div className="flex gap-3">
-                        {themeOptions.map(opt => (
-                            <button
-                                key={opt.value}
-                                onClick={() => { setTheme(opt.value); toast.success(`Switched to ${opt.label} theme`); }}
-                                className={`flex-1 flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all ${theme === opt.value ? 'border-purple-400 bg-purple-50 text-purple-600' : 'border-gray-100 text-gray-400 hover:border-purple-200 hover:bg-purple-50/30'}`}
-                            >
-                                {opt.icon}
-                                <span className="text-xs font-black uppercase tracking-widest">{opt.label}</span>
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            </div>
+
 
             {/* ── Footer Info ── */}
             <div className="bg-sky-50/50 p-6 rounded-[32px] border border-sky-100 flex flex-col md:flex-row items-center justify-between gap-4">

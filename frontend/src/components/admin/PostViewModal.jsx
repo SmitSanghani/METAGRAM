@@ -6,7 +6,7 @@ const PostViewModal = ({ post, onClose, onDeleteComment, onDeletePost }) => {
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-300">
-            <div className="bg-white w-full max-w-5xl rounded-[48px] overflow-hidden shadow-2xl flex flex-col md:flex-row h-[85vh]">
+            <div className="bg-white w-full max-w-5xl rounded-[32px] overflow-hidden shadow-2xl flex flex-col md:flex-row h-[85vh]">
                 {/* Image Section */}
                 <div className="flex-1 bg-black flex items-center justify-center min-h-[300px] relative">
                     <img src={post.image} alt="Viewing post" className="max-w-full max-h-full object-contain" />
@@ -29,8 +29,8 @@ const PostViewModal = ({ post, onClose, onDeleteComment, onDeletePost }) => {
                                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Platform Author</p>
                             </div>
                         </div>
-                        <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-all text-gray-400 hover:text-gray-900">
-                            <X size={24} />
+                        <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-full transition-all text-black border border-black hover:text-gray-900">
+                            <X size={20} />
                         </button>
                     </div>
                     

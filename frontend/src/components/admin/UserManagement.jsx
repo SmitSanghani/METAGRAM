@@ -1,8 +1,36 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Search, Filter, MoreHorizontal, Shield, ShieldAlert, Trash2, Eye, Loader2, UserX, UserCheck } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import api from '@/api';
 import { toast } from 'sonner';
+import ReactECharts from 'echarts-for-react';
+
+const MiniSparkline = ({ data, color }) => {
+    const option = useMemo(() => ({
+        grid: { left: 0, top: 0, right: 0, bottom: 0 },
+        xAxis: { type: 'category', data: [1, 2, 3, 4, 5, 6, 7], show: false },
+        yAxis: { type: 'value', show: false },
+        series: [{
+            data: data,
+            type: 'line',
+            smooth: true,
+            symbol: 'none',
+            lineStyle: { width: 2, color: color },
+            areaStyle: {
+                color: {
+                    type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+                    colorStops: [
+                        { offset: 0, color: color.replace(')', ', 0.2)').replace('rgb', 'rgba') },
+                        { offset: 1, color: color.replace(')', ', 0)').replace('rgb', 'rgba') }
+                    ]
+                }
+            }
+        }],
+        animationDuration: 1500
+    }), [data, color]);
+
+    return <ReactECharts option={option} style={{ height: '40px', width: '100px' }} opts={{ renderer: 'svg' }} />;
+};
 
 const UserManagement = () => {
     const [users, setUsers] = useState([]);
@@ -13,7 +41,13 @@ const UserManagement = () => {
         try {
             const res = await api.get('/user/suggested');
             if (res.data.success) {
-                setUsers(res.data.users);
+                // Mocking some sparkline data since the backend doesn't provide it
+                const usersWithCharts = res.data.users.map(u => ({
+                    ...u,
+                    chartData: Array.from({ length: 7 }, () => Math.floor(Math.random() * 100)),
+                    chartColor: ['#3B82F6', '#8B5CF6', '#10B981'][Math.floor(Math.random() * 3)]
+                }));
+                setUsers(usersWithCharts);
             }
         } catch (error) {
             console.error(error);
@@ -22,6 +56,7 @@ const UserManagement = () => {
             setLoading(false);
         }
     };
+// ... rest of the component
 
     useEffect(() => {
         fetchAllUsers();
@@ -89,13 +124,14 @@ const UserManagement = () => {
                             <th className="px-8 py-5">User</th>
                             <th className="px-8 py-5">Verified Status</th>
                             <th className="px-8 py-5">Engagement</th>
+                            <th className="px-8 py-5">Growth</th>
                             <th className="px-8 py-5 text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
                         {loading ? (
                             <tr>
-                                <td colSpan="4" className="px-8 py-20 text-center">
+                                <td colSpan="5" className="px-8 py-20 text-center">
                                     <div className="flex flex-col items-center gap-2">
                                         <Loader2 className="w-8 h-8 text-sky-500 animate-spin" />
                                         <p className="text-sm text-gray-400 font-bold uppercase tracking-widest">Fetching registered users...</p>
@@ -131,10 +167,12 @@ const UserManagement = () => {
                                         <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">Followers</p>
                                     </td>
                                     <td className="px-8 py-5">
+                                        <div className="w-[100px]">
+                                            <MiniSparkline data={user.chartData} color={user.chartColor} />
+                                        </div>
+                                    </td>
+                                    <td className="px-8 py-5">
                                         <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button className="p-2 text-gray-400 hover:text-sky-500 hover:bg-sky-50 rounded-lg transition-all" title="View Profile">
-                                                <Eye size={18} />
-                                            </button>
                                             <button 
                                                 onClick={() => toggleStatusHandler(user._id, user.isActive)}
                                                 className={`p-2 rounded-lg transition-all ${
@@ -152,7 +190,7 @@ const UserManagement = () => {
                             ))
                         ) : (
                             <tr>
-                                <td colSpan="4" className="px-8 py-20 text-center">
+                                <td colSpan="5" className="px-8 py-20 text-center">
                                     <p className="text-sm text-gray-400 font-bold uppercase tracking-widest">No registered users found</p>
                                 </td>
                             </tr>

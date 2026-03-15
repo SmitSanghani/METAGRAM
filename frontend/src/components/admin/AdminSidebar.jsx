@@ -22,21 +22,12 @@ const AdminSidebar = () => {
         { icon: <Image size={18} />, text: 'Posts Management', path: '/admin/posts' },
         { icon: <Video size={18} />, text: 'Reels Management', path: '/admin/reels' },
         { icon: <MessageSquare size={18} />, text: 'Comments', path: '/admin/comments' },
-        { icon: <MessageCircle size={18} />, text: 'Messages Monitoring', path: '/admin/messages' },
         { icon: <Settings size={18} />, text: 'Settings', path: '/admin/settings' },
     ];
 
     return (
         <aside className="w-64 bg-white border-r border-gray-100 h-screen sticky top-0 flex flex-col pt-6">
-            {/* Logo Section */}
-            <Link to="/" className="px-6 pb-10 flex items-center gap-2.5 group transition-all">
-                <div className="relative w-9 h-9 flex items-center justify-center group-hover:scale-110 transition-transform duration-500">
-                    <img src={logo} alt="logo" className="w-full h-full object-contain" />
-                </div>
-                <h1 className="text-xl font-black tracking-tighter text-gray-900 group-hover:text-black transition-colors" style={{ fontFamily: "'Outfit', sans-serif" }}>
-                    METAGRAM
-                </h1>
-            </Link>
+            {/* Removed Logo Section intentionally */}
 
             <nav className="flex-1 px-4 space-y-1">
                 {menuItems.map((item) => (

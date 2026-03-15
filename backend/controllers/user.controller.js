@@ -88,6 +88,31 @@ export const checkUsername = async (req, res) => {
     }
 };
 
+// Check email availability
+export const checkEmail = async (req, res) => {
+    try {
+        const { email } = req.body;
+        const user = await User.findOne({ email });
+        if (user) {
+            return res.status(200).json({
+                available: false,
+                message: "This email is already in use.",
+                success: true
+            });
+        }
+        return res.status(200).json({
+            available: true,
+            message: "Email is available.",
+            success: true
+        });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({
+            message: "Internal Server Error",
+            success: false
+        });
+    }
+};
 
 // User Login :
 export const login = async (req, res) => {

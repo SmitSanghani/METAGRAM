@@ -22,7 +22,7 @@ const Signup = () => {
     const navigate = useNavigate();
     const dispatch = useDispatch();
     const [isCheckingUsername, setIsCheckingUsername] = useState(false);
-
+    const [isCheckingEmail, setIsCheckingEmail] = useState(false);
     useEffect(() => {
         const checkAvailability = async () => {
             if (input.username.length >= 3) {
@@ -46,6 +46,29 @@ const Signup = () => {
         return () => clearTimeout(timeoutId);
     }, [input.username]);
 
+    useEffect(() => {
+        const checkEmailAvailability = async () => {
+            if (input.email && /\S+@\S+\.\S+/.test(input.email)) {
+                setIsCheckingEmail(true);
+                try {
+                    const res = await api.post('/user/check-email', { email: input.email });
+                    if (res.data.success && !res.data.available) {
+                        setErrors(prev => ({ ...prev, email: res.data.message }));
+                    } else {
+                        setErrors(prev => ({ ...prev, email: null }));
+                    }
+                } catch (error) {
+                    console.error("Error checking email", error);
+                } finally {
+                    setIsCheckingEmail(false);
+                }
+            }
+        };
+
+        const timeoutId = setTimeout(checkEmailAvailability, 500);
+        return () => clearTimeout(timeoutId);
+    }, [input.email]);
+
     const validate = () => {
         let newErrors = {};
         if (!input.username) newErrors.username = "Alias name is required";
@@ -54,6 +77,7 @@ const Signup = () => {
 
         if (!input.email) newErrors.email = "Identity email is required";
         else if (!/\S+@\S+\.\S+/.test(input.email)) newErrors.email = "Please enter a valid email address";
+        else if (errors.email) newErrors.email = errors.email;
 
         if (!input.password) newErrors.password = "Secured key is required";
         else if (input.password.length < 6) newErrors.password = "Key must be at least 6 characters";
@@ -162,8 +186,13 @@ const Signup = () => {
                             value={input.email}
                             onChange={changeEventHandler}
                             placeholder="name@metagram.io"
-                            className={`block w-full pl-12 pr-4 py-2.5 bg-[#1c1c1c] border ${errors.email ? 'border-red-500/50 focus:border-red-500' : 'border-white/10 focus:border-[#32b096]'} rounded-2xl text-white placeholder-gray-600 focus:outline-none focus:ring-2 ${errors.email ? 'focus:ring-red-500/25' : 'focus:ring-[#32b096]/25'} transition-all shadow-lg text-sm`}
+                            className={`block w-full pl-12 pr-12 py-2.5 bg-[#1c1c1c] border ${errors.email ? 'border-red-500/50 focus:border-red-500' : 'border-white/10 focus:border-[#32b096]'} rounded-2xl text-white placeholder-gray-600 focus:outline-none focus:ring-2 ${errors.email ? 'focus:ring-red-500/25' : 'focus:ring-[#32b096]/25'} transition-all shadow-lg text-sm`}
                         />
+                        {isCheckingEmail && (
+                            <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                                <Loader2 className="h-4 w-4 text-[#32b096] animate-spin" />
+                            </div>
+                        )}
                     </div>
                     {errors.email && <p className="text-[10px] text-red-500 font-bold tracking-wide mt-1 ml-1 uppercase">{errors.email}</p>}
                 </div>

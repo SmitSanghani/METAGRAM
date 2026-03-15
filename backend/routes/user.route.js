@@ -1,5 +1,5 @@
 import express from 'express';
-import { editProfile, followOrUnfollow, getProfile, getSuggestedUsers, getChatUsers, login, logout, register, acceptFollowRequest, deleteFollowRequest, toggleUserStatus, changePassword, checkUsername, searchUsers, addToRecentSearch, removeFromRecentSearch, getRecentSearches, clearRecentSearches, getLikedActivity, getCommentActivity, blockUser, unblockUser, getBlockedUsers, toggleMuteUser, linkAccount, deleteAccount } from '../controllers/user.controller.js';
+import { editProfile, followOrUnfollow, getProfile, getSuggestedUsers, getChatUsers, login, logout, register, acceptFollowRequest, deleteFollowRequest, toggleUserStatus, changePassword, checkUsername, checkEmail, searchUsers, addToRecentSearch, removeFromRecentSearch, getRecentSearches, clearRecentSearches, getLikedActivity, getCommentActivity, blockUser, unblockUser, getBlockedUsers, toggleMuteUser, linkAccount, deleteAccount } from '../controllers/user.controller.js';
 import isAuthenticated from '../middlewares/isAuthenticated.js';
 import upload from '../middlewares/multer.js';
 
@@ -12,6 +12,7 @@ router.route("/register").post(register);
 router.route("/login").post(login);
 router.route("/logout").get(logout);
 router.route("/check-username/:username").get(checkUsername);
+router.route("/check-email").post(checkEmail);
 router.route('/:id/profile').get(isAuthenticated, getProfile);
 router.route('/profile/edit').post(isAuthenticated, upload.single('profilePicture'), editProfile);
 router.route('/suggested').get(isAuthenticated, getSuggestedUsers);

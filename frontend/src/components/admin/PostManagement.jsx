@@ -118,11 +118,7 @@ const PostManagement = () => {
                             <div className="p-6">
                                 <div className="flex items-center justify-between mb-4">
                                     <span className="text-sm font-black text-gray-900 underline underline-offset-4 decoration-sky-300">@{post.author?.username}</span>
-                                    <button className="text-gray-400 hover:text-gray-900 transition-colors">
-                                        <MoreHorizontal size={20} />
-                                    </button>
                                 </div>
-                                <p className="text-xs text-gray-500 line-clamp-2 italic leading-relaxed mb-6">"{post.caption || 'No caption'}"</p>
                                 
                                 <div className="flex gap-2">
                                     <button 
@@ -151,12 +147,17 @@ const PostManagement = () => {
             )}
 
             {/* View Post Modal */}
-            <PostViewModal 
-                post={selectedPost} 
-                onClose={() => setShowModal(false)}
-                onDeletePost={deletePostHandler}
-                onDeleteComment={deleteCommentHandler}
-            />
+            {showModal && (
+                <PostViewModal 
+                    post={selectedPost} 
+                    onClose={() => {
+                        setShowModal(false);
+                        setSelectedPost(null);
+                    }}
+                    onDeletePost={deletePostHandler}
+                    onDeleteComment={deleteCommentHandler}
+                />
+            )}
         </div>
     );
 };

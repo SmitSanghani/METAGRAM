@@ -12,13 +12,6 @@ const AdminNavbar = () => {
     const dispatch = useDispatch();
     const navigate = useNavigate();
 
-    // Search state
-    const [searchQuery, setSearchQuery] = useState('');
-    const [searchResults, setSearchResults] = useState([]);
-    const [searchLoading, setSearchLoading] = useState(false);
-    const [showSearch, setShowSearch] = useState(false);
-    const searchRef = useRef(null);
-
     // Notifications state
     const [showNotifications, setShowNotifications] = useState(false);
     const [notifications] = useState([
@@ -33,35 +26,12 @@ const AdminNavbar = () => {
     const [showProfile, setShowProfile] = useState(false);
     const profileRef = useRef(null);
 
-    // ── Search logic ──────────────────────────────────────────────────────────
-    useEffect(() => {
-        if (!searchQuery.trim()) { setSearchResults([]); return; }
-        const timer = setTimeout(async () => {
-            try {
-                setSearchLoading(true);
-                const res = await api.get('/user/all');
-                const allUsers = res.data?.users || [];
-                const filtered = allUsers.filter(u =>
-                    u.username?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                    u.email?.toLowerCase().includes(searchQuery.toLowerCase())
-                );
-                setSearchResults(filtered.slice(0, 6));
-            } catch {
-                // Fallback: just show the query
-                setSearchResults([]);
-            } finally {
-                setSearchLoading(false);
-            }
-        }, 350);
-        return () => clearTimeout(timer);
-    }, [searchQuery]);
 
     // ── Close dropdowns on outside click ─────────────────────────────────────
     useEffect(() => {
         const handler = (e) => {
             if (notifRef.current && !notifRef.current.contains(e.target)) setShowNotifications(false);
             if (profileRef.current && !profileRef.current.contains(e.target)) setShowProfile(false);
-            if (searchRef.current && !searchRef.current.contains(e.target)) setShowSearch(false);
         };
         document.addEventListener('mousedown', handler);
         return () => document.removeEventListener('mousedown', handler);
@@ -84,58 +54,12 @@ const AdminNavbar = () => {
     return (
         <header className="h-20 bg-white border-b border-gray-100 flex items-center justify-between px-8 sticky top-0 z-30">
             {/* Logo for mobile/dashboard */}
-            <div className="lg:hidden flex items-center gap-2 mr-4">
+            <div className="flex items-center gap-2 mr-4">
                 <img src={logo} alt="logo" className="w-8 h-8 object-contain" />
                 <span className="font-black text-lg tracking-tighter" style={{ fontFamily: "'Outfit', sans-serif" }}>METAGRAM</span>
             </div>
 
-            {/* Search Bar */}
-            <div className="flex-1 max-w-xl mx-8" ref={searchRef}>
-                <div className="relative">
-                    <span className="absolute inset-y-0 left-4 flex items-center text-gray-400 pointer-events-none">
-                        <Search size={16} />
-                    </span>
-                    <input
-                        type="text"
-                        value={searchQuery}
-                        onChange={e => { setSearchQuery(e.target.value); setShowSearch(true); }}
-                        onFocus={() => setShowSearch(true)}
-                        placeholder="Search for users, posts, or keywords..."
-                        className="w-full pl-12 pr-10 py-2.5 bg-gray-50 border border-transparent focus:border-sky-300 focus:bg-white rounded-2xl text-sm outline-none transition-all placeholder:text-gray-400"
-                    />
-                    {searchQuery && (
-                        <button onClick={() => { setSearchQuery(''); setSearchResults([]); }} className="absolute inset-y-0 right-4 flex items-center text-gray-400 hover:text-gray-600">
-                            <X size={14} />
-                        </button>
-                    )}
-
-                    {/* Search Dropdown */}
-                    {showSearch && searchQuery && (
-                        <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl border border-gray-100 shadow-xl overflow-hidden z-50">
-                            {searchLoading ? (
-                                <div className="p-4 text-center text-xs text-gray-400 font-bold uppercase tracking-widest">Searching...</div>
-                            ) : searchResults.length > 0 ? (
-                                <ul>
-                                    {searchResults.map(u => (
-                                        <li key={u._id}
-                                            onClick={() => { navigate('/admin/users'); setShowSearch(false); setSearchQuery(''); }}
-                                            className="flex items-center gap-3 px-5 py-3.5 hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-50 last:border-0">
-                                            <img src={u.profilePicture || 'https://github.com/shadcn.png'} alt="" className="w-8 h-8 rounded-full object-cover border border-gray-100" />
-                                            <div>
-                                                <p className="text-sm font-black text-gray-900">@{u.username}</p>
-                                                <p className="text-xs text-gray-400">{u.email}</p>
-                                            </div>
-                                            {!u.isActive && <span className="ml-auto text-[10px] font-black uppercase bg-rose-50 text-rose-500 px-2 py-0.5 rounded-full">Suspended</span>}
-                                        </li>
-                                    ))}
-                                </ul>
-                            ) : (
-                                <div className="p-4 text-center text-xs text-gray-400 font-bold uppercase tracking-widest">No results for "{searchQuery}"</div>
-                            )}
-                        </div>
-                    )}
-                </div>
-            </div>
+            <div className="flex-1"></div>
 
             {/* Actions */}
             <div className="flex items-center gap-2 shrink-0">
