@@ -3,6 +3,7 @@ import { MessageSquare, Trash2, Loader2, Eye, X } from 'lucide-react';
 import api from '@/api';
 import { toast } from 'sonner';
 import PostViewModal from './PostViewModal';
+import Swal from 'sweetalert2';
 
 const CommentManagement = () => {
     const [comments, setComments] = useState([]);
@@ -43,7 +44,25 @@ const CommentManagement = () => {
     }, []);
 
     const deleteCommentHandler = async (commentId, postId) => {
-        if (!window.confirm("Are you sure you want to delete this comment?")) return;
+        const result = await Swal.fire({
+            title: 'Delete Comment?',
+            text: "Remove this comment from the platform?",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#94a3b8',
+            confirmButtonText: 'Yes, delete it!',
+            background: '#ffffff',
+            borderRadius: '24px',
+            customClass: {
+                popup: 'rounded-[24px]',
+                confirmButton: 'rounded-xl px-6 py-2.5 font-bold uppercase tracking-wider text-xs',
+                cancelButton: 'rounded-xl px-6 py-2.5 font-bold uppercase tracking-wider text-xs'
+            }
+        });
+
+        if (!result.isConfirmed) return;
+
         try {
             const response = await api.delete(`/post/comment/delete/${commentId}`);
             if (response.data.success) {
@@ -64,12 +83,26 @@ const CommentManagement = () => {
     };
 
     const deletePostHandler = async (postId) => {
-        if (!window.confirm("Are you sure you want to delete this entire post?")) return;
+        const result = await Swal.fire({
+            title: 'Delete Entire Post?',
+            text: "All associated media and comments will be permanently erased!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#94a3b8',
+            confirmButtonText: 'Yes, delete post!',
+            background: '#ffffff',
+            borderRadius: '24px',
+            customClass: {
+                popup: 'rounded-[24px]',
+                confirmButton: 'rounded-xl px-6 py-2.5 font-bold uppercase tracking-wider text-xs',
+                cancelButton: 'rounded-xl px-6 py-2.5 font-bold uppercase tracking-wider text-xs'
+            }
+        });
+
+        if (!result.isConfirmed) return;
+
         try {
-            // Re-checking backend deletePost at line 433: 
-            // if (post.author.toString() !== authorId) return res.status(403).json({ message: "Unauthorized" });
-            // This also blocks admins. I'll need to fix this.
-            
             const res = await api.delete(`/post/delete/${postId}`);
             if (res.data.success) {
                 setPosts(prev => prev.filter(p => p._id !== postId));
@@ -164,7 +197,10 @@ const CommentManagement = () => {
             {/* Reusable Post View Modal */}
             <PostViewModal 
                 post={selectedPost} 
-                onClose={() => setShowModal(false)}
+                onClose={() => {
+                    setShowModal(false);
+                    setSelectedPost(null);
+                }}
                 onDeleteComment={deleteCommentHandler}
                 onDeletePost={deletePostHandler}
             />

@@ -7,6 +7,7 @@ import { setAuthUser } from '@/redux/authSlice';
 import api from '@/api';
 import { toast } from 'sonner';
 import { X } from 'lucide-react';
+import Swal from 'sweetalert2';
 
 const UserListItem = ({ user: targetUser, currentAuthUser, onClose }) => {
     const navigate = useNavigate();
@@ -23,7 +24,27 @@ const UserListItem = ({ user: targetUser, currentAuthUser, onClose }) => {
 
     const handleFollowUnfollow = async (e) => {
         e.stopPropagation();
-        if (buttonState === 'Following' && !window.confirm(`Unfollow @${targetUser.username}?`)) return;
+        
+        if (buttonState === 'Following') {
+            const result = await Swal.fire({
+                title: 'Unfollow?',
+                text: `Are you sure you want to unfollow @${targetUser.username}?`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                cancelButtonColor: '#94a3b8',
+                confirmButtonText: 'Unfollow',
+                background: '#ffffff',
+                borderRadius: '24px',
+                customClass: {
+                    popup: 'rounded-[24px]',
+                    confirmButton: 'rounded-xl px-6 py-2.5 font-bold uppercase tracking-wider text-xs',
+                    cancelButton: 'rounded-xl px-6 py-2.5 font-bold uppercase tracking-wider text-xs'
+                }
+            });
+
+            if (!result.isConfirmed) return;
+        }
 
         try {
             const res = await api.post(`/user/followorunfollow/${targetUser._id}`, {});

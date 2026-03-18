@@ -44,6 +44,8 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
     const isPausedRef = useRef(isPaused);
     const showActivityRef = useRef(showActivity);
     const storyDurationRef = useRef(storyDuration);
+    const touchStartX = useRef(null);
+    const touchEndX = useRef(null);
 
     // Keep refs in sync for the interval
     useEffect(() => {
@@ -54,27 +56,36 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
     }, [progress, isPaused, showActivity, storyDuration]);
 
     useEffect(() => {
-        // Reset progress and duration when index changes
+        if (isPaused || showActivity) return;
+
+        const duration = storyDuration;
+        const startProgress = progress;
+        const startTime = Date.now();
+        
+        let animationFrame;
+        const animate = () => {
+            const now = Date.now();
+            const elapsed = now - startTime;
+            const addedProgress = (elapsed / duration) * 100;
+            const nextProgress = startProgress + addedProgress;
+
+            if (nextProgress >= 100) {
+                setProgress(100);
+                handleNext();
+            } else {
+                setProgress(nextProgress);
+                animationFrame = requestAnimationFrame(animate);
+            }
+        };
+
+        animationFrame = requestAnimationFrame(animate);
+        return () => cancelAnimationFrame(animationFrame);
+    }, [currentIndex, isPaused, showActivity, storyDuration]);
+
+    useEffect(() => {
+        // Reset progress on index change
         setProgress(0);
         setStoryDuration(DEFAULT_STORY_DURATION);
-
-        let interval;
-        const tick = 50; // Update progress every 50ms
-
-        interval = setInterval(() => {
-            if (!isPausedRef.current && !showActivityRef.current) {
-                setProgress((prev) => {
-                    const nextProgress = prev + (tick / storyDurationRef.current) * 100;
-                    if (nextProgress >= 100) {
-                        handleNext();
-                        return 100;
-                    }
-                    return nextProgress;
-                });
-            }
-        }, tick);
-
-        return () => clearInterval(interval);
     }, [currentIndex]);
 
     // Mark as viewed on backend when index changes
@@ -203,8 +214,6 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
     };
 
     // Swipe detection
-    const touchStartX = useRef(null);
-    const touchEndX = useRef(null);
     const minSwipeDistance = 50;
 
     const onTouchStart = (e) => {
@@ -256,10 +265,9 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
                     {stories.map((story, idx) => (
                         <div key={story._id} className="h-1 flex-1 bg-white/30 rounded-full overflow-hidden">
                             <div
-                                className="h-full bg-white transition-all ease-linear"
+                                className="h-full bg-white"
                                 style={{
-                                    width: idx < currentIndex ? '100%' : idx === currentIndex ? `${progress}%` : '0%',
-                                    transitionDuration: idx === currentIndex ? '50ms' : '0ms'
+                                    width: idx < currentIndex ? '100%' : idx === currentIndex ? `${progress}%` : '0%'
                                 }}
                             />
                         </div>

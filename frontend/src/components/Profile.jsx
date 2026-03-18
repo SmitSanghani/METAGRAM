@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar'
+import FeedCard from './FeedCard';
 import useGetUserProfile from '@/hooks/useGetUserProfile'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
@@ -20,6 +21,8 @@ import ReelCommentsModal from './ReelCommentsModal'
 import CommentDialog from './CommentDialog'
 import PostModal from './PostModal'
 import { setSelectedPost } from '@/redux/postSlice'
+import { setSelectedUser, addChatUser } from '@/redux/chatSlice'
+import Swal from 'sweetalert2';
 
 const Profile = () => {
   const { selectedPost } = useSelector(store => store.post);
@@ -130,6 +133,17 @@ const Profile = () => {
     }
   };
 
+  const handleMessageClick = () => {
+    if (!userProfile) return;
+    
+    // Add user to chat list and set as selected
+    dispatch(addChatUser(userProfile));
+    dispatch(setSelectedUser(userProfile));
+    
+    // Redirect to chat
+    navigate('/chat');
+  };
+
   const confirmUnfollow = () => {
     followAndUnfollowHandler();
     setIsUnfollowConfirmOpen(false);
@@ -211,7 +225,25 @@ const Profile = () => {
 
   const deleteReelHandler = async (reelId, e) => {
     e.stopPropagation();
-    if (window.confirm("Are you sure you want to delete this reel?")) {
+    
+    const result = await Swal.fire({
+      title: 'Delete Reel?',
+      text: "This action cannot be undone!",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#94a3b8',
+      confirmButtonText: 'Yes, delete it!',
+      background: '#ffffff',
+      borderRadius: '24px',
+      customClass: {
+        popup: 'rounded-[24px]',
+        confirmButton: 'rounded-xl px-6 py-2.5 font-bold uppercase tracking-wider text-xs',
+        cancelButton: 'rounded-xl px-6 py-2.5 font-bold uppercase tracking-wider text-xs'
+      }
+    });
+
+    if (result.isConfirmed) {
       try {
         const res = await api.delete(`/reels/delete/${reelId}`);
         if (res.data.success) {
@@ -303,7 +335,10 @@ const Profile = () => {
                             {buttonState}
                           </Button>
 
-                          <Button className='bg-white hover:bg-gray-50 text-[#262626] h-9 px-6 text-[14px] font-bold shadow-none rounded-[13px] transition-all border border-[#dbdbdb]'>
+                          <Button 
+                            onClick={handleMessageClick}
+                            className='bg-white hover:bg-gray-50 text-[#262626] h-9 px-6 text-[14px] font-bold shadow-none rounded-[13px] transition-all border border-[#dbdbdb]'
+                          >
                             Message
                           </Button>
 
@@ -408,76 +443,13 @@ const Profile = () => {
               ) : (
                 <div className={`grid gap-6 ${(activeTab === 'reels' || activeTab === 'saved_reels') ? 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4' : 'grid-cols-2 md:grid-cols-3'}`}>
                   {
-                    displayedPost?.map((item) => {
-                      return (
-                        <div
-                          key={item?._id}
-                          className='flex flex-col bg-white rounded-[13px] overflow-hidden border border-[#efefef] shadow-sm hover:shadow-md transition-all duration-300'
-                        >
-                          <div className={`relative cursor-pointer overflow-hidden ${item.videoUrl ? 'aspect-[9/16]' : 'aspect-square'}`}>
-                            {item.videoUrl ? (
-                              <div onClick={() => navigate('/reels', { state: { initialReel: item } })} className="w-full h-full relative group cursor-pointer">
-                                {isLoggedInUserProfile && (
-                                  <button
-                                    onClick={(e) => deleteReelHandler(item._id, e)}
-                                    className="absolute top-2 left-2 bg-black/40 hover:bg-red-500 backdrop-blur-md text-white p-2 rounded-full shadow-lg transition-all z-20 active:scale-90"
-                                  >
-                                    <Trash2 size={14} />
-                                  </button>
-                                )}
-                                <video src={item.videoUrl} className="w-full h-full object-cover" />
-                                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                  <PlaySquare size={30} className="text-white fill-white/20" />
-                                </div>
-                                <div className="absolute top-3 right-3 bg-black/40 backdrop-blur-md p-2 rounded-full shadow-lg">
-                                  <PlaySquare size={14} className="text-[#E2FF4E]" />
-                                </div>
-                                <div className="absolute bottom-3 left-3 bg-[#E2FF4E]/90 text-black px-2 py-0.5 rounded-[4px] text-[10px] font-black flex items-center gap-1 shadow-lg">
-                                  <PlaySquare size={10} strokeWidth={3} />
-                                  {item.viewsCount || 0}
-                                </div>
-                              </div>
-                            ) : (
-                              <img
-                                src={item.image}
-                                alt="postimage"
-                                className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
-                              />
-                            )}
-                          </div>
-                          {/* Interaction Stats */}
-                          <div className='p-3 flex items-center justify-between bg-white border-t border-gray-100 group-hover:bg-gray-50 transition-colors'>
-                            <div className="flex gap-4">
-                              <button
-                                onClick={(e) => { e.stopPropagation(); setSelectedItemForLikes(item); }}
-                                className='flex items-center gap-1.5 group/btn'
-                              >
-                                <div className="p-1.5 rounded-full bg-gray-50 group-hover/btn:bg-red-50 transition-colors">
-                                  <Heart size={16} className='text-gray-400 group-hover/btn:text-red-500 group-hover/btn:fill-red-500 transition-all active:scale-75' />
-                                </div>
-                                <span className="text-[12px] font-black text-gray-700">{item?.likes?.length || 0}</span>
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (item.videoUrl) setSelectedReelForComments(item);
-                                  else {
-                                    dispatch(setSelectedPost(item));
-                                    setOpenPostModal(true);
-                                  }
-                                }}
-                                className='flex items-center gap-1.5 group/btn'
-                              >
-                                <div className="p-1.5 rounded-full bg-gray-50 group-hover/btn:bg-indigo-50 transition-colors">
-                                  <MessageCircle size={16} className='text-gray-400 group-hover/btn:text-indigo-500 group-hover/btn:fill-indigo-500 transition-all active:scale-75' />
-                                </div>
-                                <span className="text-[12px] font-black text-gray-700">{item?.comments?.length || 0}</span>
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })
+                    displayedPost?.map((item) => (
+                      <FeedCard 
+                        key={item?._id} 
+                        item={item} 
+                        type={(activeTab === 'reels' || activeTab === 'saved_reels' || item.videoUrl) ? 'reel' : 'post'} 
+                      />
+                    ))
                   }
                   {displayedPost?.length === 0 && (
                     <div className="col-span-full py-20 flex flex-col items-center justify-center opacity-50 italic">
@@ -552,7 +524,7 @@ const Profile = () => {
 
           <CommentDialog open={openCommentDialog} setOpen={setOpenCommentDialog} />
 
-          <PostModal open={openPostModal} setOpen={setOpenPostModal} post={selectedPost} /> 
+          <PostModal open={openPostModal} setOpen={setOpenPostModal} post={selectedPost} />
 
           {/* Following Dropdown Menu (Step 1) */}
           <Dialog open={isFollowingMenuOpen} onOpenChange={setIsFollowingMenuOpen}>
@@ -560,36 +532,6 @@ const Profile = () => {
               <DialogTitle className="sr-only">Following Options</DialogTitle>
               <DialogDescription className="sr-only">Manage your relationship with {userProfile?.username}</DialogDescription>
               <div className="flex flex-col items-center">
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    setIsFollowingMenuOpen(false);
-                    setIsCloseFriendsModalOpen(true);
-                  }}
-                  className="w-full py-6 text-[14px] font-medium text-[#262626] hover:bg-[#fafafa] border-b border-[#efefef] rounded-none h-auto transition-colors"
-                >
-                  Add to Close Friends
-                </Button>
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    setIsFollowingMenuOpen(false);
-                    toast.info("Mute feature coming soon");
-                  }}
-                  className="w-full py-6 text-[14px] font-medium text-[#262626] hover:bg-[#fafafa] border-b border-[#efefef] rounded-none h-auto transition-colors"
-                >
-                  Mute
-                </Button>
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    setIsFollowingMenuOpen(false);
-                    toast.info("Restrict feature coming soon");
-                  }}
-                  className="w-full py-6 text-[14px] font-medium text-[#262626] hover:bg-[#fafafa] border-b border-[#efefef] rounded-none h-auto transition-colors"
-                >
-                  Restrict
-                </Button>
                 <Button
                   variant="ghost"
                   onClick={() => {

@@ -16,6 +16,7 @@ import { Label } from './ui/label';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { updateReel } from '@/redux/reelSlice';
+import Swal from 'sweetalert2';
 
 const ReelCard = ({ reel, isActive, isGlobalMuted, setIsGlobalMuted, onVideoEnd }) => {
     const navigate = useNavigate();
@@ -112,7 +113,24 @@ const ReelCard = ({ reel, isActive, isGlobalMuted, setIsGlobalMuted, onVideoEnd 
     };
 
     const handleDeleteReel = async () => {
-        if (!window.confirm("Delete this reel?")) return;
+        const result = await Swal.fire({
+            title: 'Delete Reel?',
+            text: "This action cannot be undone!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#94a3b8',
+            confirmButtonText: 'Yes, delete it!',
+            background: '#ffffff',
+            borderRadius: '24px',
+            customClass: {
+                popup: 'rounded-[24px]',
+                confirmButton: 'rounded-xl px-6 py-2.5 font-bold uppercase tracking-wider text-xs',
+                cancelButton: 'rounded-xl px-6 py-2.5 font-bold uppercase tracking-wider text-xs'
+            }
+        });
+
+        if (!result.isConfirmed) return;
         try {
             const res = await api.delete(`/reels/delete/${reel._id}`);
             if (res.data.success) {

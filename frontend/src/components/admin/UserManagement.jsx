@@ -4,6 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import api from '@/api';
 import { toast } from 'sonner';
 import ReactECharts from 'echarts-for-react';
+import Swal from 'sweetalert2';
 
 const MiniSparkline = ({ data, color }) => {
     const option = useMemo(() => ({
@@ -39,7 +40,7 @@ const UserManagement = () => {
 
     const fetchAllUsers = async () => {
         try {
-            const res = await api.get('/user/suggested');
+            const res = await api.get('/user/all');
             if (res.data.success) {
                 // Mocking some sparkline data since the backend doesn't provide it
                 const usersWithCharts = res.data.users.map(u => ({
@@ -56,7 +57,7 @@ const UserManagement = () => {
             setLoading(false);
         }
     };
-// ... rest of the component
+    // ... rest of the component
 
     useEffect(() => {
         fetchAllUsers();
@@ -64,7 +65,25 @@ const UserManagement = () => {
 
     const toggleStatusHandler = async (userId, currentStatus) => {
         const action = currentStatus === false ? 'activate' : 'suspend';
-        if (!window.confirm(`Are you sure you want to ${action} this account?`)) return;
+
+        const result = await Swal.fire({
+            title: `${action.charAt(0).toUpperCase() + action.slice(1)} Account?`,
+            text: `Are you sure you want to ${action} this user's account?`,
+            icon: currentStatus === false ? 'question' : 'warning',
+            showCancelButton: true,
+            confirmButtonColor: currentStatus === false ? '#10b981' : '#ef4444',
+            cancelButtonColor: '#94a3b8',
+            confirmButtonText: `Yes, ${action}!`,
+            background: '#ffffff',
+            borderRadius: '24px',
+            customClass: {
+                popup: 'rounded-[24px]',
+                confirmButton: 'rounded-xl px-6 py-2.5 font-bold uppercase tracking-wider text-xs',
+                cancelButton: 'rounded-xl px-6 py-2.5 font-bold uppercase tracking-wider text-xs'
+            }
+        });
+
+        if (!result.isConfirmed) return;
 
         try {
             const res = await api.post(`/user/admin/toggle-status/${userId}`, {});
@@ -79,8 +98,8 @@ const UserManagement = () => {
         }
     };
 
-    const filteredUsers = users.filter(user => 
-        user.username?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    const filteredUsers = users.filter(user =>
+        user.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.email?.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
@@ -91,9 +110,6 @@ const UserManagement = () => {
                     <h1 className="text-2xl font-black text-gray-900 mb-1">User Management</h1>
                     <p className="text-sm text-gray-500">Manage, monitor, and moderate platform users.</p>
                 </div>
-                <button className="bg-sky-500 hover:bg-sky-600 text-white px-6 py-2.5 rounded-2xl text-sm font-bold transition-all shadow-lg shadow-sky-500/20">
-                    Add New Admin
-                </button>
             </div>
 
             {/* Filter Bar */}
@@ -102,9 +118,9 @@ const UserManagement = () => {
                     <span className="absolute inset-y-0 left-4 flex items-center text-gray-400">
                         <Search size={16} />
                     </span>
-                    <input 
-                        type="text" 
-                        placeholder="Search users by username or email..." 
+                    <input
+                        type="text"
+                        placeholder="Search users by username or email..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="w-full pl-12 pr-4 py-2 bg-gray-50 border border-transparent focus:border-sky-300 rounded-xl text-sm outline-none transition-all"
@@ -154,11 +170,10 @@ const UserManagement = () => {
                                         </div>
                                     </td>
                                     <td className="px-8 py-5">
-                                        <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${
-                                            user.isActive === false 
-                                                ? 'bg-rose-100 text-rose-600' 
+                                        <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${user.isActive === false
+                                                ? 'bg-rose-100 text-rose-600'
                                                 : 'bg-emerald-100 text-emerald-600'
-                                        }`}>
+                                            }`}>
                                             {user.isActive === false ? 'Suspended' : 'Active'}
                                         </span>
                                     </td>
@@ -173,13 +188,12 @@ const UserManagement = () => {
                                     </td>
                                     <td className="px-8 py-5">
                                         <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button 
+                                            <button
                                                 onClick={() => toggleStatusHandler(user._id, user.isActive)}
-                                                className={`p-2 rounded-lg transition-all ${
-                                                    user.isActive === false 
-                                                        ? 'text-emerald-500 bg-emerald-50 hover:bg-emerald-100' 
+                                                className={`p-2 rounded-lg transition-all ${user.isActive === false
+                                                        ? 'text-emerald-500 bg-emerald-50 hover:bg-emerald-100'
                                                         : 'text-rose-500 bg-rose-50 hover:bg-rose-100'
-                                                }`}
+                                                    }`}
                                                 title={user.isActive === false ? "Activate User" : "Suspend User"}
                                             >
                                                 {user.isActive === false ? <UserCheck size={18} /> : <UserX size={18} />}

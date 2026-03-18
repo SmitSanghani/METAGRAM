@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { TrendingUp, BarChart2, User, Lock, Bell, Moon, Sun, ChevronRight, Activity as ActivityIcon, Key, UserX, Trash2, AlertTriangle, Loader2 } from 'lucide-react';
+import { TrendingUp, BarChart2, User, Bell, Moon, Sun, ChevronRight, Activity as ActivityIcon, Key, UserX, Trash2, AlertTriangle, Loader2 } from 'lucide-react';
 import YourActivity from './YourActivity';
 import BlockedAccounts from './BlockedAccounts';
 import ReactECharts from 'echarts-for-react';
@@ -66,7 +66,6 @@ const Settings = () => {
         { id: 'insights', icon: <BarChart2 size={20} />, label: 'Follower Insights' },
         { id: 'activity', icon: <ActivityIcon size={20} />, label: 'Your Activity' },
         { id: 'account', icon: <User size={20} />, label: 'Account Settings' },
-        { id: 'privacy', icon: <Lock size={20} />, label: 'Privacy & Security' },
         { id: 'blocked', icon: <UserX size={20} />, label: 'Blocked Accounts' },
         { id: 'danger', icon: <Trash2 size={20} />, label: 'Danger Zone', className: 'text-rose-500 hover:bg-rose-50 hover:text-rose-600' },
     ];
@@ -387,32 +386,7 @@ const Settings = () => {
                         </div>
                     )}
 
-                    {activeSection === 'privacy' && (
-                        <div className='p-8 animate-in fade-in slide-in-from-right-4 duration-500'>
-                            <div className='mb-8'>
-                                <h1 className='text-2xl font-bold text-gray-900'>Privacy & Security</h1>
-                                <p className='text-gray-500 text-sm'>Manage your privacy and who can see your content.</p>
-                            </div>
 
-                            <div className='flex flex-col gap-4 max-w-2xl'>
-                                <div 
-                                    onClick={() => setActiveSection('blocked')}
-                                    className='p-6 bg-white border border-gray-100 rounded-3xl shadow-sm hover:bg-gray-50 cursor-pointer flex items-center justify-between transition-all'
-                                >
-                                    <div className='flex items-center gap-4'>
-                                        <div className='p-3 bg-red-50 text-red-500 rounded-2xl'>
-                                            <UserX size={24} />
-                                        </div>
-                                        <div>
-                                            <h3 className='font-bold text-gray-900'>Blocked Accounts</h3>
-                                            <p className='text-sm text-gray-500'>Manage people you've blocked.</p>
-                                        </div>
-                                    </div>
-                                    <ChevronRight size={20} className='text-gray-400' />
-                                </div>
-                            </div>
-                        </div>
-                    )}
 
                     {activeSection === 'blocked' && (
                         <BlockedAccounts />

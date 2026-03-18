@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Heart, MessageCircle, MoreHorizontal, Trash2, Eye, Loader2, Play, X } from 'lucide-react';
 import api from '@/api';
 import { toast } from 'sonner';
+import Swal from 'sweetalert2';
 
 const ReelManagement = () => {
     const [reels, setReels] = useState([]);
@@ -29,20 +30,38 @@ const ReelManagement = () => {
     }, []);
 
     const deleteReelHandler = async (reelId) => {
-        if (!window.confirm("Are you sure you want to delete this reel?")) return;
-        try {
-            const res = await api.delete(`/reels/delete/${reelId}`);
-            if (res.data.success) {
-                setReels(reels.filter(r => r._id !== reelId));
-                toast.success(res.data.message);
-                if (selectedReel?._id === reelId) {
-                    setShowModal(false);
-                    setSelectedReel(null);
-                }
+        const result = await Swal.fire({
+            title: 'Delete Reel?',
+            text: "This action cannot be undone!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#94a3b8',
+            confirmButtonText: 'Yes, delete it!',
+            background: '#ffffff',
+            borderRadius: '24px',
+            customClass: {
+                popup: 'rounded-[24px]',
+                confirmButton: 'rounded-xl px-6 py-2.5 font-bold uppercase tracking-wider text-xs',
+                cancelButton: 'rounded-xl px-6 py-2.5 font-bold uppercase tracking-wider text-xs'
             }
-        } catch (error) {
-            console.error(error);
-            toast.error(error.response?.data?.message || "Failed to delete reel");
+        });
+
+        if (result.isConfirmed) {
+            try {
+                const res = await api.delete(`/reels/delete/${reelId}`);
+                if (res.data.success) {
+                    setReels(reels.filter(r => r._id !== reelId));
+                    toast.success(res.data.message);
+                    if (selectedReel?._id === reelId) {
+                        setShowModal(false);
+                        setSelectedReel(null);
+                    }
+                }
+            } catch (error) {
+                console.error(error);
+                toast.error(error.response?.data?.message || "Failed to delete reel");
+            }
         }
     }
 

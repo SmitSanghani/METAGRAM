@@ -3,6 +3,7 @@ import { Heart, MessageCircle, MoreHorizontal, Trash2, Eye, Loader2, X } from 'l
 import api from '@/api';
 import { toast } from 'sonner';
 import PostViewModal from './PostViewModal';
+import Swal from 'sweetalert2';
 
 const PostManagement = () => {
     const [posts, setPosts] = useState([]);
@@ -30,51 +31,87 @@ const PostManagement = () => {
     }, []);
 
     const deletePostHandler = async (postId) => {
-        if (!window.confirm("Are you sure you want to delete this post?")) return;
-        try {
-            const res = await api.delete(`/post/delete/${postId}`);
-            if (res.data.success) {
-                setPosts(posts.filter(p => p._id !== postId));
-                toast.success(res.data.message);
-                if (selectedPost?._id === postId) {
-                    setShowModal(false);
-                    setSelectedPost(null);
-                }
+        const result = await Swal.fire({
+            title: 'Delete Post?',
+            text: "This action cannot be undone!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#94a3b8',
+            confirmButtonText: 'Yes, delete it!',
+            background: '#ffffff',
+            borderRadius: '24px',
+            customClass: {
+                popup: 'rounded-[24px]',
+                confirmButton: 'rounded-xl px-6 py-2.5 font-bold uppercase tracking-wider text-xs',
+                cancelButton: 'rounded-xl px-6 py-2.5 font-bold uppercase tracking-wider text-xs'
             }
-        } catch (error) {
-            console.error(error);
-            toast.error(error.response?.data?.message || "Failed to delete post");
+        });
+
+        if (result.isConfirmed) {
+            try {
+                const res = await api.delete(`/post/delete/${postId}`);
+                if (res.data.success) {
+                    setPosts(posts.filter(p => p._id !== postId));
+                    toast.success(res.data.message);
+                    if (selectedPost?._id === postId) {
+                        setShowModal(false);
+                        setSelectedPost(null);
+                    }
+                }
+            } catch (error) {
+                console.error(error);
+                toast.error(error.response?.data?.message || "Failed to delete post");
+            }
         }
     }
 
     const deleteCommentHandler = async (commentId, postId) => {
-        if (!window.confirm("Are you sure you want to delete this comment?")) return;
-        try {
-            const res = await api.delete(`/post/comment/delete/${commentId}`);
-            if (res.data.success) {
-                // Update post in list to reflect comment deletion
-                setPosts(prev => prev.map(p => {
-                    if (p._id === postId) {
-                        return {
-                            ...p,
-                            comments: p.comments.filter(c => c._id !== commentId)
-                        }
-                    }
-                    return p;
-                }));
-                
-                // Update selected post if modal is open
-                if (selectedPost?._id === postId) {
-                    setSelectedPost(prev => ({
-                        ...prev,
-                        comments: prev.comments.filter(c => c._id !== commentId)
-                    }));
-                }
-                toast.success(res.data.message);
+        const result = await Swal.fire({
+            title: 'Delete Comment?',
+            text: "Remove this comment from the platform?",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#94a3b8',
+            confirmButtonText: 'Yes, delete it!',
+            background: '#ffffff',
+            borderRadius: '24px',
+            customClass: {
+                popup: 'rounded-[24px]',
+                confirmButton: 'rounded-xl px-6 py-2.5 font-bold uppercase tracking-wider text-xs',
+                cancelButton: 'rounded-xl px-6 py-2.5 font-bold uppercase tracking-wider text-xs'
             }
-        } catch (error) {
-            console.error(error);
-            toast.error(error.response?.data?.message || "Failed to delete comment");
+        });
+
+        if (result.isConfirmed) {
+            try {
+                const res = await api.delete(`/post/comment/delete/${commentId}`);
+                if (res.data.success) {
+                    // Update post in list to reflect comment deletion
+                    setPosts(prev => prev.map(p => {
+                        if (p._id === postId) {
+                            return {
+                                ...p,
+                                comments: p.comments.filter(c => c._id !== commentId)
+                            }
+                        }
+                        return p;
+                    }));
+                    
+                    // Update selected post if modal is open
+                    if (selectedPost?._id === postId) {
+                        setSelectedPost(prev => ({
+                            ...prev,
+                            comments: prev.comments.filter(c => c._id !== commentId)
+                        }));
+                    }
+                    toast.success(res.data.message);
+                }
+            } catch (error) {
+                console.error(error);
+                toast.error(error.response?.data?.message || "Failed to delete comment");
+            }
         }
     };
 

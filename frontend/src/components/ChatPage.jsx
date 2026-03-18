@@ -7,6 +7,7 @@ import { MessageCircle, Send, X, Image as ImageIcon, Smile, Reply, Trash2, Searc
 import api from '@/api';
 import { toast } from 'sonner';
 import { toggleMuteUserAction } from '../redux/authSlice';
+import Swal from 'sweetalert2';
 import { setMessages, addMessage, updateMessageStatus, updateReactions, markUnsent, markStoryUnsent, incrementUnreadCount, clearUnreadCount, updateLastMessage, removeTempMessage, setSelectedUser, setChatUsers, reorderUsers, updateChatUserConversation, addChatUser, clearChat } from '../redux/chatSlice';
 import ScrollToBottom from 'react-scroll-to-bottom';
 import MessageBubble from './MessageBubble';
@@ -254,7 +255,25 @@ const ChatPage = () => {
         const username = targetUserId ? chatUsers.find(u => u._id === targetUserId)?.username : selectedUser?.username;
         
         if (!userToDelete) return;
-        if (!window.confirm(`Are you sure you want to delete the entire chat with ${username}? This action cannot be undone.`)) return;
+
+        const result = await Swal.fire({
+            title: 'Delete Chat?',
+            text: `Are you sure you want to delete the entire chat with ${username}? This action cannot be undone.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#94a3b8',
+            confirmButtonText: 'Yes, delete it!',
+            background: '#ffffff',
+            borderRadius: '24px',
+            customClass: {
+                popup: 'rounded-[24px]',
+                confirmButton: 'rounded-xl px-6 py-2.5 font-bold uppercase tracking-wider text-xs',
+                cancelButton: 'rounded-xl px-6 py-2.5 font-bold uppercase tracking-wider text-xs'
+            }
+        });
+
+        if (!result.isConfirmed) return;
 
         try {
             const res = await api.delete(`/message/delete-chat/${userToDelete}`);
