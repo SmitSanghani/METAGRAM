@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Search, Bell, User, LogOut, X, Settings, ExternalLink } from 'lucide-react';
 import { useSelector, useDispatch } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import api from '@/api';
 import { toast } from 'sonner';
 import { setAuthUser } from '../../redux/authSlice';
@@ -49,61 +49,23 @@ const AdminNavbar = () => {
         }
     };
 
+    // eslint-disable-next-line
     const unreadCount = notifications.filter(n => n.unread).length;
 
     return (
         <header className="h-20 bg-white border-b border-gray-100 flex items-center justify-between px-8 sticky top-0 z-30">
             {/* Logo for mobile/dashboard */}
-            <div className="flex items-center gap-2 mr-4">
+            <Link to="/" className="flex items-center gap-2 mr-4 hover:cursor-pointer transition-transform hover:scale-105">
                 <img src={logo} alt="logo" className="w-8 h-8 object-contain" />
                 <span className="font-black text-lg tracking-tighter" style={{ fontFamily: "'Outfit', sans-serif" }}>METAGRAM</span>
-            </div>
+            </Link>
 
             <div className="flex-1"></div>
 
             {/* Actions */}
             <div className="flex items-center gap-2 shrink-0">
 
-                {/* Notifications Bell */}
-                <div className="relative" ref={notifRef}>
-                    <button
-                        onClick={() => { setShowNotifications(p => !p); setShowProfile(false); }}
-                        className="relative p-2.5 text-gray-500 hover:bg-gray-50 rounded-full transition-all"
-                    >
-                        <Bell size={20} />
-                        {unreadCount > 0 && (
-                            <span className="absolute top-1.5 right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-black text-white">
-                                {unreadCount}
-                            </span>
-                        )}
-                    </button>
-
-                    {showNotifications && (
-                        <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl border border-gray-100 shadow-xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-                            <div className="px-5 py-4 border-b border-gray-50 flex items-center justify-between">
-                                <p className="font-black text-gray-900 text-sm">Notifications</p>
-                                {unreadCount > 0 && <span className="text-[10px] font-black text-sky-500 uppercase tracking-widest bg-sky-50 px-2 py-0.5 rounded-full">{unreadCount} New</span>}
-                            </div>
-                            <ul className="max-h-72 overflow-y-auto">
-                                {notifications.map(n => (
-                                    <li key={n.id} className={`flex items-start gap-3 px-5 py-3.5 border-b border-gray-50 last:border-0 cursor-pointer hover:bg-gray-50 transition-colors ${n.unread ? 'bg-sky-50/40' : ''}`}>
-                                        <span className="text-lg mt-0.5">{n.icon}</span>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-sm text-gray-800 font-medium leading-snug">{n.text}</p>
-                                            <p className="text-[10px] text-gray-400 mt-1 font-bold uppercase tracking-widest">{n.time}</p>
-                                        </div>
-                                        {n.unread && <span className="w-2 h-2 rounded-full bg-sky-400 mt-1.5 shrink-0" />}
-                                    </li>
-                                ))}
-                            </ul>
-                            <div className="px-5 py-3 border-t border-gray-50">
-                                <button className="w-full text-center text-xs font-black text-sky-500 hover:text-sky-600 uppercase tracking-widest">Mark All as Read</button>
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                <div className="h-8 w-[1px] bg-gray-100 mx-1" />
+                {/* Notifications Bell Removed */}
 
                 {/* Admin Profile Dropdown */}
                 <div className="relative" ref={profileRef}>

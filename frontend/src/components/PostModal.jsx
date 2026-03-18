@@ -65,12 +65,12 @@ const PostModal = ({ open, setOpen, post }) => {
     return (
         <>
             <Dialog open={open} onOpenChange={setOpen}>
-                <DialogContent hideClose className='max-w-[500px] p-0 flex flex-col bg-white overflow-hidden rounded-[24px] border-none shadow-2xl animate-in zoom-in-95 duration-300'>
+                <DialogContent hideClose className='max-w-[500px] w-[95vw] md:w-full p-0 flex flex-col bg-white max-h-[90vh] overflow-hidden rounded-[15px] sm:rounded-[24px] border-none shadow-2xl animate-in zoom-in-95 duration-300'>
                     <DialogTitle className="sr-only">Post by {post?.author?.username}</DialogTitle>
                     <DialogDescription className="sr-only">Viewing post without comments</DialogDescription>
                     
                     {/* Header */}
-                    <div className='flex items-center justify-between px-5 py-4 border-b border-gray-50'>
+                    <div className='flex items-center justify-between px-5 py-4 border-b border-gray-50 shrink-0'>
                         <div className='flex items-center gap-3'>
                             <Avatar className="w-10 h-10 border border-gray-100 p-[1px] bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600">
                                 <AvatarImage src={post?.author?.profilePicture} className="object-cover rounded-full" />
@@ -92,7 +92,7 @@ const PostModal = ({ open, setOpen, post }) => {
                     </div>
 
                     {/* Media */}
-                    <div className="w-full relative aspect-square bg-black flex items-center justify-center group">
+                    <div className="w-full relative aspect-square bg-black flex items-center justify-center group shrink min-h-[250px]">
                         {images.length > 1 ? (
                             <>
                                 <div 
@@ -132,8 +132,8 @@ const PostModal = ({ open, setOpen, post }) => {
                     </div>
 
                     {/* Footer */}
-                    <div className='p-5 flex flex-col gap-4 bg-white'>
-                        <div className='flex items-center justify-between'>
+                    <div className='p-5 flex flex-col gap-4 bg-white shrink-0 overflow-y-auto custom-scrollbar max-h-[40vh] sm:max-h-[30vh]'>
+                        <div className='flex items-center justify-between shrink-0'>
                             <div className='flex items-center gap-5'>
                                 <button onClick={handleLike} className='hover:scale-110 active:scale-90 transition-transform'>
                                     {liked ? <FaHeart size={24} className='text-red-500' /> : <FaRegHeart size={24} className='text-gray-800' />}
@@ -148,15 +148,15 @@ const PostModal = ({ open, setOpen, post }) => {
                             <SaveButton isSaved={user?.bookmarks?.some(item => (item._id || item) === post._id)} size={24} />
                         </div>
 
-                        <div className='flex flex-col gap-1.5'>
+                        <div className='flex flex-col gap-1.5 shrink-0'>
                             <span className='font-bold text-[14px] text-gray-900'>{post.likes?.length || 0} likes</span>
-                            <p className='text-[14px] text-gray-800 leading-relaxed font-medium'>
+                            <p className='text-[14px] text-gray-800 leading-relaxed font-medium break-words'>
                                 <span className='font-bold mr-2'>{post?.author?.username}</span>
                                 {post.caption}
                             </p>
                             <button 
                                 onClick={() => setShowComments(true)}
-                                className='text-[12px] font-bold text-gray-400 mt-1 uppercase tracking-wider hover:text-indigo-600 transition-colors text-left'
+                                className='text-[12px] font-bold text-gray-400 mt-1 uppercase tracking-wider hover:text-indigo-600 transition-colors text-left w-max'
                             >
                                 View all {post.comments?.length || 0} comments
                             </button>

@@ -48,19 +48,7 @@ const AdminSidebar = () => {
                 ))}
             </nav>
 
-            <div className="p-4 border-t border-gray-50 mb-4 space-y-1">
-                <NavLink
-                    to="/"
-                    className="flex items-center gap-3 px-4 py-3 rounded-xl text-[14px] font-medium text-gray-500 hover:bg-sky-50 hover:text-sky-600 transition-all duration-200"
-                >
-                    <ExternalLink size={18} />
-                    <span>Return to Site</span>
-                </NavLink>
-                <button className="flex items-center gap-3 px-4 py-3 w-full rounded-xl text-[14px] font-medium text-rose-500 hover:bg-rose-50 transition-all duration-200">
-                    <LogOut size={18} />
-                    <span>Logout</span>
-                </button>
-            </div>
+            {/* Removed Return to Site and Logout */}
         </aside>
     );
 };
