@@ -11,6 +11,7 @@ import messageRoute from "./routes/message.route.js";
 import storyRoute from "./routes/story.route.js";
 import notificationRoute from "./routes/notification.route.js";
 import reelRoute from "./routes/reel.route.js";
+import settingRoute from "./routes/setting.route.js";
 import cron from "node-cron";
 import { Story } from "./models/story.model.js";
 import { app, server } from "./socket/socket.js";
@@ -53,6 +54,7 @@ app.use("/api/v1/message", messageRoute);
 app.use("/api/v1/story", storyRoute);
 app.use("/api/v1/notification", notificationRoute);
 app.use("/api/v1/reels", reelRoute);
+app.use("/api/v1/setting", settingRoute);
 
 app.use(express.static(path.join(__dirname, "../frontend/dist")));
 app.get("*path", (req, res) => {

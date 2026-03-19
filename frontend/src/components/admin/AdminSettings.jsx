@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { Settings as SettingsIcon, Bell, Lock, User, Palette, ShieldCheck, ChevronDown, ChevronUp, Save, Eye, EyeOff, Check, X, Sun, Moon, Monitor } from 'lucide-react';
 import api from '@/api';
@@ -73,6 +73,42 @@ const AdminSettings = () => {
     const [passwords, setPasswords] = useState({ current: '', newPass: '', confirm: '' });
     const [showPass, setShowPass] = useState({ current: false, new: false, confirm: false });
     const [passLoading, setPassLoading] = useState(false);
+    
+    // Platform Settings
+    const [platformSettings, setPlatformSettings] = useState({
+        postsEnabled: true,
+    });
+    const [platformLoading, setPlatformLoading] = useState(false);
+
+    useEffect(() => {
+        const fetchSettings = async () => {
+            try {
+                const res = await api.get('/setting/get');
+                if (res.data.success) {
+                    setPlatformSettings({
+                        postsEnabled: res.data.settings.postsEnabled
+                    });
+                }
+            } catch (err) {
+                console.error("Failed to fetch platform settings", err);
+            }
+        };
+        fetchSettings();
+    }, []);
+
+    const handlePlatformSave = async () => {
+        try {
+            setPlatformLoading(true);
+            const res = await api.post('/setting/update', platformSettings);
+            if (res.data.success) {
+                toast.success('Platform settings updated!');
+            }
+        } catch (err) {
+            toast.error(err.response?.data?.message || 'Failed to update settings');
+        } finally {
+            setPlatformLoading(false);
+        }
+    };
 
     // Notification state
     const [notifications, setNotifications] = useState({
@@ -191,6 +227,33 @@ const AdminSettings = () => {
                         >
                             <Save size={14} />
                             {profileLoading ? 'Saving...' : 'Save Profile'}
+                        </button>
+                    </div>
+                </SectionCard>
+
+
+                {/* ── Platform Control ── */}
+                <SectionCard
+                    icon={<ShieldCheck size={20} />}
+                    title="Platform Control"
+                    description="Enable/Disable site-wide features"
+                    color="text-emerald-500"
+                >
+                    <div className="space-y-4">
+                        <Toggle 
+                            label="Post Creation" 
+                            description="Allow users to create new posts" 
+                            checked={platformSettings.postsEnabled}
+                            onChange={(val) => setPlatformSettings(p => ({...p, postsEnabled: val}))}
+                        />
+
+                        <button
+                            onClick={handlePlatformSave}
+                            disabled={platformLoading}
+                            className="flex items-center gap-2 bg-emerald-500 text-white px-5 py-2.5 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-emerald-600 transition-all disabled:opacity-50 mt-2"
+                        >
+                            <Save size={14} />
+                            {platformLoading ? 'Saving...' : 'Save Changes'}
                         </button>
                     </div>
                 </SectionCard>

@@ -136,4 +136,47 @@ graph TD
 - **Concurrent Deletion:** Handling cases where an admin deletes a post while a user is typing a comment on it.
 
 ---
-**Prepared for Development Team | Metagram**
+---
+
+## 8. Easy-to-Understand System Guide (Teacher Mode) 🎓
+
+Hello! Let's imagine **Metagram** is like a big, magical school. Every time a student (User) does something, we write it down in different "Special Notebooks" (Database Models). Here is how it works:
+
+### 🎒 8.1 Joining the School (Registration & Login)
+- **What happens?** A new student comes to the school. They give us their Name, Email, and a secret Password.
+- **The Notebook (Model):** We write this in the **`User` Model**.
+- **Teacher's Note:** Before they join, we check if their Name is already taken. If everything is okay, we say "Welcome!" and let them into the **Home Page**.
+
+### 🤝 8.2 Making Friends (Follow & Unfollow)
+- **What happens?** You see another student and want to see what they are doing. You click "Follow."
+- **The Notebook (Model):** This is also kept in the **`User` Model**. Each student has two lists in their notebook:
+  1. **`followers`**: A list of people who like them.
+  2. **`following`**: A list of people they like.
+- **Teacher's Note:** If you "Unfollow," we just erase the name from the list!
+
+### 📸 8.3 Sharing Your Day (Posts & Stories)
+- **Posts:** Like a drawing you pin to the classroom wall forever. We save this in the **`Post` Model**.
+- **Stories:** Like a drawing on a whiteboard that gets erased after 24 hours. We save this in the **`Story` Model**.
+- **Reels:** Like a fun video show-and-tell. We save this in the **`Reel` Model**.
+
+### 💬 8.4 Passing Secret Notes (Live Chat)
+- **What happens?** You want to talk to one friend privately. You send a message, and it appears instantly!
+- **The Notebooks (Models):**
+  1. **`Conversation` Model:** This is like a "File Folder" that holds the talk between you two.
+  2. **`Message` Model:** This is the actual "Note" you wrote. It says who sent it, who gets it, and what it says.
+- **Teacher's Note:** If you "Delete" a chat, we just throw that specific note in the trash bin.
+
+### 🔔 8.5 The School Bell (Notifications)
+- **What happens?** Someone likes your drawing or follows you. You get a little "Ding!" 
+- **The Notebook (Model):** We write this in the **`Notification` Model**.
+- **Teacher's Note:** This notebook tells the student: "Hey! Something happened while you were away!" It saves the type (Like/Follow) and who did it.
+
+### 🛡️ 8.6 The Principal's Office (Admin Panel)
+- **What happens?** The Principal (Admin) looks at all the notebooks to make sure everyone is being nice.
+- **The Notebook (Model):** The Principal uses the **`User` Model** to find a student and can flip a switch called `isActive`.
+  - **Suspended:** Switch is **Off** (User cannot log in).
+  - **Active:** Switch is **On** (User can play!).
+
+---
+
+**Prepared for Development Team & System Diagram Creation | Metagram**

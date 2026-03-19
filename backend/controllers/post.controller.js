@@ -6,11 +6,19 @@ import { User } from "../models/user.model.js";
 import { Comment } from "../models/comment.model.js";
 import { Notification } from "../models/notification.model.js";
 import { getReceiverSocketId, io } from "../socket/socket.js";
+import { Setting } from "../models/setting.model.js";
 
 
 // Add New Post :
 export const addNewPost = async (req, res) => {
     try {
+        const settings = await Setting.findOne();
+        if (settings && !settings.postsEnabled && req.role !== 'admin') {
+            return res.status(403).json({
+                message: "Posting is currently disabled by admin.",
+                success: false
+            });
+        }
         const { caption } = req.body;
         const images = req.files; // Array of files
         const authorId = req.id;

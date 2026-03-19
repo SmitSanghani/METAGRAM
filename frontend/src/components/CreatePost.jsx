@@ -22,6 +22,23 @@ const CreatePost = ({ open, setOpen }) => {
     const { user } = useSelector((store) => store.auth);
     const { posts } = useSelector((store) => store.post);
     const dispatch = useDispatch();
+    const [postsEnabled, setPostsEnabled] = useState(true);
+
+    useEffect(() => {
+        if (open) {
+            const fetchSettings = async () => {
+                try {
+                    const res = await api.get('/setting/get');
+                    if (res.data.success) {
+                        setPostsEnabled(res.data.settings.postsEnabled);
+                    }
+                } catch (err) {
+                    console.error("Failed to fetch settings", err);
+                }
+            };
+            fetchSettings();
+        }
+    }, [open]);
 
     const fileChangeHandler = async (e) => {
         const selectedFiles = Array.from(e.target.files || []);
@@ -250,10 +267,22 @@ const CreatePost = ({ open, setOpen }) => {
                                     Please wait...
                                 </Button>
                             ) : (
-                                <Button onClick={createPostHandler} type="submit" className="w-full bg-[#0095F6] hover:bg-[#1877F2] text-white font-bold h-10 rounded-lg mt-4 shadow-none">Post</Button>
+                                <Button 
+                                    onClick={createPostHandler} 
+                                    type="submit" 
+                                    disabled={!postsEnabled && user?.role !== 'admin'}
+                                    className={`w-full text-white font-bold h-10 rounded-lg mt-4 shadow-none ${(!postsEnabled && user?.role !== 'admin') ? 'bg-gray-300 pointer-events-none' : 'bg-[#0095F6] hover:bg-[#1877F2]'}`}
+                                >
+                                    {(!postsEnabled && user?.role !== 'admin') ? 'Posting Disabled' : 'Post'}
+                                </Button>
                             )
                         )
                     }
+                    {(!postsEnabled && user?.role !== 'admin') && (
+                        <p className="text-center text-[12px] text-red-500 font-medium mt-2">
+                            Posting is currently disabled by administrator.
+                        </p>
+                    )}
                 </div>
             </DialogContent>
         </Dialog>

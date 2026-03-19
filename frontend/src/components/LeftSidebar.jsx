@@ -1,6 +1,6 @@
 import { Heart, Home, LogOut, MessageCircle, PlusSquare, Search, Settings, Video, Sun, Moon } from 'lucide-react'
 import logo from '../assets/logo2.png';
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar'
 import { toast } from 'sonner'
 import api from '@/api';
@@ -24,7 +24,26 @@ const LeftSidebar = () => {
     const [reelOpen, setReelOpen] = useState(false);
     const [notificationOpen, setNotificationOpen] = useState(false);
     const [searchOpen, setSearchOpen] = useState(false);
+    const [postsEnabled, setPostsEnabled] = useState(true);
     const dispatch = useDispatch();
+
+    useEffect(() => {
+        const fetchSettings = async () => {
+            try {
+                const res = await api.get('/setting/get');
+                if (res.data.success) {
+                    setPostsEnabled(res.data.settings.postsEnabled);
+                }
+            } catch (err) {
+                console.error("Failed to fetch settings", err);
+            }
+        };
+        fetchSettings();
+
+        // Refresh settings every 30 seconds to catch admin changes
+        const interval = setInterval(fetchSettings, 30000);
+        return () => clearInterval(interval);
+    }, [open]); // Re-fetch when modal starts to open
 
     const { unreadCounts = {} } = useSelector(store => store.chat || {});
     const totalUnreadMessages = Object.values(unreadCounts).reduce((acc, count) => acc + count, 0);
@@ -52,6 +71,9 @@ const LeftSidebar = () => {
         if (textType === 'Logout') {
             logoutHandler();
         } else if (textType === 'Create') {
+            if (!postsEnabled && user?.role !== 'admin') {
+                return toast.error("Posting is currently disabled by admin.");
+            }
             setOpen(true);
             setNotificationOpen(false);
         } else if (textType === 'Profile') {
@@ -133,9 +155,10 @@ const LeftSidebar = () => {
                     {
                         sidebarItems.map((item, index) => {
                             const active = isActive(item.text);
+                            const isDisabled = item.text === 'Create' && !postsEnabled && user?.role !== 'admin';
                             return (
-                                <div onClick={() => sidebarHandler(item.text)} key={index}
-                                    className={`flex items-center gap-4 cursor-pointer px-4 py-3 rounded-xl transition-all duration-300 group active:scale-[0.98] ${active
+                                <div onClick={() => !isDisabled && sidebarHandler(item.text)} key={index}
+                                    className={`flex items-center gap-4 cursor-pointer px-4 py-3 rounded-xl transition-all duration-300 group active:scale-[0.98] ${isDisabled ? 'opacity-40 cursor-not-allowed filter grayscale' : active
                                         ? 'bg-indigo-600 text-white shadow-md shadow-indigo-100'
                                         : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
                                         }`}>

@@ -49,4 +49,22 @@ const isAuthenticated = async (req, res, next) => {
     }
 };
 
+export const isAdmin = async (req, res, next) => {
+    try {
+        if (req.role !== 'admin') {
+            return res.status(403).json({
+                message: "Unauthorized. Admin access only.",
+                success: false,
+            });
+        }
+        next();
+    } catch (error) {
+        console.error("Admin check failed:", error);
+        return res.status(500).json({
+            message: "Internal server error",
+            success: false,
+        });
+    }
+};
+
 export default isAuthenticated;
