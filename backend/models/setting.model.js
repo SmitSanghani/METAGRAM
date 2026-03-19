@@ -5,6 +5,10 @@ const settingSchema = new mongoose.Schema({
         type: Boolean,
         default: true
     },
+    reelsEnabled: {
+        type: Boolean,
+        default: true
+    },
     // We can add other global settings here in the future
 }, { timestamps: true });
 

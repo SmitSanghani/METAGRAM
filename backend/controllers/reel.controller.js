@@ -4,9 +4,17 @@ import { ReelComment } from "../models/reelComment.model.js";
 import { User } from "../models/user.model.js";
 import { Notification } from "../models/notification.model.js";
 import { getReceiverSocketId, io } from "../socket/socket.js";
+import { Setting } from "../models/setting.model.js";
 
 export const uploadReel = async (req, res) => {
     try {
+        const settings = await Setting.findOne();
+        if (settings && !settings.reelsEnabled && req.role !== 'admin') {
+            return res.status(403).json({
+                message: "Reel uploading is currently disabled by admin.",
+                success: false
+            });
+        }
         const { caption, allowComments = true, allowLikes = true, allowSave = true, allowShare = true } = req.body;
         const video = req.file;
         const authorId = req.id;

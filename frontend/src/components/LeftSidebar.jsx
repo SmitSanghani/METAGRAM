@@ -25,6 +25,7 @@ const LeftSidebar = () => {
     const [notificationOpen, setNotificationOpen] = useState(false);
     const [searchOpen, setSearchOpen] = useState(false);
     const [postsEnabled, setPostsEnabled] = useState(true);
+    const [reelsEnabled, setReelsEnabled] = useState(true);
     const dispatch = useDispatch();
 
     useEffect(() => {
@@ -33,6 +34,7 @@ const LeftSidebar = () => {
                 const res = await api.get('/setting/get');
                 if (res.data.success) {
                     setPostsEnabled(res.data.settings.postsEnabled);
+                    setReelsEnabled(res.data.settings.reelsEnabled);
                 }
             } catch (err) {
                 console.error("Failed to fetch settings", err);
@@ -40,10 +42,9 @@ const LeftSidebar = () => {
         };
         fetchSettings();
 
-        // Refresh settings every 30 seconds to catch admin changes
         const interval = setInterval(fetchSettings, 30000);
         return () => clearInterval(interval);
-    }, [open]); // Re-fetch when modal starts to open
+    }, [open, reelOpen]); 
 
     const { unreadCounts = {} } = useSelector(store => store.chat || {});
     const totalUnreadMessages = Object.values(unreadCounts).reduce((acc, count) => acc + count, 0);
@@ -103,6 +104,9 @@ const LeftSidebar = () => {
             setNotificationOpen(false);
             setSearchOpen(false);
         } else if (textType === 'Upload Reel') {
+            if (!reelsEnabled && user?.role !== 'admin') {
+                return toast.error("Reel uploading is currently disabled by admin.");
+            }
             setReelOpen(true);
             setNotificationOpen(false);
             setSearchOpen(false);
@@ -155,7 +159,9 @@ const LeftSidebar = () => {
                     {
                         sidebarItems.map((item, index) => {
                             const active = isActive(item.text);
-                            const isDisabled = item.text === 'Create' && !postsEnabled && user?.role !== 'admin';
+                            const isPostDisabled = item.text === 'Create' && !postsEnabled && user?.role !== 'admin';
+                            const isReelDisabled = item.text === 'Upload Reel' && !reelsEnabled && user?.role !== 'admin';
+                            const isDisabled = isPostDisabled || isReelDisabled;
                             return (
                                 <div onClick={() => !isDisabled && sidebarHandler(item.text)} key={index}
                                     className={`flex items-center gap-4 cursor-pointer px-4 py-3 rounded-xl transition-all duration-300 group active:scale-[0.98] ${isDisabled ? 'opacity-40 cursor-not-allowed filter grayscale' : active

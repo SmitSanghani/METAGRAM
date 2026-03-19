@@ -77,6 +77,7 @@ const AdminSettings = () => {
     // Platform Settings
     const [platformSettings, setPlatformSettings] = useState({
         postsEnabled: true,
+        reelsEnabled: true,
     });
     const [platformLoading, setPlatformLoading] = useState(false);
 
@@ -86,7 +87,8 @@ const AdminSettings = () => {
                 const res = await api.get('/setting/get');
                 if (res.data.success) {
                     setPlatformSettings({
-                        postsEnabled: res.data.settings.postsEnabled
+                        postsEnabled: res.data.settings.postsEnabled,
+                        reelsEnabled: res.data.settings.reelsEnabled || true,
                     });
                 }
             } catch (err) {
@@ -245,6 +247,13 @@ const AdminSettings = () => {
                             description="Allow users to create new posts" 
                             checked={platformSettings.postsEnabled}
                             onChange={(val) => setPlatformSettings(p => ({...p, postsEnabled: val}))}
+                        />
+
+                        <Toggle 
+                            label="Reels Creation" 
+                            description="Allow users to upload new reels" 
+                            checked={platformSettings.reelsEnabled}
+                            onChange={(val) => setPlatformSettings(p => ({...p, reelsEnabled: val}))}
                         />
 
                         <button

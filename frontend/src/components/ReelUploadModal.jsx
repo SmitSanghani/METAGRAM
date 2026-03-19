@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react'
+import React, { useRef, useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogHeader } from './ui/dialog'
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Textarea } from './ui/textarea';
@@ -20,7 +20,24 @@ const ReelUploadModal = ({ open, setOpen }) => {
     const [allowSave, setAllowSave] = useState(true);
     const [allowShare, setAllowShare] = useState(true);
     const { user } = useSelector((store) => store.auth);
+    const [reelsEnabled, setReelsEnabled] = useState(true);
     const dispatch = useDispatch();
+
+    useEffect(() => {
+        if (open) {
+            const fetchSettings = async () => {
+                try {
+                    const res = await api.get('/setting/get');
+                    if (res.data.success) {
+                        setReelsEnabled(res.data.settings.reelsEnabled);
+                    }
+                } catch (err) {
+                    console.error("Failed to fetch settings", err);
+                }
+            };
+            fetchSettings();
+        }
+    }, [open]);
 
     const fileChangeHandler = (e) => {
         const file = e.target.files?.[0];
@@ -139,12 +156,17 @@ const ReelUploadModal = ({ open, setOpen }) => {
                     </div>
 
                     <Button
-                        disabled={loading || !file}
+                        disabled={loading || !file || (!reelsEnabled && user?.role !== 'admin')}
                         onClick={uploadReelHandler}
-                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black h-12 rounded-full mt-2 shadow-lg shadow-indigo-100 transition-all active:scale-95 disabled:bg-indigo-100 disabled:shadow-none"
+                        className={`w-full text-white font-black h-12 rounded-full mt-2 shadow-lg transition-all active:scale-95 ${(!reelsEnabled && user?.role !== 'admin') ? 'bg-gray-300 pointer-events-none shadow-none' : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-100'}`}
                     >
-                        {loading ? <><Loader2 className='mr-2 h-5 w-5 animate-spin' /> Sharing...</> : 'Publish Reel'}
+                        {loading ? <><Loader2 className='mr-2 h-5 w-5 animate-spin' /> Sharing...</> : (!reelsEnabled && user?.role !== 'admin') ? 'Uploading Disabled' : 'Publish Reel'}
                     </Button>
+                    {(!reelsEnabled && user?.role !== 'admin') && (
+                        <p className="text-center text-[12px] text-red-500 font-medium mt-2">
+                            Reel uploading is currently disabled by administrator.
+                        </p>
+                    )}
                 </div>
             </DialogContent>
         </Dialog>
