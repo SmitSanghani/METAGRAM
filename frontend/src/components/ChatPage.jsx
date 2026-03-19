@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import { cn, getAvatarColor } from '@/lib/utils';
 import { Button } from './ui/button';
 import { MessageCircle, Send, X, Image as ImageIcon, Smile, Reply, Trash2, Search, BellOff, Bell, VolumeOff, Volume2 } from 'lucide-react';
 import api from '@/api';
@@ -507,9 +508,9 @@ const ChatPage = () => {
                                          <div className="relative shrink-0">
                                              <Avatar className={`w-14 h-14 border-2 ${isSelected ? 'border-white' : 'border-transparent'} shadow-sm transition-all group-hover:scale-105`}>
                                                  <AvatarImage src={suggestedUser?.profilePicture} className="object-cover" />
-                                                 <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-indigo-600 text-white font-black text-[15px] uppercase">
-                                                     {suggestedUser?.username?.charAt(0)}
-                                                 </AvatarFallback>
+                                                 <AvatarFallback className={cn("text-black font-black text-[15px] uppercase", getAvatarColor(suggestedUser?.username))}>
+                                                      {suggestedUser?.username?.charAt(0)}
+                                                  </AvatarFallback>
                                              </Avatar>
                                              {isOnline && <div className="absolute bottom-1 right-1 w-3.5 h-3.5 bg-green-500 border-[2.5px] border-white rounded-full transition-all"></div>}
                                          </div>
@@ -578,7 +579,7 @@ const ChatPage = () => {
                                      <div className="relative shrink-0">
                                          <Avatar className={`w-14 h-14 border-2 border-transparent shadow-sm transition-all group-hover:scale-105`}>
                                              <AvatarImage src={suggestedUser?.profilePicture} className="object-cover" />
-                                             <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-indigo-600 text-white font-black text-[15px] uppercase">
+                                             <AvatarFallback className={cn("text-black font-black text-[15px] uppercase", getAvatarColor(suggestedUser?.username))}>
                                                  {suggestedUser?.username?.charAt(0)}
                                              </AvatarFallback>
                                          </Avatar>
@@ -612,8 +613,8 @@ const ChatPage = () => {
                                     onClick={() => headerStories.length > 0 && setIsHeaderStoryOpen(true)}
                                 >
                                     <Avatar className={`w-13 h-13 border-2 ${headerStories.length > 0 ? 'border-pink-500' : 'border-indigo-50'} shadow-sm transition-transform active:scale-95`}>
-                                        <AvatarImage src={selectedUser?.profilePicture} className="object-cover" />
-                                        <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-indigo-600 text-white font-black uppercase text-[15px]">{selectedUser?.username?.charAt(0)}</AvatarFallback>
+                                         <AvatarImage src={selectedUser?.profilePicture} className="object-cover" />
+                                         <AvatarFallback className={cn("text-black font-black uppercase text-[15px]", getAvatarColor(selectedUser?.username))}>{selectedUser?.username?.charAt(0)}</AvatarFallback>
                                     </Avatar>
                                     {onlineUsers.includes(selectedUser?._id) && (
                                         <div className="absolute bottom-0 right-0.5 w-4 h-4 bg-green-500 border-[3px] border-white rounded-full"></div>

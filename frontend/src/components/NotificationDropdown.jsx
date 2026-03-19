@@ -2,6 +2,7 @@ import React from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { useNavigate } from 'react-router-dom';
+import { cn, getAvatarColor } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { X, Heart, Trash2, Reply } from 'lucide-react';
 import { markAllAsRead, markSingleAsRead, removeNotification, removeNotificationById, updateNotificationStatus } from '@/redux/notificationSlice';
@@ -157,7 +158,9 @@ const NotificationDropdown = ({ onClose }) => {
                                 className="w-12 h-12 shadow-sm border border-[#F0F0F0] hover:opacity-80 transition-opacity"
                             >
                                 <AvatarImage src={n.sender?.profilePicture} className="object-cover" />
-                                <AvatarFallback>{n.sender?.username?.charAt(0)?.toUpperCase()}</AvatarFallback>
+                                <AvatarFallback className={cn("font-black text-xs uppercase", getAvatarColor(n.sender?.username))}>
+                                    {n.sender?.username?.charAt(0)?.toUpperCase()}
+                                </AvatarFallback>
                             </Avatar>
                             <div className="flex-1 text-[13px] leading-tight">
                                 <span 

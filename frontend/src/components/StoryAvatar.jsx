@@ -1,6 +1,7 @@
 import { X, Plus } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import { cn, getAvatarColor } from '@/lib/utils';
 
 const StoryAvatar = ({ user, currentUser, stories = [], size = 66, isYourStory = false, strokeWidth }) => {
     // Process story stats
@@ -27,7 +28,7 @@ const StoryAvatar = ({ user, currentUser, stories = [], size = 66, isYourStory =
                 >
                     <Avatar className="w-full h-full border-2 border-white dark:border-zinc-950 shadow-sm">
                         <AvatarImage src={user?.profilePicture} className="object-cover" />
-                        <AvatarFallback className="bg-gray-100 dark:bg-zinc-800 text-[10px] font-black uppercase">
+                        <AvatarFallback className={cn("text-[10px] font-black uppercase", getAvatarColor(user?.username))}>
                             {user?.username?.substring(0, 2).toUpperCase()}
                         </AvatarFallback>
                     </Avatar>
@@ -81,7 +82,7 @@ const StoryAvatar = ({ user, currentUser, stories = [], size = 66, isYourStory =
                 <div className="w-full h-full rounded-full overflow-hidden border border-gray-100 dark:border-zinc-800 shadow-inner">
                     <Avatar className="w-full h-full">
                         <AvatarImage src={user?.profilePicture} className="object-cover" />
-                        <AvatarFallback className="bg-gray-200 dark:bg-zinc-800 text-[10px] font-bold uppercase">
+                        <AvatarFallback className={cn("text-[10px] font-black uppercase", getAvatarColor(user?.username))}>
                             {user?.username?.substring(0, 2).toUpperCase()}
                         </AvatarFallback>
                     </Avatar>

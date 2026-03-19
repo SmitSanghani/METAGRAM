@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Dialog, DialogContent, DialogTrigger, DialogClose, DialogTitle, DialogDescription } from './ui/dialog'
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar'
 import { Link } from 'react-router-dom'
+import { cn, getAvatarColor } from '@/lib/utils';
 import { MoreHorizontal, X } from 'lucide-react'
 import { Button } from './ui/button'
 import { useDispatch, useSelector } from 'react-redux'
@@ -289,7 +290,9 @@ const CommentDialog = ({ open, setOpen }) => {
                                     <div className="relative p-[1.5px] rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600 transition-transform">
                                         <Avatar className="w-9 h-9 border-2 border-white">
                                             <AvatarImage src={selectedPost?.author?.profilePicture} className="object-cover" />
-                                            <AvatarFallback className="bg-gray-100 font-black text-xs">{selectedPost?.author?.username?.charAt(0)?.toUpperCase()}</AvatarFallback>
+                                            <AvatarFallback className={cn("font-black text-xs uppercase", getAvatarColor(selectedPost?.author?.username))}>
+                                                {selectedPost?.author?.username?.charAt(0)?.toUpperCase()}
+                                            </AvatarFallback>
                                         </Avatar>
                                     </div>
                                 </Link>
@@ -339,7 +342,9 @@ const CommentDialog = ({ open, setOpen }) => {
                                     <div className='flex gap-4 items-start mb-8 pb-6 border-b border-gray-50'>
                                         <Avatar className="w-8 h-8 shrink-0 ring-1 ring-gray-100">
                                             <AvatarImage src={selectedPost?.author?.profilePicture} className="object-cover" />
-                                            <AvatarFallback className="font-bold text-[10px]">{selectedPost?.author?.username?.charAt(0)}</AvatarFallback>
+                                            <AvatarFallback className={cn("font-black text-[10px] uppercase", getAvatarColor(selectedPost?.author?.username))}>
+                                                {selectedPost?.author?.username?.charAt(0)}
+                                            </AvatarFallback>
                                         </Avatar>
                                         <div className='flex flex-col gap-1'>
                                             <p className='text-[14px] text-gray-700 leading-relaxed'>
@@ -429,7 +434,9 @@ const CommentDialog = ({ open, setOpen }) => {
                                 >
                                     <Avatar className="w-8 h-8 shrink-0 hidden sm:block grayscale hover:grayscale-0 transition-all duration-500">
                                         <AvatarImage src={user?.profilePicture} />
-                                        <AvatarFallback className="text-[10px] font-bold">ME</AvatarFallback>
+                                        <AvatarFallback className={cn("text-[10px] font-black uppercase", getAvatarColor(user?.username))}>
+                                            {user?.username?.charAt(0)?.toUpperCase()}
+                                        </AvatarFallback>
                                     </Avatar>
                                     <input
                                         ref={inputRef}

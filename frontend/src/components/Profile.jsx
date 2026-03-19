@@ -8,6 +8,7 @@ import { Button } from './ui/button'
 import { Badge } from './ui/badge'
 import { AtSign, Heart, MessageCircle, UserPlus, MoreHorizontal, Grid, PlaySquare, Contact, Link, ChevronDown, Trash2, Bookmark, Plus } from 'lucide-react'
 import api from '@/api';
+import { cn, getAvatarColor } from '@/lib/utils';
 import StoryViewer from './StoryViewer'
 import EditProfile from './EditProfile'
 import UserListModal from './UserListModal'
@@ -561,7 +562,9 @@ const Profile = () => {
               <div className="flex flex-col items-center pt-8 pb-6 px-6 border-b border-[#efefef]">
                 <Avatar className="w-[90px] h-[90px] mb-6">
                   <AvatarImage src={userProfile?.profilePicture} className="object-cover" />
-                  <AvatarFallback className="text-xl">{userProfile?.username?.charAt(0)?.toUpperCase()}</AvatarFallback>
+                  <AvatarFallback className={cn("text-xl uppercase font-black", getAvatarColor(userProfile?.username))}>
+                    {userProfile?.username?.charAt(0)?.toUpperCase()}
+                  </AvatarFallback>
                 </Avatar>
                 <p className="text-[14px] text-center text-[#262626] leading-relaxed">
                   Unfollow <span className="font-bold">@{userProfile?.username}</span>?

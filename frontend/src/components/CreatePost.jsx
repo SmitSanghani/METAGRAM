@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Textarea } from './ui/textarea';
 import { Button } from './ui/button';
-import { readFileAsDataURL } from '@/lib/utils';
+import { readFileAsDataURL, cn, getAvatarColor } from '@/lib/utils';
 import { Loader2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/api';
@@ -137,9 +137,11 @@ const CreatePost = ({ open, setOpen }) => {
                 </DialogHeader>
                 <div className='p-6 flex flex-col gap-5 overflow-y-auto no-scrollbar flex-1 bg-white'>
                     <div className='flex gap-3 items-center'>
-                        <Avatar className="w-10 h-10 border border-[#efefef]">
-                            <AvatarImage src={user?.profilePicture} alt="img" className="object-cover" />
-                            <AvatarFallback>{user?.username?.charAt(0)?.toUpperCase()}</AvatarFallback>
+                        <Avatar className="w-8 h-8 ring-1 ring-gray-100/50">
+                            <AvatarImage src={user?.profilePicture} className="object-cover" />
+                            <AvatarFallback className={cn("text-[10px] font-black uppercase", getAvatarColor(user?.username))}>
+                                {user?.username?.charAt(0)?.toUpperCase()}
+                            </AvatarFallback>
                         </Avatar>
                         <div>
                             <h1 className='font-bold text-[14px] text-[#262626]'>{user?.username}</h1>

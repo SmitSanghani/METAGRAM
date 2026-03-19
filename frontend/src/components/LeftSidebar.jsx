@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar'
 import { toast } from 'sonner'
 import api from '@/api';
+import { cn, getAvatarColor } from '@/lib/utils';
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { setAuthUser } from '@/redux/authSlice'
@@ -199,9 +200,11 @@ const LeftSidebar = () => {
                         ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100'
                         : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
                         }`}>
-                    <Avatar className={`w-6 h-6 border ${isActive('Profile') ? 'ring-2 ring-white ring-offset-2 ring-offset-indigo-600' : 'border-gray-200'}`}>
-                        <AvatarImage src={user?.profilePicture} alt="user" className="object-cover" />
-                        <AvatarFallback className='bg-gray-50 text-[10px] text-gray-400'>{user?.username?.charAt(0)?.toUpperCase() || 'U'}</AvatarFallback>
+                    <Avatar className="w-10 h-10 border-2 border-indigo-50 shadow-sm transition-transform group-hover:scale-105">
+                        <AvatarImage src={user?.profilePicture} className="object-cover" />
+                        <AvatarFallback className={cn("font-bold text-xs uppercase", getAvatarColor(user?.username))}>
+                            {user?.username?.charAt(0)?.toUpperCase()}
+                        </AvatarFallback>
                     </Avatar>
                     <span className={`text-[15px] ${isActive('Profile') ? 'font-bold' : 'font-semibold'}`}>Profile</span>
                 </div>

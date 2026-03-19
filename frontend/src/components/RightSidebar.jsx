@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar'
+import { cn, getAvatarColor } from '@/lib/utils';
 import { useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import SuggestedUsers from './SuggestedUsers';
@@ -18,7 +19,9 @@ const RightSidebar = () => {
                     <Link to={`/profile/${user?._id}`}>
                         <Avatar className="w-[44px] h-[44px] border border-gray-100">
                             <AvatarImage src={user?.profilePicture} alt="post_image" className="object-cover" />
-                            <AvatarFallback className="bg-zinc-100 font-bold text-black">{user?.username?.charAt(0)?.toUpperCase()}</AvatarFallback>
+                            <AvatarFallback className={cn("font-bold text-xs uppercase", getAvatarColor(user?.username))}>
+                                {user?.username?.charAt(0)?.toUpperCase()}
+                            </AvatarFallback>
                         </Avatar>
                     </Link>
                     <div className='flex flex-col'>

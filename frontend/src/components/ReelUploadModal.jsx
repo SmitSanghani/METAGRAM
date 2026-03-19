@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogHeader } from './ui/dialog'
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import { cn, getAvatarColor } from '@/lib/utils';
 import { Textarea } from './ui/textarea';
 import { Button } from './ui/button';
 import { Loader2, Video, X } from 'lucide-react';
@@ -113,10 +114,12 @@ const ReelUploadModal = ({ open, setOpen }) => {
 
                 <div className='p-6 flex flex-col gap-4 overflow-y-auto no-scrollbar flex-1 bg-white'>
                     <div className='flex gap-3 items-center'>
-                        <Avatar className="w-10 h-10 border-2 border-indigo-50 shadow-sm">
-                            <AvatarImage src={user?.profilePicture} alt="img" className="object-cover" />
-                            <AvatarFallback className="bg-indigo-50 text-indigo-400 font-black">{user?.username?.charAt(0)?.toUpperCase()}</AvatarFallback>
-                        </Avatar>
+                                    <Avatar className="w-10 h-10 border border-[#efefef]">
+                                        <AvatarImage src={user?.profilePicture} alt="img" className="object-cover" />
+                                        <AvatarFallback className={cn("font-black text-xs uppercase", getAvatarColor(user?.username))}>
+                                            {user?.username?.charAt(0)?.toUpperCase()}
+                                        </AvatarFallback>
+                                    </Avatar>
                         <h1 className='font-black text-[14px] text-[#262626]'>{user?.username}</h1>
                     </div>
 

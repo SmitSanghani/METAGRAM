@@ -2,6 +2,7 @@ import React from 'react'
 import { useSelector, useDispatch } from 'react-redux';
 import { Link } from 'react-router-dom';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import { cn, getAvatarColor } from '@/lib/utils';
 import api from '@/api';
 import { toast } from 'sonner';
 import { setAuthUser, updateSuggestedUser } from '@/redux/authSlice';
@@ -110,8 +111,8 @@ const SuggestedUsers = () => {
                                         <div className="p-[1.5px] rounded-full ring-1 ring-gray-100">
                                             <Avatar className="w-[32px] h-[32px]">
                                                 <AvatarImage src={suggestedUser?.profilePicture} alt="user_image" className="object-cover" />
-                                                <AvatarFallback className="bg-gray-100 text-gray-800 font-bold">
-                                                    {suggestedUser?.username?.charAt(0)?.toUpperCase() || '?'}
+                                                <AvatarFallback className={cn("font-bold text-[10px] uppercase", getAvatarColor(suggestedUser?.username))}>
+                                                    {suggestedUser?.username?.charAt(0)?.toUpperCase()}
                                                 </AvatarFallback>
                                             </Avatar>
                                         </div>

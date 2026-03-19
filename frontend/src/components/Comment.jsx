@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import { cn, getAvatarColor } from '@/lib/utils';
 import { Heart, Trash2, MoreHorizontal } from 'lucide-react';
 import { Dialog, DialogContent, DialogTrigger, DialogClose } from './ui/dialog';
 import { useSelector, useDispatch } from 'react-redux';
@@ -95,7 +96,7 @@ const Comment = ({ comment, onReply, allComments = [], depth = 0 }) => {
                 {/* Avatar with Ring */}
                 <Avatar className={`w-8 h-8 rounded-full shrink-0 border-2 border-white shadow-sm ring-1 ring-gray-100 transition-transform hover:scale-105 cursor-pointer`}>
                     <AvatarImage src={comment?.author?.profilePicture} className="object-cover" />
-                    <AvatarFallback className="bg-gradient-to-br from-indigo-50 to-blue-50 text-[10px] font-black text-indigo-400">
+                    <AvatarFallback className={cn("text-[10px] font-black uppercase", getAvatarColor(comment?.author?.username))}>
                         {comment?.author?.username?.charAt(0)?.toUpperCase()}
                     </AvatarFallback>
                 </Avatar>

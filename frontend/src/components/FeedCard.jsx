@@ -1,4 +1,5 @@
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import { cn, getAvatarColor } from '@/lib/utils';
 import { Heart, MessageCircle, Eye, Video, MoreHorizontal, Send, Grid } from 'lucide-react';
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -181,7 +182,9 @@ const FeedCard = ({ item, type = 'post' }) => {
                         <div className='flex items-center gap-2 overflow-hidden flex-1'>
                             <Avatar className='w-7 h-7 ring-1 ring-gray-100'>
                                 <AvatarImage src={author?.profilePicture} className="object-cover" />
-                                <AvatarFallback className="text-[10px] bg-indigo-50 text-indigo-500 font-bold">{author?.username?.charAt(0).toUpperCase()}</AvatarFallback>
+                                <AvatarFallback className={cn("text-[10px] uppercase font-black", getAvatarColor(author?.username))}>
+                                    {author?.username?.charAt(0).toUpperCase()}
+                                </AvatarFallback>
                             </Avatar>
                             <span className='text-[13px] font-bold text-gray-900 truncate hover:text-indigo-600 transition-colors' onClick={(e) => { e.stopPropagation(); navigate(`/profile/${author?._id}`); }}>
                                 {author?.username}
