@@ -182,7 +182,7 @@ const FeedCard = ({ item, type = 'post' }) => {
                         <div className='flex items-center gap-2 overflow-hidden flex-1'>
                             <Avatar className='w-7 h-7 ring-1 ring-gray-100'>
                                 <AvatarImage src={author?.profilePicture} className="object-cover" />
-                                <AvatarFallback className={cn("text-[10px] uppercase font-black", getAvatarColor(author?.username))}>
+                                <AvatarFallback className={cn("font-bold text-xs uppercase", getAvatarColor(author?.username))}>
                                     {author?.username?.charAt(0).toUpperCase()}
                                 </AvatarFallback>
                             </Avatar>

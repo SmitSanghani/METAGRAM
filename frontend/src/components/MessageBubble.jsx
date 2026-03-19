@@ -57,7 +57,7 @@ const MessageBubble = ({ msg, isSender, onReply, onDelete, onReact, onScrollTo, 
             <div className={`flex items-end gap-1.5 max-w-[85%] ${isSender ? 'flex-row-reverse' : 'flex-row'}`}>
                 <Avatar className="w-8 h-8 shrink-0 border border-white shadow-sm mb-0.5">
                     <AvatarImage src={avatarUser?.profilePicture} className="object-cover" />
-                    <AvatarFallback className="bg-indigo-50 text-indigo-500 text-[11px] font-black uppercase">
+                    <AvatarFallback className="bg-indigo-50 text-indigo-500 text-sm font-black uppercase">
                         {avatarUser?.username?.charAt(0) || '?'}
                     </AvatarFallback>
                 </Avatar>
@@ -320,7 +320,7 @@ const MessageBubble = ({ msg, isSender, onReply, onDelete, onReact, onScrollTo, 
                                     <div className="flex items-center gap-3">
                                         <Avatar className="w-10 h-10">
                                             <AvatarImage src={r.userId?.profilePicture} />
-                                            <AvatarFallback className="bg-indigo-100 text-indigo-600 font-bold uppercase text-xs">{r.userId?.username?.charAt(0)}</AvatarFallback>
+                                            <AvatarFallback className="bg-indigo-100 text-indigo-600 font-bold uppercase text-base">{r.userId?.username?.charAt(0)}</AvatarFallback>
                                         </Avatar>
                                         <div className="flex flex-col">
                                             <span className="text-[14px] font-black text-[#262626] leading-none mb-1">{r.userId?.username} {isMine && "(You)"}</span>

@@ -108,7 +108,7 @@ const EditProfile = ({ isOpen, onClose }) => {
                         <div className="flex items-center gap-3">
                             <Avatar className="w-12 h-12 border border-gray-200">
                                 <AvatarImage src={imagePreview} alt="profile" className="object-cover" />
-                                <AvatarFallback className="bg-gray-100 text-gray-500 font-bold">{user?.username?.charAt(0)?.toUpperCase() || 'U'}</AvatarFallback>
+                                <AvatarFallback className="bg-gray-100 text-gray-500 font-bold text-lg">{user?.username?.charAt(0)?.toUpperCase() || 'U'}</AvatarFallback>
                             </Avatar>
                             <div className="flex flex-col">
                                 <span className="font-bold text-[14px] text-[#262626] leading-none mb-1">{user?.username}</span>

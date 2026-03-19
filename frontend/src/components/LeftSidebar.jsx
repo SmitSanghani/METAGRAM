@@ -202,7 +202,7 @@ const LeftSidebar = () => {
                         }`}>
                     <Avatar className="w-10 h-10 border-2 border-indigo-50 shadow-sm transition-transform group-hover:scale-105">
                         <AvatarImage src={user?.profilePicture} className="object-cover" />
-                        <AvatarFallback className={cn("font-bold text-xs uppercase", getAvatarColor(user?.username))}>
+                        <AvatarFallback className={cn("font-bold text-base uppercase", getAvatarColor(user?.username))}>
                             {user?.username?.charAt(0)?.toUpperCase()}
                         </AvatarFallback>
                     </Avatar>

@@ -158,7 +158,7 @@ const NotificationDropdown = ({ onClose }) => {
                                 className="w-12 h-12 shadow-sm border border-[#F0F0F0] hover:opacity-80 transition-opacity"
                             >
                                 <AvatarImage src={n.sender?.profilePicture} className="object-cover" />
-                                <AvatarFallback className={cn("font-black text-xs uppercase", getAvatarColor(n.sender?.username))}>
+                                <AvatarFallback className={cn("font-black text-base uppercase", getAvatarColor(n.sender?.username))}>
                                     {n.sender?.username?.charAt(0)?.toUpperCase()}
                                 </AvatarFallback>
                             </Avatar>

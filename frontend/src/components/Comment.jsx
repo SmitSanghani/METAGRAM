@@ -96,7 +96,7 @@ const Comment = ({ comment, onReply, allComments = [], depth = 0 }) => {
                 {/* Avatar with Ring */}
                 <Avatar className={`w-8 h-8 rounded-full shrink-0 border-2 border-white shadow-sm ring-1 ring-gray-100 transition-transform hover:scale-105 cursor-pointer`}>
                     <AvatarImage src={comment?.author?.profilePicture} className="object-cover" />
-                    <AvatarFallback className={cn("text-[10px] font-black uppercase", getAvatarColor(comment?.author?.username))}>
+                    <AvatarFallback className={cn("text-sm font-black uppercase", getAvatarColor(comment?.author?.username))}>
                         {comment?.author?.username?.charAt(0)?.toUpperCase()}
                     </AvatarFallback>
                 </Avatar>

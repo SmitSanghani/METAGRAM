@@ -19,7 +19,7 @@ const RightSidebar = () => {
                     <Link to={`/profile/${user?._id}`}>
                         <Avatar className="w-[44px] h-[44px] border border-gray-100">
                             <AvatarImage src={user?.profilePicture} alt="post_image" className="object-cover" />
-                            <AvatarFallback className={cn("font-bold text-xs uppercase", getAvatarColor(user?.username))}>
+                            <AvatarFallback className={cn("font-bold text-base uppercase", getAvatarColor(user?.username))}>
                                 {user?.username?.charAt(0)?.toUpperCase()}
                             </AvatarFallback>
                         </Avatar>

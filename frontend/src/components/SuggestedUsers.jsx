@@ -111,7 +111,7 @@ const SuggestedUsers = () => {
                                         <div className="p-[1.5px] rounded-full ring-1 ring-gray-100">
                                             <Avatar className="w-[32px] h-[32px]">
                                                 <AvatarImage src={suggestedUser?.profilePicture} alt="user_image" className="object-cover" />
-                                                <AvatarFallback className={cn("font-bold text-[10px] uppercase", getAvatarColor(suggestedUser?.username))}>
+                                                <AvatarFallback className={cn("font-bold text-xs uppercase", getAvatarColor(suggestedUser?.username))}>
                                                     {suggestedUser?.username?.charAt(0)?.toUpperCase()}
                                                 </AvatarFallback>
                                             </Avatar>

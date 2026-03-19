@@ -28,7 +28,10 @@ const StoryAvatar = ({ user, currentUser, stories = [], size = 66, isYourStory =
                 >
                     <Avatar className="w-full h-full border-2 border-white dark:border-zinc-950 shadow-sm">
                         <AvatarImage src={user?.profilePicture} className="object-cover" />
-                        <AvatarFallback className={cn("text-[10px] font-black uppercase", getAvatarColor(user?.username))}>
+                        <AvatarFallback
+                            className={cn("font-black uppercase", getAvatarColor(user?.username))}
+                            style={{ fontSize: `${size / 2.5}px` }}
+                        >
                             {user?.username?.substring(0, 2).toUpperCase()}
                         </AvatarFallback>
                     </Avatar>
@@ -82,7 +85,10 @@ const StoryAvatar = ({ user, currentUser, stories = [], size = 66, isYourStory =
                 <div className="w-full h-full rounded-full overflow-hidden border border-gray-100 dark:border-zinc-800 shadow-inner">
                     <Avatar className="w-full h-full">
                         <AvatarImage src={user?.profilePicture} className="object-cover" />
-                        <AvatarFallback className={cn("text-[10px] font-black uppercase", getAvatarColor(user?.username))}>
+                        <AvatarFallback
+                            className={cn("font-black uppercase", getAvatarColor(user?.username))}
+                            style={{ fontSize: `${size / 2.5}px` }}
+                        >
                             {user?.username?.substring(0, 2).toUpperCase()}
                         </AvatarFallback>
                     </Avatar>
