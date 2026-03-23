@@ -18,6 +18,8 @@ import {
 import storage from 'redux-persist/lib/storage'
 
 
+import settingsSlice from './settingsSlice.js';
+
 const persistConfig = {
     key: 'root',
     version: 1,
@@ -32,6 +34,7 @@ const rootReducer = combineReducers({
     socketio: socketSlice,
     notification: notificationSlice,
     reel: reelSlice,
+    settings: settingsSlice, // <-- ADDED
 })
 
 const persistedReducer = persistReducer(persistConfig, rootReducer)

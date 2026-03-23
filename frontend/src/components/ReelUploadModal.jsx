@@ -21,24 +21,8 @@ const ReelUploadModal = ({ open, setOpen }) => {
     const [allowSave, setAllowSave] = useState(true);
     const [allowShare, setAllowShare] = useState(true);
     const { user } = useSelector((store) => store.auth);
-    const [reelsEnabled, setReelsEnabled] = useState(true);
+    const { reelsEnabled } = useSelector((store) => store.settings);
     const dispatch = useDispatch();
-
-    useEffect(() => {
-        if (open) {
-            const fetchSettings = async () => {
-                try {
-                    const res = await api.get('/setting/get');
-                    if (res.data.success) {
-                        setReelsEnabled(res.data.settings.reelsEnabled);
-                    }
-                } catch (err) {
-                    console.error("Failed to fetch settings", err);
-                }
-            };
-            fetchSettings();
-        }
-    }, [open]);
 
     const fileChangeHandler = (e) => {
         const file = e.target.files?.[0];

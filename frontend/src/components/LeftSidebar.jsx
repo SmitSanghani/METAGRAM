@@ -25,27 +25,8 @@ const LeftSidebar = () => {
     const [reelOpen, setReelOpen] = useState(false);
     const [notificationOpen, setNotificationOpen] = useState(false);
     const [searchOpen, setSearchOpen] = useState(false);
-    const [postsEnabled, setPostsEnabled] = useState(true);
-    const [reelsEnabled, setReelsEnabled] = useState(true);
+    const { postsEnabled, reelsEnabled } = useSelector(store => store.settings);
     const dispatch = useDispatch();
-
-    useEffect(() => {
-        const fetchSettings = async () => {
-            try {
-                const res = await api.get('/setting/get');
-                if (res.data.success) {
-                    setPostsEnabled(res.data.settings.postsEnabled);
-                    setReelsEnabled(res.data.settings.reelsEnabled);
-                }
-            } catch (err) {
-                console.error("Failed to fetch settings", err);
-            }
-        };
-        fetchSettings();
-
-        const interval = setInterval(fetchSettings, 30000);
-        return () => clearInterval(interval);
-    }, [open, reelOpen]); 
 
     const { unreadCounts = {} } = useSelector(store => store.chat || {});
     const totalUnreadMessages = Object.values(unreadCounts).reduce((acc, count) => acc + count, 0);

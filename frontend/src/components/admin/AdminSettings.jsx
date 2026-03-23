@@ -57,6 +57,8 @@ const Toggle = ({ label, description, checked, onChange }) => (
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
+import { setPlatformSettings } from '../../redux/settingsSlice';
+
 const AdminSettings = () => {
     const { user } = useSelector(store => store.auth);
     const dispatch = useDispatch();
@@ -75,7 +77,7 @@ const AdminSettings = () => {
     const [passLoading, setPassLoading] = useState(false);
     
     // Platform Settings
-    const [platformSettings, setPlatformSettings] = useState({
+    const [platformSettings, setPlatformSettingsState] = useState({
         postsEnabled: true,
         reelsEnabled: true,
     });
@@ -86,23 +88,26 @@ const AdminSettings = () => {
             try {
                 const res = await api.get('/setting/get');
                 if (res.data.success) {
-                    setPlatformSettings({
+                    const settings = {
                         postsEnabled: res.data.settings.postsEnabled,
-                        reelsEnabled: res.data.settings.reelsEnabled || true,
-                    });
+                        reelsEnabled: res.data.settings.reelsEnabled ?? true,
+                    };
+                    setPlatformSettingsState(settings);
+                    dispatch(setPlatformSettings(settings));
                 }
             } catch (err) {
                 console.error("Failed to fetch platform settings", err);
             }
         };
         fetchSettings();
-    }, []);
+    }, [dispatch]);
 
     const handlePlatformSave = async () => {
         try {
             setPlatformLoading(true);
             const res = await api.post('/setting/update', platformSettings);
             if (res.data.success) {
+                dispatch(setPlatformSettings(platformSettings));
                 toast.success('Platform settings updated!');
             }
         } catch (err) {
@@ -246,14 +251,14 @@ const AdminSettings = () => {
                             label="Post Creation" 
                             description="Allow users to create new posts" 
                             checked={platformSettings.postsEnabled}
-                            onChange={(val) => setPlatformSettings(p => ({...p, postsEnabled: val}))}
+                            onChange={(val) => setPlatformSettingsState(p => ({...p, postsEnabled: val}))}
                         />
 
                         <Toggle 
                             label="Reels Creation" 
                             description="Allow users to upload new reels" 
                             checked={platformSettings.reelsEnabled}
-                            onChange={(val) => setPlatformSettings(p => ({...p, reelsEnabled: val}))}
+                            onChange={(val) => setPlatformSettingsState(p => ({...p, reelsEnabled: val}))}
                         />
 
                         <button

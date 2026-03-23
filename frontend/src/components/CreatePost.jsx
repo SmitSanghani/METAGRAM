@@ -22,23 +22,7 @@ const CreatePost = ({ open, setOpen }) => {
     const { user } = useSelector((store) => store.auth);
     const { posts } = useSelector((store) => store.post);
     const dispatch = useDispatch();
-    const [postsEnabled, setPostsEnabled] = useState(true);
-
-    useEffect(() => {
-        if (open) {
-            const fetchSettings = async () => {
-                try {
-                    const res = await api.get('/setting/get');
-                    if (res.data.success) {
-                        setPostsEnabled(res.data.settings.postsEnabled);
-                    }
-                } catch (err) {
-                    console.error("Failed to fetch settings", err);
-                }
-            };
-            fetchSettings();
-        }
-    }, [open]);
+    const { postsEnabled } = useSelector((store) => store.settings);
 
     const fileChangeHandler = async (e) => {
         const selectedFiles = Array.from(e.target.files || []);

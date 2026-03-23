@@ -140,6 +140,7 @@ const browserRouter = createBrowserRouter([
   },
 ])
 
+import { setPlatformSettings } from "./redux/settingsSlice";
 import useTheme from "./hooks/useTheme";
 
 function App() {
@@ -168,6 +169,24 @@ function App() {
     }
     selectedUserRef.current = selectedUser;
   }, [selectedUser]);
+
+  // Periodic Fetching of Global Settings (Poll every 10s)
+  useEffect(() => {
+    const fetchPlatformSettings = async () => {
+      try {
+        const res = await api.get('/setting/get');
+        if (res.data.success) {
+          dispatch(setPlatformSettings(res.data.settings));
+        }
+      } catch (err) {
+        console.error("Failed to fetch settings:", err);
+      }
+    };
+    fetchPlatformSettings(); // Initial fetch
+
+    const intervalId = setInterval(fetchPlatformSettings, 10000); // Poll every 10s
+    return () => clearInterval(intervalId);
+  }, [dispatch]);
 
   // Browser notification permission
   useEffect(() => {
