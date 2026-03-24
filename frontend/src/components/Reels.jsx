@@ -97,7 +97,7 @@ const Reels = () => {
             {/* Back Button */}
             <button
                 onClick={() => navigate('/')}
-                className="absolute top-8 left-8 z-50 flex items-center gap-2 px-4 py-2.5 bg-white/80 backdrop-blur-md rounded-xl shadow-sm border border-gray-100 hover:bg-white transition-all group active:scale-95"
+                className="absolute top-8 left-8 z-50 flex items-center gap-2 px-4 py-2.5 bg-white/80 backdrop-blur-md rounded-xl shadow-sm border border-gray-100 hover:bg-white transition-all group active:scale-95 back-to-feed-btn"
             >
                 <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
                 <span className="font-bold text-sm text-gray-700">Back to Feed</span>

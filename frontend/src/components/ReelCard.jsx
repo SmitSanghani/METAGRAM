@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Heart, MessageCircle, Send, Bookmark, Music, MoreHorizontal, UserPlus, Play, Pause, Volume2, VolumeX } from 'lucide-react';
+import { Heart, MessageCircle, Send, Bookmark, Music, MoreHorizontal, UserPlus, Play, Pause, Volume2, VolumeX, Trash2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Button } from './ui/button';
 import { useDispatch, useSelector } from 'react-redux';
@@ -12,6 +12,7 @@ import ShareReelModal from './ShareReelModal';
 import { useNavigate } from 'react-router-dom';
 import UserListModal from './UserListModal';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from './ui/dialog';
+import { removeUserProfileReel } from '@/redux/authSlice';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
@@ -123,7 +124,9 @@ const ReelCard = ({ reel, isActive, isGlobalMuted, setIsGlobalMuted, onVideoEnd 
             confirmButtonText: 'Yes, delete it!',
             background: '#ffffff',
             borderRadius: '24px',
+            allowOutsideClick: false, // Prevent accidental dismissal
             customClass: {
+                container: 'z-[9999]', // Ensure it's above everything
                 popup: 'rounded-[24px]',
                 confirmButton: 'rounded-xl px-6 py-2.5 font-bold uppercase tracking-wider text-xs',
                 cancelButton: 'rounded-xl px-6 py-2.5 font-bold uppercase tracking-wider text-xs'
@@ -135,8 +138,9 @@ const ReelCard = ({ reel, isActive, isGlobalMuted, setIsGlobalMuted, onVideoEnd 
             const res = await api.delete(`/reels/delete/${reel._id}`);
             if (res.data.success) {
                 toast.success(res.data.message);
-                // In a real app, you'd trigger a refresh or local state update
-                window.location.reload();
+                dispatch(deleteReel(reel._id));
+                dispatch(removeUserProfileReel(reel._id));
+                setShowEditModal(false);
             }
         } catch (error) {
             toast.error("Failed to delete reel");
@@ -149,7 +153,8 @@ const ReelCard = ({ reel, isActive, isGlobalMuted, setIsGlobalMuted, onVideoEnd 
             <video
                 ref={videoRef}
                 src={reel.videoUrl}
-                className="w-full h-full object-cover cursor-pointer"
+                poster={reel.videoUrl?.replace(/\.[^/.]+$/, ".jpg")}
+                className="w-full h-full object-cover cursor-pointer transition-opacity duration-300"
                 muted={isGlobalMuted}
                 onClick={handleVideoClick}
                 onEnded={onVideoEnd}
@@ -244,6 +249,12 @@ const ReelCard = ({ reel, isActive, isGlobalMuted, setIsGlobalMuted, onVideoEnd 
 
                 {user?._id === reel.author?._id ? (
                     <div className="flex flex-col items-center gap-2 mt-1">
+                        <button 
+                            onClick={handleDeleteReel}
+                            className="w-10 h-10 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-xl border border-white/10 hover:bg-red-500/20 transition-all active:scale-75 shadow-xl text-red-500/80 hover:text-red-500"
+                        >
+                            <Trash2 size={18} strokeWidth={2.5} />
+                        </button>
                         <button onClick={() => setShowEditModal(true)} className="p-2 hover:bg-white/20 rounded-full transition-all text-white/80 hover:text-white">
                             <MoreHorizontal size={22} className="rotate-90" />
                         </button>

@@ -12,6 +12,7 @@ import { toast } from 'sonner'
 import { setPosts, setSelectedPost } from '@/redux/postSlice'
 import { updateReelLikes, addReelComment } from '@/redux/reelSlice'
 import { FaHeart, FaRegHeart } from "react-icons/fa";
+import { setAuthUser, setUserProfile } from '@/redux/authSlice';
 import { Send, Heart } from 'lucide-react';
 import SaveButton from './SaveButton';
 import UserListModal from './UserListModal';
@@ -24,7 +25,7 @@ const CommentDialog = ({ open, setOpen }) => {
     const [replyingTo, setReplyingTo] = useState(null);
     const { selectedPost, posts } = useSelector(store => store.post);
     const { reels } = useSelector(store => store.reel);
-    const { user } = useSelector(store => store.auth);
+    const { user, userProfile } = useSelector(store => store.auth);
     const { socket } = useSelector(store => store.socketio);
     const [comment, setComment] = useState([]);
     const [liked, setLiked] = useState(false);
@@ -34,6 +35,15 @@ const CommentDialog = ({ open, setOpen }) => {
     const isReel = selectedPost?.feedType === 'reel';
     const dispatch = useDispatch();
     const inputRef = React.useRef(null);
+
+    useEffect(() => {
+        if (open) {
+            document.body.classList.add('comment-modal-open');
+        } else {
+            document.body.classList.remove('comment-modal-open');
+        }
+        return () => document.body.classList.remove('comment-modal-open');
+    }, [open]);
 
     useEffect(() => {
         if (selectedPost) {
@@ -53,46 +63,102 @@ const CommentDialog = ({ open, setOpen }) => {
         if (!socket || !selectedPost) return;
 
         const handleNewComment = (newComment) => {
-            if (newComment.post === selectedPost._id) {
+            const parentId = newComment.post || newComment.reel;
+            if (parentId === selectedPost._id) {
                 setComment(prev => {
                     if (prev.some(c => c._id === newComment._id)) return prev;
-                    return [...prev, newComment];
+                    const updated = [...prev, newComment];
+                    // Keep selectedPost in sync
+                    dispatch(setSelectedPost({ ...selectedPost, comments: updated }));
+                    return updated;
                 });
+                
+                // Also update global collections
+                if (isReel) {
+                    dispatch(addReelComment({ reelId: selectedPost._id, comment: newComment }));
+                } else {
+                    dispatch(addPostComment({ postId: selectedPost._id, comment: newComment }));
+                }
             }
         };
 
-        const handleDeleteComment = ({ commentId, postId }) => {
-            if (postId === selectedPost._id) {
-                setComment(prev => prev.filter(c => c._id !== commentId && c.parentId !== commentId));
+        const handleDeleteComment = ({ commentId, postId, reelId }) => {
+            const id = postId || reelId;
+            if (id === selectedPost._id) {
+                setComment(prev => {
+                    const updated = prev.filter(c => c._id !== commentId && c.parentId !== commentId);
+                    dispatch(setSelectedPost({ ...selectedPost, comments: updated }));
+                    return updated;
+                });
+                
+                if (isReel) {
+                    dispatch(deleteReelComment({ reelId: id, commentId }));
+                } else {
+                    dispatch(deletePostComment({ postId: id, commentId }));
+                }
             }
         };
 
-        const handleUpdateLikes = ({ commentId, postId, likes }) => {
-            if (postId === selectedPost._id) {
-                setComment(prev => prev.map(c =>
-                    c._id === commentId ? { ...c, likes } : c
-                ));
+        const handleUpdateLikes = ({ commentId, postId, reelId, likes }) => {
+            const id = postId || reelId;
+            if (id === selectedPost._id) {
+                setComment(prev => {
+                    const updated = prev.map(c => c._id === commentId ? { ...c, likes } : c);
+                    dispatch(setSelectedPost({ ...selectedPost, comments: updated }));
+                    return updated;
+                });
+
+                if (isReel) {
+                    dispatch(updateReelCommentLikes({ reelId: id, commentId, likes }));
+                } else {
+                    dispatch(updatePostCommentLikes({ postId: id, commentId, likes }));
+                }
             }
         };
 
-        const handleEditComment = ({ commentId, postId, text }) => {
-            if (postId === selectedPost._id) {
-                setComment(prev => prev.map(c =>
-                    c._id === commentId ? { ...c, text } : c
-                ));
+        const handleEditComment = ({ commentId, postId, reelId, text }) => {
+            const id = postId || reelId;
+            if (id === selectedPost._id) {
+                setComment(prev => {
+                    const updated = prev.map(c => c._id === commentId ? { ...c, text } : c);
+                    dispatch(setSelectedPost({ ...selectedPost, comments: updated }));
+                    return updated;
+                });
+
+                if (isReel) {
+                    dispatch(editReelComment({ reelId: id, commentId, text }));
+                } else {
+                    // postSlice doesn't have editPostComment, it uses setPosts/setSelectedPost 
+                    // which we already did via selectedPost, but we should also update 'posts' collection
+                    const updatedPosts = posts.map(p => 
+                        p._id === id ? {
+                            ...p, 
+                            comments: p.comments.map(c => c._id === commentId ? { ...c, text } : c)
+                        } : p
+                    );
+                    dispatch(setPosts(updatedPosts));
+                }
             }
         };
 
         socket.on('newPostComment', handleNewComment);
+        socket.on('newReelComment', handleNewComment);
         socket.on('deletePostComment', handleDeleteComment);
+        socket.on('deleteReelComment', handleDeleteComment);
         socket.on('updatePostCommentLikes', handleUpdateLikes);
+        socket.on('updateReelCommentLikes', handleUpdateLikes);
         socket.on('editPostComment', handleEditComment);
+        socket.on('editReelComment', handleEditComment);
 
         return () => {
             socket.off('newPostComment', handleNewComment);
+            socket.off('newReelComment', handleNewComment);
             socket.off('deletePostComment', handleDeleteComment);
+            socket.off('deleteReelComment', handleDeleteComment);
             socket.off('updatePostCommentLikes', handleUpdateLikes);
+            socket.off('updateReelCommentLikes', handleUpdateLikes);
             socket.off('editPostComment', handleEditComment);
+            socket.off('editReelComment', handleEditComment);
         };
     }, [socket, selectedPost]);
 
@@ -183,6 +249,31 @@ const CommentDialog = ({ open, setOpen }) => {
         }
     }
 
+    const bookmarkHandler = async () => {
+        try {
+            const res = await api.post(`/post/${selectedPost?._id}/bookmark`, {});
+            if (res.data.success) {
+                toast.success(res.data.message);
+
+                const isBookmarked = user?.bookmarks?.some(item => (typeof item === 'object' ? item._id : item).toString() === selectedPost._id.toString());
+                const updatedBookmarks = isBookmarked
+                    ? user.bookmarks.filter(item => (item._id || item).toString() !== selectedPost._id.toString())
+                    : [...user.bookmarks, selectedPost._id];
+                
+                dispatch(setAuthUser({ ...user, bookmarks: updatedBookmarks }));
+
+                if (userProfile && userProfile._id === user._id) {
+                    const updatedProfileBookmarks = isBookmarked
+                        ? userProfile.bookmarks.filter(p => (p._id || p).toString() !== selectedPost._id.toString())
+                        : [...userProfile.bookmarks, selectedPost];
+                    dispatch(setUserProfile({ ...userProfile, bookmarks: updatedProfileBookmarks }));
+                }
+            }
+        } catch (error) {
+            console.log(error);
+        }
+    };
+
     const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
     const scrollRef = React.useRef(null);
 
@@ -228,42 +319,42 @@ const CommentDialog = ({ open, setOpen }) => {
                         ) : (
                             selectedPost?.images && selectedPost.images.length > 1 ? (
                                 <>
-                                    <div 
+                                    <div
                                         ref={scrollRef}
                                         onScroll={handleScroll}
                                         className="flex w-full h-full overflow-x-auto snap-x snap-mandatory no-scrollbar scroll-smooth"
                                     >
                                         {selectedPost.images.map((img, index) => (
                                             <div key={index} className="w-full h-full flex-none snap-center flex items-center justify-center">
-                                                <img 
+                                                <img
                                                     className='w-full h-full object-contain'
-                                                    src={img} 
+                                                    src={img}
                                                     alt={`post_img_${index}`}
                                                 />
                                             </div>
                                         ))}
                                     </div>
-                                    
+
                                     <div className="absolute top-4 right-4 bg-black/60 text-white text-[12px] px-2 py-1 rounded-full font-medium z-20 pointer-events-none">
                                         {currentMediaIndex + 1}/{selectedPost.images.length}
                                     </div>
 
-                                    <button 
+                                    <button
                                         onClick={(e) => { e.stopPropagation(); scrollToImage(currentMediaIndex > 0 ? currentMediaIndex - 1 : selectedPost.images.length - 1); }}
                                         className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-2 rounded-full shadow-lg transition-all opacity-0 group-hover:opacity-100 z-30 flex items-center justify-center hover:scale-110 active:scale-90"
                                     >
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
                                     </button>
-                                    <button 
+                                    <button
                                         onClick={(e) => { e.stopPropagation(); scrollToImage(currentMediaIndex < selectedPost.images.length - 1 ? currentMediaIndex + 1 : 0); }}
                                         className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-2 rounded-full shadow-lg transition-all opacity-0 group-hover:opacity-100 z-30 flex items-center justify-center hover:scale-110 active:scale-90"
                                     >
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
                                     </button>
 
                                     <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-1.5 z-20 pointer-events-none">
                                         {selectedPost.images.map((_, index) => (
-                                            <div 
+                                            <div
                                                 key={index}
                                                 className={`w-1.5 h-1.5 rounded-full transition-all ${currentMediaIndex === index ? 'bg-[#0095F6] w-3' : 'bg-white/50'}`}
                                             />
@@ -319,7 +410,7 @@ const CommentDialog = ({ open, setOpen }) => {
                                         <DialogClose className='w-full py-4 hover:bg-gray-100 font-black text-gray-400 transition-colors'>Cancel</DialogClose>
                                     </DialogContent>
                                 </Dialog>
-                                <button 
+                                <button
                                     onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
@@ -365,6 +456,7 @@ const CommentDialog = ({ open, setOpen }) => {
                                                     comment={c}
                                                     onReply={setReplyingTo}
                                                     allComments={comment}
+                                                    isReel={isReel}
                                                 />
                                             ))
                                     }
@@ -391,13 +483,17 @@ const CommentDialog = ({ open, setOpen }) => {
                                     >
                                         {liked ? <FaHeart size={22} className="text-red-500" /> : <FaRegHeart size={22} className="text-gray-800" />}
                                     </button>
-                                    <Send 
+                                    <Send
                                         onClick={() => setShowShare(true)}
-                                        size={22} 
-                                        className="text-gray-800 cursor-pointer hover:text-indigo-600 transition-colors" 
+                                        size={22}
+                                        className="text-gray-800 cursor-pointer hover:text-indigo-600 transition-colors"
                                     />
                                 </div>
-                                <SaveButton isSaved={user?.bookmarks?.includes(selectedPost?._id)} size={22} />
+                                <SaveButton 
+                                    isSaved={user?.bookmarks?.some(item => (typeof item === 'object' ? item._id : item).toString() === selectedPost?._id?.toString())} 
+                                    onClick={bookmarkHandler}
+                                    size={22} 
+                                />
                             </div>
                             <div
                                 onClick={() => setShowLikers(true)}

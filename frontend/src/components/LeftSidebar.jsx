@@ -27,6 +27,14 @@ const LeftSidebar = () => {
     const [searchOpen, setSearchOpen] = useState(false);
     const { postsEnabled, reelsEnabled } = useSelector(store => store.settings);
     const dispatch = useDispatch();
+    useEffect(() => {
+        if (notificationOpen) {
+            document.body.classList.add('notifications-open');
+        } else {
+            document.body.classList.remove('notifications-open');
+        }
+        return () => document.body.classList.remove('notifications-open');
+    }, [notificationOpen]);
 
     const { unreadCounts = {} } = useSelector(store => store.chat || {});
     const totalUnreadMessages = Object.values(unreadCounts).reduce((acc, count) => acc + count, 0);
@@ -54,7 +62,7 @@ const LeftSidebar = () => {
         if (textType === 'Logout') {
             logoutHandler();
         } else if (textType === 'Create') {
-            if (!postsEnabled && user?.role !== 'admin') {
+            if (!postsEnabled) {
                 return toast.error("Posting is currently disabled by admin.");
             }
             setOpen(true);
@@ -86,7 +94,7 @@ const LeftSidebar = () => {
             setNotificationOpen(false);
             setSearchOpen(false);
         } else if (textType === 'Upload Reel') {
-            if (!reelsEnabled && user?.role !== 'admin') {
+            if (!reelsEnabled) {
                 return toast.error("Reel uploading is currently disabled by admin.");
             }
             setReelOpen(true);
@@ -110,6 +118,9 @@ const LeftSidebar = () => {
     ]
 
     const isActive = (text) => {
+        if (notificationOpen) return text === 'Notifications';
+        if (searchOpen) return text === 'Search';
+
         if (text === 'Home' && location.pathname === '/') return true;
         if (text === 'Message' && location.pathname.startsWith('/chat')) return true;
         if (text === 'Reels' && location.pathname.startsWith('/reels')) return true;
@@ -119,7 +130,7 @@ const LeftSidebar = () => {
     }
 
     return (
-        <div className='fixed top-0 z-50 left-0 w-[280px] h-screen bg-white border-r border-gray-100 flex flex-col justify-between pb-6 px-6 transition-all duration-300'>
+        <div className='LeftSidebar fixed top-0 z-[100] left-0 w-[280px] h-screen bg-white border-r border-gray-100 flex flex-col justify-between pb-6 px-6 transition-all duration-300'>
             <div className='flex flex-col'>
                 <div className='my-10 pl-3 flex flex-col'>
                     <div
@@ -141,8 +152,8 @@ const LeftSidebar = () => {
                     {
                         sidebarItems.map((item, index) => {
                             const active = isActive(item.text);
-                            const isPostDisabled = item.text === 'Create' && !postsEnabled && user?.role !== 'admin';
-                            const isReelDisabled = item.text === 'Upload Reel' && !reelsEnabled && user?.role !== 'admin';
+                            const isPostDisabled = item.text === 'Create' && !postsEnabled;
+                            const isReelDisabled = item.text === 'Upload Reel' && !reelsEnabled;
                             const isDisabled = isPostDisabled || isReelDisabled;
                             return (
                                 <div onClick={() => !isDisabled && sidebarHandler(item.text)} key={index}
@@ -206,7 +217,7 @@ const LeftSidebar = () => {
             {/* Notifications Backdrop/Overlay */}
             {notificationOpen && (
                 <div
-                    className='fixed inset-0 bg-black/5 backdrop-blur-[2px] z-40 transition-opacity'
+                    className='fixed inset-0 bg-black/5 backdrop-blur-[2px] z-[90] transition-opacity'
                     onClick={() => setNotificationOpen(false)}
                 />
             )}

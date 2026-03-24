@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, useMotionValue, useTransform } from 'framer-motion';
-import { Reply, Trash2, Heart, Smile, X, Loader2, Play } from 'lucide-react';
+import { Reply, Trash2, Heart, Smile, X, Loader2, Play, FileText, Download } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { useNavigate } from 'react-router-dom';
@@ -9,7 +9,17 @@ const MessageBubble = ({ msg, isSender, onReply, onDelete, onReact, onScrollTo, 
     const navigate = useNavigate();
     const [showReactions, setShowReactions] = useState(false);
     const [showReactionInfo, setShowReactionInfo] = useState(false);
+    const [showSeen, setShowSeen] = useState(false); // Initially hidden
+    const wasAlreadySeenRef = useRef(!!msg.seen); // Track if it was already seen on mount
     const pickerRef = useRef(null);
+
+    useEffect(() => {
+        if (msg.seen && !wasAlreadySeenRef.current) {
+            setShowSeen(true);
+            const timer = setTimeout(() => setShowSeen(false), 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [msg.seen]);
 
     const x = useMotionValue(0);
     const replyOpacity = useTransform(x, isSender ? [-80, 0] : [0, 80], [1, 0]);
@@ -103,10 +113,10 @@ const MessageBubble = ({ msg, isSender, onReply, onDelete, onReact, onScrollTo, 
                     >
                         {msg.messageType === 'image' ? (
                             <div className="relative -mx-4 -my-2.5 overflow-hidden rounded-[20px]">
-                                <img 
-                                    src={msg.mediaUrl} 
-                                    alt="media" 
-                                    className={`w-full max-w-[280px] h-auto object-cover transition-all ${msg.isLoading ? 'opacity-40 grayscale blur-[4px]' : 'hover:scale-105'}`} 
+                                <img
+                                    src={msg.mediaUrl}
+                                    alt="media"
+                                    className={`w-full max-w-[280px] h-auto object-cover transition-all ${msg.isLoading ? 'opacity-40 grayscale blur-[4px]' : 'hover:scale-105'}`}
                                     style={{ display: 'block' }}
                                 />
                                 {msg.isLoading && (
@@ -119,10 +129,10 @@ const MessageBubble = ({ msg, isSender, onReply, onDelete, onReact, onScrollTo, 
                             </div>
                         ) : msg.messageType === 'video' ? (
                             <div className="relative -mx-4 -my-2.5 overflow-hidden rounded-[20px]">
-                                <video 
-                                    src={msg.mediaUrl} 
-                                    controls 
-                                    className={`w-full max-w-[280px] h-auto object-cover transition-all ${msg.isLoading ? 'opacity-40 blur-[4px]' : ''}`} 
+                                <video
+                                    src={msg.mediaUrl}
+                                    controls
+                                    className={`w-full max-w-[280px] h-auto object-cover transition-all ${msg.isLoading ? 'opacity-40 blur-[4px]' : ''}`}
                                     style={{ display: 'block' }}
                                 />
                                 {msg.isLoading && (
@@ -212,10 +222,10 @@ const MessageBubble = ({ msg, isSender, onReply, onDelete, onReact, onScrollTo, 
                             <div
                                 className="flex flex-col min-w-[200px] max-w-[260px] cursor-pointer group/post shadow-xl rounded-[26px]"
                                 onClick={() => {
-                                    if(msg.postId) {
+                                    if (msg.postId) {
                                         onPostClick(msg.postId);
                                     }
-                                }} 
+                                }}
                             >
                                 <div className={`bg-[#F1F5F9] ${isSender ? '-mx-4 -my-2.5' : '-mx-4 -my-2.5'} p-4 rounded-[26px] overflow-hidden transition-all hover:brightness-110 active:scale-[0.98]`}>
                                     {/* Header Section */}
@@ -237,10 +247,15 @@ const MessageBubble = ({ msg, isSender, onReply, onDelete, onReact, onScrollTo, 
                                     {/* Image Container */}
                                     <div className="relative aspect-square rounded-2xl overflow-hidden bg-gray-200 shadow-inner ring-1 ring-black/5">
                                         <img
-                                            src={msg.postId?.image || msg.mediaUrl}
+                                            src={msg.postId?.image || (msg.postId?.images && msg.postId.images[0]) || msg.mediaUrl}
                                             className="w-full h-full object-cover"
                                             alt="post"
                                         />
+                                        {msg.postId?.images?.length > 1 && (
+                                            <div className="absolute top-2 right-2 bg-black/40 backdrop-blur-md p-1.5 rounded-lg border border-white/20">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><line x1="3" x2="21" y1="9" y2="9"/><line x1="9" x2="9" y1="21" y2="9"/></svg>
+                                            </div>
+                                        )}
                                         <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/60 to-transparent">
                                             <p className="text-[12px] text-white font-bold leading-tight drop-shadow-lg line-clamp-1">
                                                 {msg.postId?.caption || msg.message || "View Post"}
@@ -249,9 +264,45 @@ const MessageBubble = ({ msg, isSender, onReply, onDelete, onReact, onScrollTo, 
                                     </div>
                                 </div>
                             </div>
-                        ) : (
-                            msg.message
-                        )}
+                         ) : msg.messageType === 'file' ? (
+                             isSender ? (
+                                 <div className="flex items-center gap-3 p-2.5 rounded-2xl border bg-indigo-600/40 border-white/20 text-white w-full min-w-[180px] max-w-[240px] relative">
+                                     <div className="shrink-0 p-2.5 rounded-xl flex items-center justify-center bg-white/10">
+                                         <FileText size={20} className="text-white" />
+                                     </div>
+                                     <div className="flex flex-col flex-1 overflow-hidden">
+                                         <span className="text-[13px] font-bold truncate pr-1">{msg.message || 'Shared file'}</span>
+                                         <span className="text-[9px] font-black uppercase tracking-tight opacity-50 text-white/70">Sent File</span>
+                                     </div>
+                                     {msg.isLoading && (
+                                         <div className="absolute inset-0 bg-white/20 backdrop-blur-[1px] flex items-center justify-center rounded-2xl z-20">
+                                             <Loader2 size={18} className="animate-spin text-white" />
+                                         </div>
+                                     )}
+                                 </div>
+                             ) : (
+                                 <a
+                                     href={msg.mediaUrl ? msg.mediaUrl.replace('/upload/', '/upload/fl_attachment/') : '#'}
+                                     download={msg.message || 'Shared file'}
+                                     target="_blank"
+                                     rel="noopener noreferrer"
+                                     className="flex items-center gap-3 p-2.5 rounded-2xl border bg-gray-50 border-gray-100 text-[#262626] hover:brightness-110 active:scale-[0.98] w-full min-w-[180px] max-w-[240px]"
+                                 >
+                                     <div className="shrink-0 p-2.5 rounded-xl flex items-center justify-center bg-white shadow-sm">
+                                         <FileText size={20} className="text-indigo-600" />
+                                     </div>
+                                     <div className="flex flex-col flex-1 overflow-hidden">
+                                         <span className="text-[13px] font-bold truncate pr-1">{msg.message || 'Shared file'}</span>
+                                         <div className="flex items-center gap-1 opacity-50">
+                                             <Download size={10} />
+                                             <span className="text-[9px] font-black uppercase tracking-tight">Download</span>
+                                         </div>
+                                     </div>
+                                 </a>
+                             )
+                         ) : (
+                             msg.message
+                         )}
 
                         {/* Reaction Display - Clickable */}
                         {msg.reactions?.length > 0 && (
@@ -345,9 +396,9 @@ const MessageBubble = ({ msg, isSender, onReply, onDelete, onReact, onScrollTo, 
                 </DialogContent>
             </Dialog>
 
-            {/* Seen Indicator (Show only for last sender message) */}
-            {isSender && msg.seen && (
-                <span className="text-[10px] text-gray-400 font-bold mt-1 mr-1 animate-in fade-in transition-all">Seen</span>
+            {/* Seen Indicator (Show only for latest seen, now temporary) */}
+            {isSender && showSeen && (
+                <span className="text-[10px] text-gray-400 font-bold mt-1 mr-1 animate-in fade-in fade-out transition-all duration-500">Seen</span>
             )}
 
             {/* Timestamp - Always Visible */}

@@ -142,6 +142,8 @@ const Post = ({ post }) => {
 
     const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
     const scrollRef = React.useRef(null);
+    const [isHovered, setIsHovered] = useState(false);
+    const lastScrollTime = useRef(0);
 
     const handleScroll = () => {
         if (scrollRef.current) {
@@ -159,8 +161,46 @@ const Post = ({ post }) => {
         }
     };
 
+    // Wheel listener for Post carousel
+    React.useEffect(() => {
+        const el = scrollRef.current;
+        if (!el || !post.images || post.images.length <= 1) return;
+
+        const handleWheel = (e) => {
+            if (!isHovered) return;
+
+            const dx = Math.abs(e.deltaX);
+            const dy = Math.abs(e.deltaY);
+            
+            // If the user is scrolling vertically on the post carousel, intercept it
+            if (dy > 3 && dy > dx) {
+                e.preventDefault(); // Stop page scroll
+
+                const now = Date.now();
+                if (now - lastScrollTime.current < 300) return; // Debounce
+
+                if (e.deltaY > 0) {
+                    scrollToImage(currentMediaIndex + 1 < post.images.length ? currentMediaIndex + 1 : 0);
+                } else {
+                    scrollToImage(currentMediaIndex > 0 ? currentMediaIndex - 1 : post.images.length - 1);
+                }
+                lastScrollTime.current = now;
+            } else if (dx > 3) {
+                // For touchpads horizontal swipe, let native handle it or prevent if needed
+                // Usually native is fine for scroll containers with snap
+            }
+        };
+
+        el.addEventListener('wheel', handleWheel, { passive: false });
+        return () => el.removeEventListener('wheel', handleWheel);
+    }, [currentMediaIndex, isHovered, post.images]);
+
     return (
-        <div className='mb-16 w-full mx-auto bg-white border-b border-gray-100 pb-12 transition-colors duration-300'>
+        <div 
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+            className='mb-16 w-full mx-auto bg-white border-b border-gray-100 pb-12 transition-colors duration-300'
+        >
             {/* Header */}
             <div className='flex items-center justify-between py-4 bg-white px-2'>
                 <div className='flex items-center gap-4'>
@@ -241,16 +281,6 @@ const Post = ({ post }) => {
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
                             </button>
-
-                            {/* Dots indicator */}
-                            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 pointer-events-none">
-                                {post.images.map((_, index) => (
-                                    <div 
-                                        key={index}
-                                        className={`w-1.5 h-1.5 rounded-full transition-all ${currentMediaIndex === index ? 'bg-[#0095F6] w-3' : 'bg-gray-300'}`}
-                                    />
-                                ))}
-                            </div>
                         </>
                     ) : (
                         <img className='w-full h-auto max-h-[700px] object-cover'

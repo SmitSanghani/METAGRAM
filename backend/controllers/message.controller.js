@@ -43,6 +43,7 @@ export const sendMessage = async (req, res) => {
                 const cloudResponse = await cloudinary.uploader.upload(fileUri, {
                     folder: "instagram-clone/messages",
                 });
+                console.log(">>> CLOUDINARY IMAGE SUCCESS:", cloudResponse.public_id);
                 mediaUrl = cloudResponse.secure_url;
             } else if (isVideo) {
                 // Promise wrapper for video upload
@@ -60,6 +61,30 @@ export const sendMessage = async (req, res) => {
                 };
                 const cloudResponse = await uploadVideo();
                 mediaUrl = cloudResponse.secure_url;
+            } else {
+                // Support generic files (ZIP, Excel, etc.)
+                const uploadFile = () => {
+                    return new Promise((resolve, reject) => {
+                        const stream = cloudinary.uploader.upload_stream({
+                            resource_type: "raw", // Use raw to preserve exact filename/extension
+                            folder: "instagram-clone/messages/files",
+                            use_filename: true,
+                            unique_filename: true,
+                            filename_override: file.originalname
+                        }, (error, result) => {
+                            if (error) {
+                                console.error("!!! CLOUDINARY ERROR:", error);
+                                reject(error);
+                            } else {
+                                console.log(">>> CLOUDINARY SUCCESS:", result.public_id);
+                                resolve(result);
+                            }
+                        });
+                        stream.end(file.buffer);
+                    });
+                };
+                const cloudResponse = await uploadFile();
+                mediaUrl = cloudResponse.secure_url;
             }
         }
 
@@ -74,11 +99,21 @@ export const sendMessage = async (req, res) => {
             });
         }
 
+        let finalMessageType = messageType;
+        if (file) {
+            const isImg = file.mimetype.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(file.originalname);
+            const isVid = file.mimetype.startsWith('video/') || /\.(mp4|mov|avi|mkv|webm)$/i.test(file.originalname);
+
+            if (isImg) finalMessageType = 'image';
+            else if (isVid) finalMessageType = 'video';
+            else finalMessageType = 'file';
+        }
+
         const newMessageData = {
             senderId,
             receiverId,
-            message,
-            messageType: file ? (file.mimetype.startsWith('image/') ? 'image' : 'video') : messageType,
+            message: file && finalMessageType === 'file' ? (message || file.originalname) : message,
+            messageType: finalMessageType,
             storyId,
             reelId,
             postId,
@@ -108,9 +143,9 @@ export const sendMessage = async (req, res) => {
 
         // Populate story and reactions for broadcast
         await conversation.populate([
-            { path: 'messages.storyId', select: 'mediaUrl mediaType userId' },
+            { path: 'messages.storyId', select: 'mediaUrl mediaType userId createdAt' },
             { path: 'messages.reelId', select: 'videoUrl caption author', populate: { path: 'author', select: 'username profilePicture' } },
-            { path: 'messages.postId', select: 'image caption author', populate: { path: 'author', select: 'username profilePicture' } },
+            { path: 'messages.postId', select: 'image images caption author likes', populate: { path: 'author', select: 'username profilePicture' } },
             { path: 'messages.reactions.userId', select: 'username profilePicture' }
         ]);
 
@@ -142,8 +177,9 @@ export const sendMessage = async (req, res) => {
 
         return res.status(201).json({ success: true, newMessage: messageObj });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ success: false, message: "Internal server error" });
+        console.error("SendMessage Error:", error);
+        const errorMessage = error.message || "Internal server error";
+        res.status(400).json({ success: false, message: errorMessage });
     }
 };
 
@@ -154,9 +190,9 @@ export const getMessages = async (req, res) => {
         const conversation = await Conversation.findOne({
             participants: { $all: [senderId, receiverId] }
         }).populate([
-            { path: 'messages.storyId', select: 'mediaUrl mediaType userId' },
+            { path: 'messages.storyId', select: 'mediaUrl mediaType userId createdAt' },
             { path: 'messages.reelId', select: 'videoUrl caption author', populate: { path: 'author', select: 'username profilePicture' } },
-            { path: 'messages.postId', select: 'image caption author', populate: { path: 'author', select: 'username profilePicture' } },
+            { path: 'messages.postId', select: 'image images caption author likes', populate: { path: 'author', select: 'username profilePicture' } },
             { path: 'messages.reactions.userId', select: 'username profilePicture' }
         ]);
 

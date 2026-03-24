@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { cn, getAvatarColor } from '@/lib/utils';
 import { Button } from './ui/button';
-import { MessageCircle, Send, X, Image as ImageIcon, Smile, Reply, Trash2, Search, BellOff, Bell, VolumeOff, Volume2 } from 'lucide-react';
+import { MessageCircle, Send, X, Image as ImageIcon, Smile, Plus, FileText, Reply, Trash2, Search, BellOff, Bell, VolumeOff, Volume2 } from 'lucide-react';
 import api from '@/api';
 import { toast } from 'sonner';
 import { toggleMuteUserAction } from '../redux/authSlice';
@@ -16,6 +16,7 @@ import useGetChatUsers from '@/hooks/useGetChatUsers';
 import { setSelectedPost } from '@/redux/postSlice';
 import StoryViewer from './StoryViewer';
 import PostModal from './PostModal';
+import CommentDialog from './CommentDialog';
 
 const NOTIFICATION_SOUND_URL = "/notification.mp3"; // Reference local file
 
@@ -31,6 +32,7 @@ const ChatPage = () => {
     const [headerStories, setHeaderStories] = useState([]);
     const [isHeaderStoryOpen, setIsHeaderStoryOpen] = useState(false);
     const [openPostModal, setOpenPostModal] = useState(false);
+    const [openCommentDialog, setOpenCommentDialog] = useState(false);
     const [selectedPostForModal, setSelectedPostForModal] = useState(null);
     const dispatch = useDispatch();
 
@@ -39,6 +41,7 @@ const ChatPage = () => {
     const [searchQuery, setSearchQuery] = useState("");
     const [searchResults, setSearchResults] = useState([]);
     const [isSearching, setIsSearching] = useState(false);
+    const [isPlusMenuOpen, setIsPlusMenuOpen] = useState(false); // New state for (+) menu
     const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, targetUser: null });
     const searchInputRef = useRef(null);
     let typingTimeout = useRef(null);
@@ -46,7 +49,7 @@ const ChatPage = () => {
 
     // Clear unread count when chat selected
     const handleSelectUser = (targetUser) => {
-        if (!targetUser) return;
+        if (!targetUser || targetUser._id === selectedUser?._id) return;
 
         // Leave previous conversation room if any
         if (socket && selectedUser?.conversationId) {
@@ -54,6 +57,7 @@ const ChatPage = () => {
         }
 
         dispatch(setSelectedUser(targetUser));
+        localStorage.setItem('lastChatUserId', targetUser._id);
         dispatch(setMessages([])); // Clear messages for new user immediately
         dispatch(clearUnreadCount(String(targetUser._id)));
 
@@ -72,6 +76,19 @@ const ChatPage = () => {
             dispatch(setSelectedUser(null));
         };
     }, [dispatch]);
+
+    // Restore last chat on refresh
+    useEffect(() => {
+        if (!selectedUser && chatUsers.length > 0) {
+            const savedId = localStorage.getItem('lastChatUserId');
+            if (savedId) {
+                const userToRestore = chatUsers.find(u => String(u._id) === savedId);
+                if (userToRestore) {
+                    handleSelectUser(userToRestore);
+                }
+            }
+        }
+    }, [chatUsers, selectedUser]);
 
     // Fetch messages when a user is selected
     useEffect(() => {
@@ -129,7 +146,7 @@ const ChatPage = () => {
                     const res = await api.get(`/user/search?query=${searchQuery}`);
                     if (res.data.success) {
                         // Filter out users already in active chat list to avoid duplicates
-                        const filtered = res.data.users.filter(u => 
+                        const filtered = res.data.users.filter(u =>
                             !chatUsers.some(cu => String(cu._id) === String(u._id))
                         );
                         setSearchResults(filtered);
@@ -254,7 +271,7 @@ const ChatPage = () => {
     const deleteChatHandler = async (targetUserId) => {
         const userToDelete = targetUserId || selectedUser?._id;
         const username = targetUserId ? chatUsers.find(u => u._id === targetUserId)?.username : selectedUser?.username;
-        
+
         if (!userToDelete) return;
 
         const result = await Swal.fire({
@@ -306,19 +323,19 @@ const ChatPage = () => {
 
     const handleContextMenu = (e, targetUser) => {
         e.preventDefault();
-        
+
         // Safety margin to prevent being cut off (menu is roughly 200x150)
         const menuWidth = 200;
         const menuHeight = 160;
-        
+
         let x = e.clientX;
         let y = e.clientY;
-        
+
         // If clicking too close to the bottom, spawn menu upwards
         if (y + menuHeight > window.innerHeight) {
             y = y - menuHeight;
         }
-        
+
         // If clicking too close to the right edge, spawn menu leftwards
         if (x + menuWidth > window.innerWidth) {
             x = x - menuWidth;
@@ -333,7 +350,10 @@ const ChatPage = () => {
     };
 
     useEffect(() => {
-        const handleClickOutside = () => setContextMenu(prev => ({ ...prev, visible: false }));
+        const handleClickOutside = () => {
+            setContextMenu(prev => ({ ...prev, visible: false }));
+            setIsPlusMenuOpen(false); // Close plus menu on outside click
+        };
         window.addEventListener('click', handleClickOutside);
         return () => window.removeEventListener('click', handleClickOutside);
     }, []);
@@ -419,10 +439,10 @@ const ChatPage = () => {
         if (!msg.createdAt) return groups;
         const d = new Date(msg.createdAt);
         if (isNaN(d.getTime())) return groups;
-        
+
         // Use toDateString for a stable local date key (e.g., "Fri Mar 13 2026")
         const dateKey = d.toDateString();
-        
+
         if (!groups[dateKey]) groups[dateKey] = [];
         groups[dateKey].push(msg);
         return groups;
@@ -446,7 +466,7 @@ const ChatPage = () => {
     };
 
     return (
-        <div className='flex h-screen bg-[rgb(218,242,242)] text-[#333333] w-full overflow-hidden font-sans'>
+        <div className='flex h-[100dvh] bg-[rgb(218,242,242)] text-[#333333] w-full overflow-hidden font-sans border-0'>
             {/* Sidebar User List */}
             <section className='hidden md:flex flex-col w-[350px] shrink-0 border-r border-[#efefef] bg-white px-2'>
                 <div className='py-8 px-4 flex items-center justify-between'>
@@ -460,16 +480,16 @@ const ChatPage = () => {
                         <div className='absolute inset-y-0 left-3 flex items-center pointer-events-none'>
                             <Search size={16} className='text-gray-400 group-focus-within:text-indigo-500 transition-colors' />
                         </div>
-                        <input 
+                        <input
                             ref={searchInputRef}
-                            type="text" 
-                            placeholder='Search people...' 
+                            type="text"
+                            placeholder='Search people...'
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className='w-full bg-gray-100/80 border-none rounded-xl py-2.5 pl-10 pr-10 text-[14px] font-medium outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white transition-all'
                         />
                         {searchQuery && (
-                            <button 
+                            <button
                                 onClick={() => setSearchQuery("")}
                                 className='absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-gray-600'
                             >
@@ -492,28 +512,28 @@ const ChatPage = () => {
 
                             return (
                                 <div key={suggestedUser?._id}
-                                     onContextMenu={(e) => handleContextMenu(e, suggestedUser)}
-                                     className={`relative p-3 rounded-2xl transition-all duration-300 cursor-pointer active:scale-[0.98] group select-none z-10 ${isSelected ? 'bg-white shadow-[0_4px_20px_rgba(0,0,0,0.05)] border border-gray-100/50' : 'hover:bg-gray-100/50'}`}
-                                 >
-                                     {/* Clickable Overlay */}
-                                     <div
-                                         className="absolute inset-0 z-20 cursor-pointer"
-                                         onClick={() => handleSelectUser(suggestedUser)}
-                                     />
+                                    onContextMenu={(e) => handleContextMenu(e, suggestedUser)}
+                                    className={`relative p-3 rounded-2xl transition-all duration-300 cursor-pointer active:scale-[0.98] group select-none z-10 ${isSelected ? 'bg-white shadow-[0_4px_20px_rgba(0,0,0,0.05)] border border-gray-100/50' : 'hover:bg-gray-100/50'}`}
+                                >
+                                    {/* Clickable Overlay */}
+                                    <div
+                                        className="absolute inset-0 z-20 cursor-pointer"
+                                        onClick={() => handleSelectUser(suggestedUser)}
+                                    />
 
-                                     {/* Selection Indicator */}
-                                     {isSelected && <div className="absolute left-0 top-3 bottom-3 w-1 bg-[#4F46E5] rounded-full pointer-events-none"></div>}
+                                    {/* Selection Indicator */}
+                                    {isSelected && <div className="absolute left-0 top-3 bottom-3 w-1 bg-[#4F46E5] rounded-full pointer-events-none"></div>}
 
-                                     <div className="relative flex items-center gap-3 pointer-events-none">
-                                         <div className="relative shrink-0">
-                                             <Avatar className={`w-14 h-14 border-2 ${isSelected ? 'border-white' : 'border-transparent'} shadow-sm transition-all group-hover:scale-105`}>
-                                                 <AvatarImage src={suggestedUser?.profilePicture} className="object-cover" />
-                                                 <AvatarFallback className={cn("text-black font-black text-[15px] uppercase", getAvatarColor(suggestedUser?.username))}>
-                                                      {suggestedUser?.username?.charAt(0)}
-                                                  </AvatarFallback>
-                                             </Avatar>
-                                             {isOnline && <div className="absolute bottom-1 right-1 w-3.5 h-3.5 bg-green-500 border-[2.5px] border-white rounded-full transition-all"></div>}
-                                         </div>
+                                    <div className="relative flex items-center gap-3 pointer-events-none">
+                                        <div className="relative shrink-0">
+                                            <Avatar className={`w-14 h-14 border-2 ${isSelected ? 'border-white' : 'border-transparent'} shadow-sm transition-all group-hover:scale-105`}>
+                                                <AvatarImage src={suggestedUser?.profilePicture} className="object-cover" />
+                                                <AvatarFallback className={cn("text-black font-black text-[15px] uppercase", getAvatarColor(suggestedUser?.username))}>
+                                                    {suggestedUser?.username?.charAt(0)}
+                                                </AvatarFallback>
+                                            </Avatar>
+                                            {isOnline && <div className="absolute bottom-1 right-1 w-3.5 h-3.5 bg-green-500 border-[2.5px] border-white rounded-full transition-all"></div>}
+                                        </div>
 
                                         <div className='flex flex-col flex-1 overflow-hidden ml-1'>
                                             <div className="flex justify-between items-center w-full">
@@ -544,6 +564,7 @@ const ChatPage = () => {
                                                         if (lastMsg.messageType === 'reel') body = "Sent a reel";
                                                         else if (lastMsg.messageType === 'image') body = "Sent a photo";
                                                         else if (lastMsg.messageType === 'video') body = "Sent a video";
+                                                        else if (lastMsg.messageType === 'file') body = lastMsg.message || "Shared a file";
                                                         else if (lastMsg.messageType === 'post') body = "Shared a post";
                                                         else if (lastMsg.messageType === 'story_reply') body = isMe ? "Replied to their story" : "Replied to your story";
                                                         else if (lastMsg.messageType === 'story_reaction') body = isMe ? `Reacted to their story: ${lastMsg.message}` : `Reacted to your story: ${lastMsg.message}`;
@@ -566,35 +587,35 @@ const ChatPage = () => {
                         {/* Map global search results */}
                         {searchQuery && searchResults.map((suggestedUser) => (
                             <div key={suggestedUser?._id}
-                                 className={`relative p-3 rounded-2xl transition-all duration-300 cursor-pointer active:scale-[0.98] group select-none z-10 hover:bg-gray-100/50`}
-                             >
-                                 <div
-                                     className="absolute inset-0 z-20 cursor-pointer"
-                                     onClick={() => {
-                                         handleSelectUser(suggestedUser);
-                                         setSearchQuery("");
-                                     }}
-                                 />
-                                 <div className="relative flex items-center gap-3 pointer-events-none">
-                                     <div className="relative shrink-0">
-                                         <Avatar className={`w-14 h-14 border-2 border-transparent shadow-sm transition-all group-hover:scale-105`}>
-                                             <AvatarImage src={suggestedUser?.profilePicture} className="object-cover" />
-                                             <AvatarFallback className={cn("text-black font-black text-[15px] uppercase", getAvatarColor(suggestedUser?.username))}>
-                                                 {suggestedUser?.username?.charAt(0)}
-                                             </AvatarFallback>
-                                         </Avatar>
-                                     </div>
-                                     <div className='flex flex-col flex-1 overflow-hidden ml-1'>
-                                         <div className="flex justify-between items-center w-full">
-                                             <span className={`text-[15px] truncate font-black text-[#262626]`}>{suggestedUser?.username}</span>
-                                         </div>
-                                         <div className="flex justify-between items-center w-full mt-0.5">
-                                             <span className={`text-[12px] truncate flex-1 font-medium text-indigo-500`}>
-                                                 Discovery - Tap to start chat
-                                             </span>
-                                         </div>
-                                     </div>
-                                 </div>
+                                className={`relative p-3 rounded-2xl transition-all duration-300 cursor-pointer active:scale-[0.98] group select-none z-10 hover:bg-gray-100/50`}
+                            >
+                                <div
+                                    className="absolute inset-0 z-20 cursor-pointer"
+                                    onClick={() => {
+                                        handleSelectUser(suggestedUser);
+                                        setSearchQuery("");
+                                    }}
+                                />
+                                <div className="relative flex items-center gap-3 pointer-events-none">
+                                    <div className="relative shrink-0">
+                                        <Avatar className={`w-14 h-14 border-2 border-transparent shadow-sm transition-all group-hover:scale-105`}>
+                                            <AvatarImage src={suggestedUser?.profilePicture} className="object-cover" />
+                                            <AvatarFallback className={cn("text-black font-black text-[15px] uppercase", getAvatarColor(suggestedUser?.username))}>
+                                                {suggestedUser?.username?.charAt(0)}
+                                            </AvatarFallback>
+                                        </Avatar>
+                                    </div>
+                                    <div className='flex flex-col flex-1 overflow-hidden ml-1'>
+                                        <div className="flex justify-between items-center w-full">
+                                            <span className={`text-[15px] truncate font-black text-[#262626]`}>{suggestedUser?.username}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center w-full mt-0.5">
+                                            <span className={`text-[12px] truncate flex-1 font-medium text-indigo-500`}>
+                                                Discovery - Tap to start chat
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         ))}
                     </div>
@@ -608,19 +629,19 @@ const ChatPage = () => {
                         {/* Header */}
                         <div className='flex items-center justify-between px-8 py-5 border-b border-[#efefef] bg-white/95 backdrop-blur-md z-40 sticky top-0'>
                             <div className='flex items-center gap-4'>
-                                <div 
+                                <div
                                     className={`relative z-10 ${headerStories.length > 0 ? 'cursor-pointer' : ''}`}
                                     onClick={() => headerStories.length > 0 && setIsHeaderStoryOpen(true)}
                                 >
                                     <Avatar className={`w-13 h-13 border-2 ${headerStories.length > 0 ? 'border-pink-500' : 'border-indigo-50'} shadow-sm transition-transform active:scale-95`}>
-                                         <AvatarImage src={selectedUser?.profilePicture} className="object-cover" />
-                                         <AvatarFallback className={cn("text-black font-black uppercase text-[15px]", getAvatarColor(selectedUser?.username))}>{selectedUser?.username?.charAt(0)}</AvatarFallback>
+                                        <AvatarImage src={selectedUser?.profilePicture} className="object-cover" />
+                                        <AvatarFallback className={cn("text-black font-black uppercase text-[15px]", getAvatarColor(selectedUser?.username))}>{selectedUser?.username?.charAt(0)}</AvatarFallback>
                                     </Avatar>
                                     {onlineUsers.includes(selectedUser?._id) && (
                                         <div className="absolute bottom-0 right-0.5 w-4 h-4 bg-green-500 border-[3px] border-white rounded-full"></div>
                                     )}
                                 </div>
-                                <div 
+                                <div
                                     className='flex flex-col cursor-pointer hover:opacity-70 transition-opacity z-10'
                                     onClick={() => navigate(`/profile/${selectedUser?._id}`)}
                                 >
@@ -692,7 +713,7 @@ const ChatPage = () => {
                             <StoryViewer
                                 stories={headerStories}
                                 onClose={() => setIsHeaderStoryOpen(false)}
-                                onStoryViewed={() => {}}
+                                onStoryViewed={() => { }}
                             />
                         )}
 
@@ -706,7 +727,7 @@ const ChatPage = () => {
                         )}
 
                         {/* Input Section */}
-                        <div className='px-8 py-6 bg-white border-t border-[#f3f4f6] flex flex-col gap-3 relative z-30'>
+                        <div className='px-8 py-4 pb-5 bg-white border-t border-[#f3f4f6] flex flex-col gap-3 relative z-30'>
                             {replyTo && (
                                 <div className="flex items-center justify-between bg-indigo-50 border-l-[4px] border-indigo-600 px-5 py-4 rounded-xl animate-in slide-in-from-bottom-2 duration-300">
                                     <div className="flex flex-col overflow-hidden max-w-[85%]">
@@ -727,7 +748,56 @@ const ChatPage = () => {
                             )}
 
                             <form onSubmit={sendMessageHandler} className="flex items-center gap-3">
-                                <div className="flex-1 flex items-center bg-[#f9fafb] border border-[#f3f4f6] rounded-[28px] py-1 pl-6 pr-2 focus-within:ring-2 focus-within:ring-indigo-500/10 focus-within:border-indigo-500/50 transition-all duration-300">
+                                <div className="flex-1 flex items-center bg-[#f9fafb] border border-[#f3f4f6] rounded-[28px] py-0.5 pl-6 pr-2 focus-within:ring-2 focus-within:ring-indigo-500/10 focus-within:border-indigo-500/50 transition-all duration-300 relative">
+                                    {/* Plus (+) Menu Trigger and Dropup */}
+                                    <div className="relative">
+                                        <button 
+                                            type="button" 
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setIsPlusMenuOpen(!isPlusMenuOpen);
+                                            }}
+                                            className={`p-2 hover:bg-white rounded-full transition-all text-gray-400 hover:text-indigo-600 active:scale-95 flex items-center justify-center ${isPlusMenuOpen ? 'rotate-45 text-indigo-500' : ''}`}
+                                        >
+                                            <Plus size={22} strokeWidth={2.5} />
+                                        </button>
+                                        
+                                        {/* Dropup Menu */}
+                                        {isPlusMenuOpen && (
+                                            <div className="absolute bottom-[calc(100%+8px)] left-0 bg-white border border-gray-100 shadow-[0_-4px_24px_rgba(0,0,0,0.08)] rounded-[20px] py-1.5 min-w-[180px] z-50 animate-in slide-in-from-bottom-2 duration-300">
+                                                <button 
+                                                    type="button"
+                                                    onClick={() => {
+                                                        document.getElementById('media-upload-final').setAttribute('accept', '*/*');
+                                                        document.getElementById('media-upload-final').click();
+                                                        setIsPlusMenuOpen(false);
+                                                    }}
+                                                    className="w-full h-11 flex items-center gap-3 px-4 hover:bg-indigo-50 text-[#262626] transition-all group"
+                                                >
+                                                    <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center group-hover:bg-indigo-100 transition-colors">
+                                                        <FileText size={16} className="text-indigo-600" />
+                                                    </div>
+                                                    <span className="text-[13px] font-bold">Document</span>
+                                                </button>
+                                                
+                                                <button 
+                                                    type="button"
+                                                    onClick={() => {
+                                                        document.getElementById('media-upload-final').setAttribute('accept', 'image/*,video/*');
+                                                        document.getElementById('media-upload-final').click();
+                                                        setIsPlusMenuOpen(false);
+                                                    }}
+                                                    className="w-full h-11 flex items-center gap-3 px-4 hover:bg-indigo-50 text-[#262626] transition-all group"
+                                                >
+                                                    <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center group-hover:bg-indigo-100 transition-colors">
+                                                        <ImageIcon size={16} className="text-indigo-600" />
+                                                    </div>
+                                                    <span className="text-[13px] font-bold">Photos & videos</span>
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+
                                     <button type="button" className="p-2 hover:bg-white rounded-full transition-colors text-gray-400 hover:text-indigo-500 group">
                                         <Smile className="group-hover:scale-110 transition-transform" size={24} strokeWidth={1.5} />
                                     </button>
@@ -742,28 +812,40 @@ const ChatPage = () => {
                                             }
                                         }}
                                         placeholder="Message..."
-                                        className='flex-1 bg-transparent py-4 outline-none text-[15px] font-medium placeholder:text-gray-400 text-gray-800'
+                                        className='flex-1 bg-transparent py-2.5 outline-none text-[15px] font-medium placeholder:text-gray-400 text-gray-800'
                                     />
                                     <div className="flex items-center gap-1">
                                         <input
                                             type="file"
                                             className="hidden"
                                             id="media-upload-final"
-                                            accept="image/*,video/*"
+                                            multiple
+                                            accept="*/*"
                                             onChange={async (e) => {
-                                                const file = e.target.files[0];
-                                                if (file) {
-                                                    const tempId = Date.now().toString();
+                                                const files = Array.from(e.target.files);
+                                                if (files.length === 0) return;
+
+                                                for (const file of files) {
+                                                    if (file.size > 10 * 1024 * 1024) {
+                                                        toast.error(`File "${file.name}" is too large (>10MB).`);
+                                                        continue;
+                                                    }
+
+                                                    const tempId = Math.random().toString(36).substr(2, 9) + Date.now();
+                                                    const previewUrl = URL.createObjectURL(file);
+                                                    const isImg = file.type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(file.name);
+                                                    const isVid = file.type.startsWith('video/') || /\.(mp4|mov|avi|mkv|webm)$/i.test(file.name);
+                                                    const finalType = isImg ? 'image' : (isVid ? 'video' : 'file');
+
                                                     try {
                                                         // Optimistic local update
-                                                        const previewUrl = URL.createObjectURL(file);
                                                         const tempMsg = {
                                                             _id: tempId,
                                                             tempId: tempId,
                                                             senderId: user._id,
                                                             receiverId: selectedUser._id,
-                                                            message: "",
-                                                            messageType: file.type.startsWith('image/') ? 'image' : 'video',
+                                                            message: finalType === 'file' ? file.name : "",
+                                                            messageType: finalType,
                                                             mediaUrl: previewUrl,
                                                             isLoading: true,
                                                             createdAt: new Date().toISOString()
@@ -771,8 +853,8 @@ const ChatPage = () => {
                                                         dispatch(addMessage(tempMsg));
 
                                                         const formData = new FormData();
-                                                        formData.append("message", "");
-                                                        formData.append("messageType", file.type.startsWith('image/') ? 'image' : 'video');
+                                                        formData.append("message", finalType === 'file' ? file.name : "");
+                                                        formData.append("messageType", finalType);
                                                         formData.append("media", file);
                                                         formData.append("tempId", tempId);
                                                         if (replyTo?._id) {
@@ -783,19 +865,26 @@ const ChatPage = () => {
                                                             headers: { 'Content-Type': 'multipart/form-data' }
                                                         });
                                                         if (res.data.success) {
-                                                            dispatch(addMessage(res.data.newMessage));
+                                                            const populatedNewMsg = {
+                                                                ...res.data.newMessage,
+                                                                replyTo: replyTo ? { ...replyTo } : null
+                                                            };
+                                                            dispatch(addMessage(populatedNewMsg));
+                                                            dispatch(updateLastMessage({ userId: selectedUser._id, message: populatedNewMsg }));
+                                                            dispatch(reorderUsers(selectedUser._id));
                                                             setReplyTo(null);
                                                         }
                                                     } catch (err) {
                                                         console.log(err);
+                                                        const errorMessage = err.response?.data?.message || `Failed to send "${file.name}"`;
+                                                        toast.error(errorMessage);
                                                         dispatch(removeTempMessage({ tempId }));
                                                     }
                                                 }
+                                                e.target.value = null; // Clear input for re-selection
                                             }}
                                         />
-                                        <button type="button" onClick={() => document.getElementById('media-upload-final').click()} className="p-2 hover:bg-white rounded-full transition-colors text-gray-400 hover:text-indigo-500 group">
-                                            <ImageIcon className="group-hover:scale-110 transition-transform" size={24} strokeWidth={1.5} />
-                                        </button>
+
 
                                         {textMessage.trim() ? (
                                             <button type="submit" className='ml-1 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-full font-black text-[13px] tracking-wide shadow-md shadow-indigo-200 active:scale-95 transition-all'>
@@ -818,7 +907,7 @@ const ChatPage = () => {
                         </div>
                         <h2 className='text-3xl font-black mb-2 tracking-tight text-[#262626] uppercase'>Your Messages</h2>
                         <p className='text-[#8e8e8e] mb-8 text-[16px] max-w-xs font-medium'>Send private photos and messages to a friend or group.</p>
-                        <Button 
+                        <Button
                             onClick={() => searchInputRef.current?.focus()}
                             className='bg-[#4F46E5] hover:bg-[#4338CA] text-white font-black h-12 px-10 rounded-full transition-all active:scale-95 shadow-lg shadow-indigo-200'
                         >
@@ -830,7 +919,7 @@ const ChatPage = () => {
 
             {/* Context Menu */}
             {contextMenu.visible && (
-                <div 
+                <div
                     className="fixed z-[100] bg-white border border-gray-100 shadow-xl rounded-2xl py-2 min-w-[200px] animate-in fade-in zoom-in duration-200"
                     style={{ top: contextMenu.y, left: contextMenu.x }}
                     onClick={(e) => e.stopPropagation()}
@@ -838,8 +927,8 @@ const ChatPage = () => {
                     <div className="px-4 py-2 border-b border-gray-50 mb-1">
                         <span className="text-[11px] font-black text-gray-400 uppercase tracking-wider">{contextMenu.targetUser?.username}</span>
                     </div>
-                    
-                    <button 
+
+                    <button
                         onClick={() => {
                             toggleMuteHandler(contextMenu.targetUser._id);
                             setContextMenu(prev => ({ ...prev, visible: false }));
@@ -854,7 +943,7 @@ const ChatPage = () => {
                         </span>
                     </button>
 
-                    <button 
+                    <button
                         onClick={() => {
                             deleteChatHandler(contextMenu.targetUser._id);
                             setContextMenu(prev => ({ ...prev, visible: false }));
@@ -869,7 +958,8 @@ const ChatPage = () => {
                 </div>
             )}
 
-            <PostModal open={openPostModal} setOpen={setOpenPostModal} post={selectedPostForModal} />
+            <PostModal open={openPostModal} setOpen={setOpenPostModal} post={selectedPostForModal} onOpenComment={() => { setOpenPostModal(false); setOpenCommentDialog(true); }} />
+            <CommentDialog open={openCommentDialog} setOpen={setOpenCommentDialog} />
         </div>
     );
 };

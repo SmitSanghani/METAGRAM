@@ -19,6 +19,15 @@ const SharePostModal = ({ open, setOpen, post }) => {
     const [isSearching, setIsSearching] = useState(false);
     const dispatch = useDispatch();
 
+    useEffect(() => {
+        if (open) {
+            document.body.classList.add('share-modal-open');
+        } else {
+            document.body.classList.remove('share-modal-open');
+        }
+        return () => document.body.classList.remove('share-modal-open');
+    }, [open]);
+
     // Fetch more users when searching (debounced)
     useEffect(() => {
         const fetchSearch = async () => {

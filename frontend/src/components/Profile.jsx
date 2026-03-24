@@ -238,6 +238,7 @@ const Profile = () => {
       background: '#ffffff',
       borderRadius: '24px',
       customClass: {
+        container: 'z-[9999]',
         popup: 'rounded-[24px]',
         confirmButton: 'rounded-xl px-6 py-2.5 font-bold uppercase tracking-wider text-xs',
         cancelButton: 'rounded-xl px-6 py-2.5 font-bold uppercase tracking-wider text-xs'
@@ -449,6 +450,7 @@ const Profile = () => {
                         key={item?._id} 
                         item={item} 
                         type={(activeTab === 'reels' || activeTab === 'saved_reels' || item.videoUrl) ? 'reel' : 'post'} 
+                        onDelete={item.videoUrl ? deleteReelHandler : undefined}
                       />
                     ))
                   }
@@ -525,7 +527,7 @@ const Profile = () => {
 
           <CommentDialog open={openCommentDialog} setOpen={setOpenCommentDialog} />
 
-          <PostModal open={openPostModal} setOpen={setOpenPostModal} post={selectedPost} />
+          <PostModal open={openPostModal} setOpen={setOpenPostModal} post={selectedPost} onOpenComment={() => { setOpenPostModal(false); setOpenCommentDialog(true); }} />
 
           {/* Following Dropdown Menu (Step 1) */}
           <Dialog open={isFollowingMenuOpen} onOpenChange={setIsFollowingMenuOpen}>

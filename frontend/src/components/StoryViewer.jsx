@@ -11,10 +11,13 @@ import { useNavigate } from 'react-router-dom';
 const DEFAULT_STORY_DURATION = 5000; // 5 seconds default for images
 
 const formatTimeAgo = (date) => {
+    if (!date) return 'now';
     const now = new Date();
     const then = new Date(date);
-    const seconds = Math.floor((now - then) / 1000);
+    if (isNaN(then.getTime())) return 'now';
     
+    const seconds = Math.floor((now - then) / 1000);
+    if (seconds < 6) return 'now';
     if (seconds < 60) return `${seconds}s`;
     
     const minutes = Math.floor(seconds / 60);

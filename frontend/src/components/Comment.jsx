@@ -20,7 +20,7 @@ const getRelativeTime = (dateStr) => {
     return `${Math.floor(diff / 604800)}w`;
 };
 
-const Comment = ({ comment, onReply, allComments = [], depth = 0 }) => {
+const Comment = ({ comment, onReply, allComments = [], depth = 0, isReel = false }) => {
     const { user } = useSelector(store => store.auth);
     const { selectedPost, posts } = useSelector(store => store.post);
     const dispatch = useDispatch();
@@ -44,8 +44,9 @@ const Comment = ({ comment, onReply, allComments = [], depth = 0 }) => {
         setIsLiked(!isLiked);
         setLikeCount(prev => isLiked ? prev - 1 : prev + 1);
         try {
+            const endpoint = isReel ? `/reels/comment/like/${comment._id}` : `/post/comment/like/${comment._id}`;
             const res = await api.post(
-                `/post/comment/like/${comment._id}`,
+                endpoint,
                 {}
             );
             if (!res.data.success) {
@@ -140,14 +141,17 @@ const Comment = ({ comment, onReply, allComments = [], depth = 0 }) => {
                     <div className='flex items-center gap-6 mt-2 ml-4'>
                         {/* Like count and button */}
                         <div className="flex items-center gap-1.5">
-                            <button onClick={handleLike} className="flex items-center gap-1 group/like">
+                            <button
+                                onClick={handleLike}
+                                className="flex items-center gap-2 group/like py-2 px-1 -my-2 -mx-1"
+                            >
                                 <Heart
-                                    size={13}
+                                    size={16}
                                     strokeWidth={3}
                                     className={`cursor-pointer transition-all ${isLiked ? 'fill-red-500 text-red-500 scale-125' : 'text-gray-400 hover:text-red-400 hover:scale-110'}`}
                                 />
                                 {likeCount > 0 && (
-                                    <span className={`text-[11px] font-black ${isLiked ? 'text-red-500/80' : 'text-gray-400'}`}>
+                                    <span className={`text-[12px] font-black ${isLiked ? 'text-red-500/80' : 'text-gray-400'}`}>
                                         {likeCount}
                                     </span>
                                 )}
@@ -157,7 +161,7 @@ const Comment = ({ comment, onReply, allComments = [], depth = 0 }) => {
                         {/* Reply button */}
                         <button
                             onClick={() => onReply(comment)}
-                            className='text-[11px] font-extrabold text-gray-400 hover:text-indigo-600 transition-all uppercase tracking-widest active:scale-95'
+                            className='text-[11px] font-extrabold text-gray-400 hover:text-indigo-600 transition-all uppercase tracking-widest active:scale-95 py-2'
                         >
                             Reply
                         </button>
@@ -226,6 +230,7 @@ const Comment = ({ comment, onReply, allComments = [], depth = 0 }) => {
                             onReply={onReply}
                             allComments={allComments}
                             depth={depth + 1}
+                            isReel={isReel}
                         />
                     ))}
                 </div>

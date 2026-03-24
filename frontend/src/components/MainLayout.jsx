@@ -8,13 +8,15 @@ const MainLayout = () => {
   useGetNotifications();
   const location = useLocation();
   const isReelsPage = location.pathname.startsWith('/reels');
+  const isChatPage = location.pathname.startsWith('/chat');
+  const hideHeader = isReelsPage || isChatPage;
 
   return (
     <div className="bg-[#F6F7FB] min-h-screen">
       <LeftSidebar />
       <div className="sm:ml-[280px] ml-0 transition-all duration-300">
-        {!isReelsPage && <Header />}
-        <main className={`${!isReelsPage ? 'pt-[70px]' : ''} min-h-screen px-4 sm:px-10`}>
+        {!hideHeader && <Header />}
+        <main className={`${!hideHeader ? 'pt-[70px]' : ''} min-h-screen px-4 sm:px-10`}>
           <Outlet />
         </main>
       </div>

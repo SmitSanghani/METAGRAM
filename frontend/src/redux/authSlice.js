@@ -130,10 +130,23 @@ const authSlice = createSlice({
             } else {
                 state.user.mutedUsers.push(userId);
             }
+        },
+        addUserProfileReel: (state, action) => {
+            if (state.userProfile && (state.userProfile._id === action.payload.author?._id || state.userProfile._id === action.payload.author)) {
+                if (!state.userProfile.reels) state.userProfile.reels = [];
+                state.userProfile.reels = [action.payload, ...state.userProfile.reels];
+            }
+        },
+        removeUserProfileReel: (state, action) => {
+            const reelId = action.payload;
+            if (state.userProfile) {
+                state.userProfile.reels = state.userProfile.reels?.filter(r => r._id !== reelId);
+                state.userProfile.savedReels = state.userProfile.savedReels?.filter(r => r._id !== reelId);
+            }
         }
     }
 });
 
-export const { setTheme, setAuthUser, setToken, setSuggestedUsers, setUserProfile, updateSuggestedUser, setFollowRelationship, updateUserProfileReelStats, removeUserProfileReelComment, editUserProfileReelComment, updateUserProfileReelCommentLikes, toggleMuteUserAction } = authSlice.actions;
+export const { setTheme, setAuthUser, setToken, setSuggestedUsers, setUserProfile, updateSuggestedUser, setFollowRelationship, updateUserProfileReelStats, removeUserProfileReelComment, editUserProfileReelComment, updateUserProfileReelCommentLikes, toggleMuteUserAction, addUserProfileReel, removeUserProfileReel } = authSlice.actions;
 export default authSlice.reducer;
 

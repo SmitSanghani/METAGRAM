@@ -135,7 +135,7 @@ const PostManagement = () => {
             ) : posts.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
                     {posts.map((post) => (
-                        <div key={post._id} className="bg-white rounded-[32px] border border-gray-100 overflow-hidden group shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                        <div key={post._id} className="bg-white rounded-[18px] border border-gray-100 overflow-hidden group shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
                             {/* Post Image */}
                             <div className="relative aspect-square overflow-hidden bg-gray-50">
                                 <img src={post.image} alt="post" className="w-full h-full object-cover" />
@@ -178,7 +178,7 @@ const PostManagement = () => {
                     ))}
                 </div>
             ) : (
-                <div className="text-center py-20 text-gray-400 font-bold uppercase tracking-widest bg-white rounded-[32px] border border-dashed border-gray-200">
+                <div className="text-center py-20 text-gray-400 font-bold uppercase tracking-widest bg-white rounded-[18px] border border-dashed border-gray-200">
                     No posts found on the platform
                 </div>
             )}

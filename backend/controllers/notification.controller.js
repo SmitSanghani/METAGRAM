@@ -6,7 +6,7 @@ export const getNotifications = async (req, res) => {
         const notifications = await Notification.find({ receiver: userId })
             .populate("sender", "username profilePicture")
             .populate("post", "image")
-            .populate("story", "mediaUrl mediaType")
+            .populate("story", "mediaUrl mediaType createdAt")
             .populate("reel", "thumbnail videoUrl")
             .sort({ createdAt: -1 });
 

@@ -325,17 +325,20 @@ export const likeOrUnlikeComment = async (req, res) => {
             await comment.updateOne({ $addToSet: { likes: userId } });
 
             // Notification to comment author
-            if (comment.author.toString() !== userId) {
-                const notification = await Notification.create({
-                    sender: userId,
-                    receiver: comment.author,
-                    type: 'reel_comment_like',
-                    reel: comment.reel,
-                    comment: commentId
-                });
-                await notification.populate("sender", "username profilePicture");
-                const receiverSocketId = getReceiverSocketId(comment.author);
-                if (receiverSocketId) io.to(receiverSocketId).emit('notification', notification);
+            try {
+                if (comment.author.toString() !== userId.toString()) {
+                    const notification = await Notification.create({
+                        sender: userId,
+                        receiver: comment.author,
+                        type: 'reel_comment_like',
+                        reel: comment.reel
+                    });
+                    await notification.populate("sender", "username profilePicture");
+                    const receiverSocketId = getReceiverSocketId(comment.author);
+                    if (receiverSocketId) io.to(receiverSocketId).emit('notification', notification);
+                }
+            } catch (notifErr) {
+                console.log("Notification error (non-blocking):", notifErr.message);
             }
 
             const updatedLikes = [...comment.likes, userId];

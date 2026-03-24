@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import api from '@/api';
 import { useDispatch, useSelector } from 'react-redux';
 import { addReel } from '@/redux/reelSlice';
+import { addUserProfileReel } from '@/redux/authSlice';
 
 const ReelUploadModal = ({ open, setOpen }) => {
     const videoRef = useRef();
@@ -53,7 +54,9 @@ const ReelUploadModal = ({ open, setOpen }) => {
                 headers: { "Content-Type": "multipart/form-data" }
             });
             if (res.data.success) {
-                dispatch(addReel(res.data.reel));
+                const newReel = res.data.reel;
+                dispatch(addReel(newReel));
+                dispatch(addUserProfileReel(newReel));
                 toast.success(res.data.message);
                 setOpen(false);
                 setFile(null);

@@ -85,9 +85,9 @@ const ReelManagement = () => {
             ) : reels.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {reels.map((reel) => (
-                        <div key={reel._id} className="bg-white rounded-[32px] border border-gray-100 overflow-hidden group shadow-sm hover:shadow-xl transition-all duration-300">
+                        <div key={reel._id} className="bg-white rounded-[18px] border border-gray-100 overflow-hidden group shadow-sm hover:shadow-xl transition-all duration-300">
                             {/* Video Preview */}
-                            <div className="relative aspect-[9/16] bg-black cursor-pointer" onClick={() => viewReelHandler(reel)}>
+                            <div className="relative aspect-[4/5] bg-black cursor-pointer" onClick={() => viewReelHandler(reel)}>
                                 <video 
                                     src={reel.videoUrl} 
                                     className="w-full h-full object-cover opacity-80"

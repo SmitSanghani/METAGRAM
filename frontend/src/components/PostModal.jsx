@@ -8,35 +8,54 @@ import { FaHeart, FaRegHeart } from "react-icons/fa";
 import api from '@/api';
 import { toast } from 'sonner';
 import { setPosts, setSelectedPost } from '@/redux/postSlice';
+import { setAuthUser, setUserProfile } from '@/redux/authSlice';
 import SaveButton from './SaveButton';
 import SharePostModal from './SharePostModal';
 import CommentDialog from './CommentDialog';
 
-const PostModal = ({ open, setOpen, post }) => {
-    const { user } = useSelector(store => store.auth);
+const PostModal = ({ open, setOpen, post, onOpenComment }) => {
+    const { user, userProfile } = useSelector(store => store.auth);
     const { posts } = useSelector(store => store.post);
     const dispatch = useDispatch();
     const [showShare, setShowShare] = React.useState(false);
     const [showComments, setShowComments] = React.useState(false);
+    const [showMoreOptions, setShowMoreOptions] = React.useState(false);
     const [currentMediaIndex, setCurrentMediaIndex] = React.useState(0);
     const scrollRef = React.useRef(null);
 
-    const liked = post?.likes?.some(id => (id._id || id) === user?._id);
+    React.useEffect(() => {
+        if (open) {
+            document.body.classList.add('post-modal-open');
+        } else {
+            document.body.classList.remove('post-modal-open');
+        }
+        return () => document.body.classList.remove('post-modal-open');
+    }, [open]);
+
+    const liked = post?.likes?.some(id => (id._id || id).toString() === user?._id?.toString());
     const images = (post?.images && post?.images.length > 0) ? post.images : (post?.image ? [post.image] : []);
 
     const handleLike = async (e) => {
-        e.stopPropagation();
+        if (e) e.stopPropagation();
         try {
             const action = liked ? "dislike" : "like";
             const res = await api.get(`/post/${post._id}/${action}`);
             if (res.data.success) {
+                const updatedLikes = liked 
+                    ? post.likes.filter(id => (id._id || id).toString() !== user._id.toString())
+                    : [...(post.likes || []), user._id];
+                
+                const updatedPost = { ...post, likes: updatedLikes };
+                
+                // Update in posts list if it exists there
                 const updatedPostData = posts.map(p =>
-                    p._id === post._id ? {
-                        ...p,
-                        likes: liked ? p.likes.filter(id => (id._id || id) !== user._id) : [...p.likes, user._id]
-                    } : p
+                    p._id === post._id ? updatedPost : p
                 );
                 dispatch(setPosts(updatedPostData));
+                
+                // Also update selected post to reflect change in modal
+                dispatch(setSelectedPost(updatedPost));
+                
                 toast.success(res.data.message);
             }
         } catch (error) {
@@ -60,6 +79,45 @@ const PostModal = ({ open, setOpen, post }) => {
         }
     };
 
+    const deletePostHandler = async () => {
+        try {
+            const res = await api.delete(`/post/delete/${post?._id}`);
+            if (res.data.success) {
+                const updatedPostData = posts.filter((postItem) => postItem?._id !== post?._id);
+                dispatch(setPosts(updatedPostData));
+                toast.success(res.data.message);
+                setOpen(false);
+            }
+        } catch (error) {
+            toast.error(error.response?.data?.message || "Failed to delete post");
+        }
+    };
+
+    const bookmarkHandler = async () => {
+        try {
+            const res = await api.post(`/post/${post?._id}/bookmark`, {});
+            if (res.data.success) {
+                toast.success(res.data.message);
+
+                const isBookmarked = user?.bookmarks?.some(item => (typeof item === 'object' ? item._id : item).toString() === post._id.toString());
+                const updatedBookmarks = isBookmarked
+                    ? user.bookmarks.filter(item => (item._id || item).toString() !== post._id.toString())
+                    : [...user.bookmarks, post._id];
+                
+                dispatch(setAuthUser({ ...user, bookmarks: updatedBookmarks }));
+
+                if (userProfile && userProfile._id === user._id) {
+                    const updatedProfileBookmarks = isBookmarked
+                        ? userProfile.bookmarks.filter(p => (p._id || p).toString() !== post._id.toString())
+                        : [...userProfile.bookmarks, post];
+                    dispatch(setUserProfile({ ...userProfile, bookmarks: updatedProfileBookmarks }));
+                }
+            }
+        } catch (error) {
+            console.log(error);
+        }
+    };
+
     if (!post) return null;
 
     return (
@@ -67,7 +125,7 @@ const PostModal = ({ open, setOpen, post }) => {
             <Dialog open={open} onOpenChange={setOpen}>
                 <DialogContent hideClose className='max-w-[500px] w-[95vw] md:w-full p-0 flex flex-col bg-white max-h-[90vh] overflow-hidden rounded-[15px] sm:rounded-[24px] border-none shadow-2xl animate-in zoom-in-95 duration-300'>
                     <DialogTitle className="sr-only">Post by {post?.author?.username}</DialogTitle>
-                    <DialogDescription className="sr-only">Viewing post without comments</DialogDescription>
+                    <DialogDescription className="sr-only">Viewing shared post media and caption</DialogDescription>
                     
                     {/* Header */}
                     <div className='flex items-center justify-between px-5 py-4 border-b border-gray-50 shrink-0'>
@@ -82,10 +140,24 @@ const PostModal = ({ open, setOpen, post }) => {
                             </div>
                         </div>
                         <div className="flex items-center gap-1">
-                            <button className="p-2 hover:bg-gray-50 rounded-full text-gray-400 hover:text-gray-900 transition-colors">
-                                <MoreHorizontal size={20} />
-                            </button>
-                            <button onClick={() => setOpen(false)} className="p-2 hover:bg-gray-50 rounded-full text-gray-400 hover:text-red-500 transition-colors">
+                            <Dialog open={showMoreOptions} onOpenChange={setShowMoreOptions}>
+                                <DialogTrigger asChild>
+                                    <button className="p-2 hover:bg-gray-50 rounded-full text-gray-400 hover:text-gray-900 transition-colors cursor-pointer">
+                                        <MoreHorizontal size={20} />
+                                    </button>
+                                </DialogTrigger>
+                                <DialogContent className="p-0 border-none bg-white rounded-3xl overflow-hidden max-w-[400px] shadow-2xl flex flex-col items-center text-sm text-center">
+                                    <button className="w-full py-4 font-black text-[#ED4956] hover:bg-red-50 border-b border-gray-50 transition-colors">Report Content</button>
+                                    <button className="w-full py-4 font-black text-[#ED4956] hover:bg-red-50 border-b border-gray-50 transition-colors">Unfollow User</button>
+                                    {user?._id === post?.author?._id && (
+                                        <button onClick={deletePostHandler} className="w-full py-4 font-black text-[#ED4956] hover:bg-red-50 border-b border-gray-50 transition-colors">Delete Post</button>
+                                    )}
+                                    <button className='w-full font-bold py-4 hover:bg-gray-50 transition-colors border-b border-gray-50'>Add to Favorites</button>
+                                    <button onClick={() => { setShowMoreOptions(false); setShowShare(true); }} className='w-full font-bold py-4 hover:bg-gray-50 transition-colors border-b border-gray-50'>Share Post</button>
+                                    <button onClick={() => setShowMoreOptions(false)} className="w-full py-4 hover:bg-gray-100 font-black text-gray-400 transition-colors">Cancel</button>
+                                </DialogContent>
+                            </Dialog>
+                            <button onClick={() => setOpen(false)} className="p-2 hover:bg-gray-50 rounded-full text-gray-400 hover:text-red-500 transition-colors cursor-pointer">
                                 <X size={20} strokeWidth={2.5} />
                             </button>
                         </div>
@@ -106,6 +178,7 @@ const PostModal = ({ open, setOpen, post }) => {
                                                 className='w-full h-full object-contain'
                                                 src={img} 
                                                 alt={`post_img_${index}`}
+                                                onDoubleClick={handleLike}
                                             />
                                         </div>
                                     ))}
@@ -127,35 +200,56 @@ const PostModal = ({ open, setOpen, post }) => {
                                 </button>
                             </>
                         ) : (
-                            <img src={images[0]} className='w-full h-full object-contain' alt="post" />
+                            <img src={images[0]} className='w-full h-full object-contain' alt="post" onDoubleClick={handleLike} />
                         )}
                     </div>
 
                     {/* Footer */}
-                    <div className='p-5 flex flex-col gap-4 bg-white shrink-0 overflow-y-auto custom-scrollbar max-h-[40vh] sm:max-h-[30vh]'>
+                    <div className='p-5 flex flex-col gap-4 bg-white shrink-0 overflow-y-auto custom-scrollbar max-h-[40vh] sm:max-h-[30vh] font-medium'>
                         <div className='flex items-center justify-between shrink-0'>
                             <div className='flex items-center gap-5'>
                                 <button onClick={handleLike} className='hover:scale-110 active:scale-90 transition-transform'>
                                     {liked ? <FaHeart size={24} className='text-red-500' /> : <FaRegHeart size={24} className='text-gray-800' />}
                                 </button>
-                                <button onClick={() => setShowComments(true)} className='hover:scale-110 active:scale-90 transition-transform'>
+                                <button 
+                                    onClick={() => {
+                                        dispatch(setSelectedPost(post));
+                                        if (onOpenComment) {
+                                            onOpenComment();
+                                        } else {
+                                            setShowComments(true);
+                                        }
+                                    }} 
+                                    className='hover:scale-110 active:scale-90 transition-transform'
+                                >
                                     <MessageCircle size={24} className='text-gray-800' />
                                 </button>
                                 <button onClick={() => setShowShare(true)} className='hover:scale-110 active:scale-90 transition-transform'>
                                     <Send size={24} className='text-gray-800 -rotate-12' />
                                 </button>
                             </div>
-                            <SaveButton isSaved={user?.bookmarks?.some(item => (item._id || item) === post._id)} size={24} />
+                            <SaveButton 
+                                isSaved={user?.bookmarks?.some(item => (typeof item === 'object' ? item._id : item).toString() === post?._id?.toString())} 
+                                onClick={bookmarkHandler}
+                                size={24} 
+                            />
                         </div>
 
                         <div className='flex flex-col gap-1.5 shrink-0'>
                             <span className='font-bold text-[14px] text-gray-900'>{post.likes?.length || 0} likes</span>
-                            <p className='text-[14px] text-gray-800 leading-relaxed font-medium break-words'>
+                            <p className='text-[14px] text-gray-800 leading-relaxed break-words'>
                                 <span className='font-bold mr-2'>{post?.author?.username}</span>
                                 {post.caption}
                             </p>
                             <button 
-                                onClick={() => setShowComments(true)}
+                                onClick={() => {
+                                    dispatch(setSelectedPost(post));
+                                    if (onOpenComment) {
+                                        onOpenComment();
+                                    } else {
+                                        setShowComments(true);
+                                    }
+                                }}
                                 className='text-[12px] font-bold text-gray-400 mt-1 uppercase tracking-wider hover:text-indigo-600 transition-colors text-left w-max'
                             >
                                 View all {post.comments?.length || 0} comments

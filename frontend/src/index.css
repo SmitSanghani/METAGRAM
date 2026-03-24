@@ -81,6 +81,7 @@ div {
         opacity: 0;
         transform: translateY(10px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -116,6 +117,34 @@ div {
 .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
+}
+
+body.notifications-open {
+    overflow: hidden;
+}
+
+body.notifications-open .back-to-feed-btn {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(-20px);
+}
+
+/* Blur and Dim Sidebar when Modals are open */
+body.post-modal-open .LeftSidebar,
+body.comment-modal-open .LeftSidebar,
+body.share-modal-open .LeftSidebar {
+    filter: blur(2px);
+    background-color: transparent !important;
+    border-right-color: transparent !important;
+    z-index: 40 !important;
+    pointer-events: none;
+    transition: all 0.4s ease;
+}
+
+body.post-modal-open .sm\:ml-\[280px\],
+body.comment-modal-open .sm\:ml-\[280px\],
+body.share-modal-open .sm\:ml-\[280px\] {
+    margin-left: 280px !important;
 }
 
 @media (max-width: 640px) {

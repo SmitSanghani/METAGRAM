@@ -112,7 +112,7 @@ const CreatePost = ({ open, setOpen }) => {
                     <div className="w-8" /> {/* Spacer */}
                     <DialogTitle className='text-center font-bold text-[16px] text-[#262626]'>Create new post</DialogTitle>
                     <DialogDescription className="sr-only">Upload photos and write a caption for your new post</DialogDescription>
-                    <button 
+                    <button
                         onClick={() => setOpen(false)}
                         className="p-1 hover:bg-gray-100 rounded-full transition-colors text-gray-400 hover:text-black"
                     >
@@ -142,7 +142,7 @@ const CreatePost = ({ open, setOpen }) => {
                     {
                         imagePreviews.length > 0 && (
                             <div className='relative w-full aspect-square min-h-[300px] flex items-center justify-center rounded-xl overflow-hidden bg-gray-50 border border-gray-100 group shadow-sm'>
-                                <div 
+                                <div
                                     ref={scrollRef}
                                     onScroll={handleScroll}
                                     className="flex w-full h-full overflow-x-auto snap-x snap-mandatory no-scrollbar scroll-smooth"
@@ -153,42 +153,42 @@ const CreatePost = ({ open, setOpen }) => {
                                         </div>
                                     ))}
                                 </div>
-                                
+
                                 {imagePreviews.length > 1 && (
                                     <>
                                         <div className="absolute top-3 right-3 bg-black/70 backdrop-blur-sm text-white text-[11px] px-2.5 py-1 rounded-full font-semibold z-10 pointer-events-none tabular-nums">
                                             {currentIndex + 1} / {imagePreviews.length}
                                         </div>
-                                        <button 
+                                        <button
                                             onClick={(e) => { e.stopPropagation(); scrollToImage(currentIndex > 0 ? currentIndex - 1 : imagePreviews.length - 1); }}
                                             className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/95 hover:bg-white p-2 rounded-full shadow-md transition-all opacity-0 group-hover:opacity-100 z-20 hover:scale-110 active:scale-95 text-gray-800"
                                         >
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
                                         </button>
-                                        <button 
+                                        <button
                                             onClick={(e) => { e.stopPropagation(); scrollToImage(currentIndex < imagePreviews.length - 1 ? currentIndex + 1 : 0); }}
                                             className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/95 hover:bg-white p-2 rounded-full shadow-md transition-all opacity-0 group-hover:opacity-100 z-20 hover:scale-110 active:scale-95 text-gray-800"
                                         >
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
                                         </button>
                                     </>
                                 )}
 
-                                <button 
+                                <button
                                     onClick={() => removeImage(currentIndex)}
                                     className="absolute top-3 left-3 bg-red-500 hover:bg-red-600 text-white p-1.5 rounded-full shadow-lg transition-all z-20 hover:scale-110 active:scale-90"
                                     title="Remove this image"
                                 >
                                     <X size={14} strokeWidth={3} />
                                 </button>
-                                
+
                                 {/* Bottom pagination dots */}
                                 {imagePreviews.length > 1 && (
                                     <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
                                         {imagePreviews.map((_, i) => (
-                                            <div 
-                                                key={i} 
-                                                className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${i === currentIndex ? 'bg-white w-4' : 'bg-white/50'}`} 
+                                            <div
+                                                key={i}
+                                                className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${i === currentIndex ? 'bg-white w-4' : 'bg-white/50'}`}
                                             />
                                         ))}
                                     </div>
@@ -200,20 +200,20 @@ const CreatePost = ({ open, setOpen }) => {
                     {imagePreviews.length > 1 && (
                         <div className="flex gap-3 overflow-x-auto no-scrollbar py-2 px-1 min-h-[80px] items-center">
                             {imagePreviews.map((preview, index) => (
-                                <div 
-                                    key={index} 
+                                <div
+                                    key={index}
                                     onClick={() => onSelectThumbnail(index)}
                                     className={`relative flex-none w-14 h-14 rounded-lg overflow-hidden cursor-pointer border-2 transition-all duration-200 ${currentIndex === index ? 'border-[#0095F6] ring-2 ring-[#0095F6]/20 scale-105' : 'border-transparent opacity-50 hover:opacity-100 hover:scale-105'}`}
                                 >
                                     <img src={preview} alt="" className="w-full h-full object-cover" />
                                 </div>
                             ))}
-                            <button 
+                            <button
                                 onClick={() => imageRef.current.click()}
                                 className="flex-none w-14 h-14 rounded-lg border-2 border-dashed border-gray-200 flex items-center justify-center text-gray-400 hover:border-[#0095F6] hover:text-[#0095F6] hover:bg-blue-50/50 transition-all duration-200 group"
                                 title="Add more images"
                             >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="group-hover:scale-110 transition-transform"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="group-hover:scale-110 transition-transform"><path d="M5 12h14" /><path d="M12 5v14" /></svg>
                             </button>
                         </div>
                     )}
@@ -253,9 +253,9 @@ const CreatePost = ({ open, setOpen }) => {
                                     Please wait...
                                 </Button>
                             ) : (
-                                <Button 
-                                    onClick={createPostHandler} 
-                                    type="submit" 
+                                <Button
+                                    onClick={createPostHandler}
+                                    type="submit"
                                     disabled={!postsEnabled && user?.role !== 'admin'}
                                     className={`w-full text-white font-bold h-10 rounded-lg mt-4 shadow-none ${(!postsEnabled && user?.role !== 'admin') ? 'bg-gray-300 pointer-events-none' : 'bg-[#0095F6] hover:bg-[#1877F2]'}`}
                                 >

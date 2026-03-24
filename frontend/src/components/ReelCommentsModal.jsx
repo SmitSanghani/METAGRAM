@@ -49,12 +49,20 @@ const ReelCommentsModal = ({ reelId, comments: initialComments = [], open, setOp
             }
         };
 
+        const handleUpdateCommentLikes = ({ commentId, reelId: cReelId, likes }) => {
+            if (cReelId === reelId) {
+                dispatch({ type: 'reel/updateReelCommentLikes', payload: { reelId, commentId, likes } });
+            }
+        };
+
         socket.on('deleteReelComment', handleDeleteComment);
         socket.on('editReelComment', handleEditComment);
+        socket.on('updateReelCommentLikes', handleUpdateCommentLikes);
 
         return () => {
             socket.off('deleteReelComment', handleDeleteComment);
             socket.off('editReelComment', handleEditComment);
+            socket.off('updateReelCommentLikes', handleUpdateCommentLikes);
         };
     }, [socket, reelId, open, dispatch]);
 
@@ -97,14 +105,14 @@ const ReelCommentsModal = ({ reelId, comments: initialComments = [], open, setOp
     const CommentItem = ({ comment, depth = 0 }) => {
         const isReply = depth > 0;
         const replies = (comments || []).filter(c => c && c.parentId === comment._id);
-        const [isLiked, setIsLiked] = useState(comment.likes?.includes(user?._id));
+        const [isLiked, setIsLiked] = useState(comment.likes?.some(id => id?.toString() === user?._id?.toString()));
         const [likeCount, setLikeCount] = useState(comment.likes?.length || 0);
         const [isEditing, setIsEditing] = useState(false);
         const [editValue, setEditValue] = useState(comment.text);
         const [showReplies, setShowReplies] = useState(false);
 
         React.useEffect(() => {
-            setIsLiked(comment.likes?.includes(user?._id));
+            setIsLiked(comment.likes?.some(id => id?.toString() === user?._id?.toString()));
             setLikeCount(comment.likes?.length || 0);
         }, [comment.likes, user?._id]);
 
@@ -186,27 +194,34 @@ const ReelCommentsModal = ({ reelId, comments: initialComments = [], open, setOp
                                 ) : comment.text}
                             </p>
                         </div>
-                        <div className="flex items-center gap-4 mt-1.5 ml-2">
-                            <button onClick={handleLike} className="flex items-center gap-1.5 group/like">
-                                <Heart size={isReply ? 11 : 13} strokeWidth={3} className={`transition-all ${isLiked ? 'fill-red-500 text-red-500 scale-110' : 'text-gray-400 hover:text-red-500'}`} />
+                        <div className="flex items-center gap-6 mt-2 ml-4">
+                            <button
+                                onClick={handleLike}
+                                className="flex items-center gap-2 group/like py-2 px-1 -my-2 -mx-1"
+                            >
+                                <Heart
+                                    size={16}
+                                    strokeWidth={3}
+                                    className={`transition-all ${isLiked ? 'fill-red-500 text-red-500 scale-125' : 'text-gray-400 hover:text-red-500 hover:scale-110'}`}
+                                />
                                 {likeCount > 0 && (
                                     <span className={`font-black tracking-tight ${isReply ? 'text-[10px]' : 'text-[12px]'} ${isLiked ? 'text-red-500' : 'text-gray-600'}`}>
                                         {likeCount}
                                     </span>
                                 )}
-                                <span className={`font-bold tracking-tight uppercase ${isReply ? 'text-[9px]' : 'text-[11px]'} ${isLiked ? 'text-red-500' : 'text-gray-400'}`}>
+                                <span className={`font-black tracking-tight uppercase ${isReply ? 'text-[9px]' : 'text-[11px]'} ${isLiked ? 'text-red-500' : 'text-gray-400'}`}>
                                     {isLiked ? 'Liked' : 'Like'}
                                 </span>
                             </button>
                             <button
                                 onClick={() => setReplyingTo(comment)}
-                                className={`font-extrabold text-gray-400 hover:text-indigo-600 transition-all uppercase tracking-widest active:scale-95 ${isReply ? 'text-[9px]' : 'text-[11px]'}`}
+                                className={`font-extrabold text-gray-400 hover:text-indigo-600 transition-all uppercase tracking-widest active:scale-95 py-2 ${isReply ? 'text-[9px]' : 'text-[11px]'}`}
                             >
                                 Reply
                             </button>
 
                             {user?._id === comment.author?._id && !isEditing && (
-                                <button onClick={() => setIsEditing(true)} className="text-[11px] font-extrabold text-gray-400 hover:text-indigo-600 transition-all uppercase tracking-widest active:scale-95">
+                                <button onClick={() => setIsEditing(true)} className="text-[11px] font-extrabold text-gray-400 hover:text-indigo-600 transition-all uppercase tracking-widest active:scale-95 py-2">
                                     Edit
                                 </button>
                             )}
@@ -214,7 +229,7 @@ const ReelCommentsModal = ({ reelId, comments: initialComments = [], open, setOp
                             {user?._id === comment.author?._id && (
                                 <button
                                     onClick={() => deleteReelCommentHandler(comment._id)}
-                                    className="text-red-300 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100"
+                                    className="text-red-300 hover:text-red-500 transition-all opacity-0 group-hover:opacity-100 p-2"
                                 >
                                     <Trash2 size={12} strokeWidth={2.5} />
                                 </button>
@@ -256,7 +271,7 @@ const ReelCommentsModal = ({ reelId, comments: initialComments = [], open, setOp
                         </div>
                         <div className="flex items-center gap-3">
                             <div className="w-12 h-1.5 bg-gray-100 rounded-full sm:hidden" />
-                            <button 
+                            <button
                                 onClick={() => setOpen(false)}
                                 className="p-2 hover:bg-gray-100 rounded-full transition-all text-gray-400 hover:text-black active:scale-90"
                                 aria-label="Close"

@@ -126,7 +126,7 @@ const NotificationDropdown = ({ onClose }) => {
     };
 
     return (
-        <div className="absolute top-0 left-full h-screen w-[340px] bg-[#FAFAFA] border-r border-[#F0F0F0] shadow-2xl z-50 flex flex-col">
+        <div className="absolute top-0 left-full h-screen w-[340px] bg-[#FAFAFA] border-r border-[#F0F0F0] shadow-2xl z-[110] flex flex-col">
             <div className="p-6 border-b border-indigo-500 flex items-center justify-between bg-gradient-to-r from-[#4F46E5] to-[#7C3AED] text-white">
                 <h2 className="text-xl font-bold tracking-tight">Notifications</h2>
                 <div className="flex gap-4 items-center">
@@ -200,24 +200,15 @@ const NotificationDropdown = ({ onClose }) => {
                                     {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}
                                 </div>
 
-                                {/* Reply + Mark as read actions for message-type notifications */}
-                                {(n.type === 'message' || n.type === 'comment' || n.type === 'story_comment' || n.type === 'like' || n.type === 'story_like') && (
+                                {/* Mark as read action for message-type notifications */}
+                                {(n.type === 'message' || n.type === 'comment' || n.type === 'story_comment' || n.type === 'like' || n.type === 'story_like') && !n.read && (
                                     <div className="flex items-center gap-2 mt-2.5">
                                         <button
-                                            onClick={(e) => handleReply(e, n)}
-                                            className="flex items-center justify-center gap-1 text-[11px] font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-1.5 rounded-full transition-all active:scale-95 shadow-sm shadow-indigo-100 whitespace-nowrap"
+                                            onClick={(e) => handleMarkMessageAsRead(e, n)}
+                                            className="flex items-center justify-center text-[11px] font-bold text-gray-500 bg-gray-100 hover:bg-gray-200 hover:text-gray-700 px-4 py-1.5 rounded-full transition-all active:scale-95 whitespace-nowrap"
                                         >
-                                            <Reply size={12} strokeWidth={2.5} />
-                                            <span>Reply</span>
+                                            Mark as read
                                         </button>
-                                        {!n.read && (
-                                            <button
-                                                onClick={(e) => handleMarkMessageAsRead(e, n)}
-                                                className="flex items-center justify-center text-[11px] font-bold text-gray-500 bg-gray-100 hover:bg-gray-200 hover:text-gray-700 px-4 py-1.5 rounded-full transition-all active:scale-95 whitespace-nowrap"
-                                            >
-                                                Mark as read
-                                            </button>
-                                        )}
                                     </div>
                                 )}
                             </div>
@@ -246,7 +237,6 @@ const NotificationDropdown = ({ onClose }) => {
                                 >
                                     <Trash2 size={16} strokeWidth={2} />
                                 </button>
-                                {!n.read && <div className="w-2.5 h-2.5 rounded-full bg-[#4F46E5] shadow-sm shrink-0 mb-1"></div>}
                             </div>
                         </div>
                     ))

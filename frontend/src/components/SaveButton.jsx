@@ -22,13 +22,15 @@ const SaveButton = ({ isSaved, onClick, size = 22, className = "" }) => {
                 >
                     {isSaved ? (
                         <FaBookmark
-                            size={size - 2}
-                            className="text-black transition-all scale-110"
+                            size={size}
+                            color="#000000"
+                            className="transition-all"
                         />
                     ) : (
                         <FaRegBookmark
-                            size={size - 2}
-                            className="text-[#333] hover:text-[#4F46E5] hover:scale-110 transition-all opacity-60"
+                            size={size}
+                            color="#000000"
+                            className="transition-all opacity-90"
                         />
                     )}
                 </motion.div>
