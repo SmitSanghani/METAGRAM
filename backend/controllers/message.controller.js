@@ -312,8 +312,11 @@ export const deleteMessage = async (req, res) => {
         await conversation.save();
 
         const roomId = conversation._id.toString();
-        // Broadcast to everyone in the room (Group or 1v1 room)
-        io.to(roomId).emit("message_deleted", { messageId, conversationId: roomId });
+        // Broadcast to all participants globally so sidebar updates even if chat isn't open
+        conversation.participants.forEach(pId => {
+            const userId = pId._id ? pId._id.toString() : pId.toString();
+            broadcastToUser(userId, "message_deleted", { messageId, conversationId: roomId });
+        });
 
         res.status(200).json({ success: true, message: "Message unsent" });
     } catch (error) {
@@ -566,8 +569,11 @@ export const updateGroup = async (req, res) => {
             updatedAt: conversation.updatedAt
         };
 
-        // Notify everyone
-        io.to(conversation._id.toString()).emit("group_updated", updatedGroup);
+        // Notify everyone globally 
+        conversation.participants.forEach(p => {
+            const pId = p._id ? p._id.toString() : p.toString();
+            broadcastToUser(pId, "group_updated", updatedGroup);
+        });
 
         res.status(200).json({ success: true, group: updatedGroup });
     } catch (error) {
