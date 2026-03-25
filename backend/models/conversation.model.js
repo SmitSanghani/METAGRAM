@@ -17,10 +17,12 @@ const messageSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 const conversationschema = new mongoose.Schema({
-    participants: [{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User'
-    }],
+    participants: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    clearedAt: {
+        type: Map,
+        of: Date,
+        default: {}
+    },
     isGroup: { type: Boolean, default: false },
     groupName: { type: String },
     groupProfilePicture: { type: String },

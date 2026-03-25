@@ -313,13 +313,13 @@ const ChatPage = () => {
         if (!userToDelete) return;
 
         const result = await Swal.fire({
-            title: 'Delete Chat?',
-            text: `Are you sure you want to delete the entire chat with ${username}? This action cannot be undone.`,
+            title: 'Clear Chat history?',
+            text: `Are you sure you want to clear your chat history with ${username}? This will only delete the conversation for you, and not the other user.`,
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#ef4444',
             cancelButtonColor: '#94a3b8',
-            confirmButtonText: 'Yes, delete it!',
+            confirmButtonText: 'Yes, clear it!',
             background: '#ffffff',
             borderRadius: '24px',
             customClass: {
@@ -334,11 +334,13 @@ const ChatPage = () => {
         try {
             const res = await api.delete(`/message/delete-chat/${userToDelete}`);
             if (res.data.success) {
-                toast.success("Chat deleted successfully");
+                toast.success("Chat history cleared");
                 dispatch(clearChat(userToDelete));
-                if (selectedUser?._id === userToDelete) {
-                    dispatch(setSelectedUser(null));
-                }
+                
+                // Optional: Do NOT set selectedUser(null) if you want it to stay open but empty
+                // if (selectedUser?._id === userToDelete) {
+                //     dispatch(setSelectedUser(null));
+                // }
             }
         } catch (error) {
             console.error(error);

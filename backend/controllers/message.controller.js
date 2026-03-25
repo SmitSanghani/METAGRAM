@@ -240,7 +240,12 @@ export const getMessages = async (req, res) => {
             await conversation.save();
         }
 
-        const populatedMessages = conversation.messages.map(msg => {
+        const clearTime = conversation.clearedAt?.get(senderId.toString());
+        const filteredMessages = clearTime 
+            ? conversation.messages.filter(msg => new Date(msg.createdAt) > new Date(clearTime))
+            : conversation.messages;
+
+        const populatedMessages = filteredMessages.map(msg => {
             const msgObj = msg.toObject();
             if (msgObj.replyTo) {
                 const parent = conversation.messages.id(msgObj.replyTo);
@@ -427,9 +432,15 @@ export const getUnreadCounts = async (req, res) => {
         const unreadCounts = {};
         conversations.forEach(conv => {
             const currentUserIdStr = String(userId);
+            const clearTime = conv.clearedAt?.get(currentUserIdStr);
+            
+            const filteredMessages = clearTime
+                ? conv.messages.filter(msg => new Date(msg.createdAt) > new Date(clearTime))
+                : conv.messages;
+
             if (conv.isGroup) {
                 // For Groups: Key is conversation ID, check seenBy array
-                const count = conv.messages.filter(msg => 
+                const count = filteredMessages.filter(msg => 
                     String(msg.senderId) !== currentUserIdStr && !msg.seenBy.some(id => String(id) === currentUserIdStr)
                 ).length;
                 unreadCounts[conv._id.toString()] = count;
@@ -437,7 +448,7 @@ export const getUnreadCounts = async (req, res) => {
                 // For 1v1: Key is other person's ID, check seen flag
                 const otherParticipant = conv.participants.find(p => p.toString() !== currentUserIdStr);
                 if (otherParticipant) {
-                    const count = conv.messages.filter(msg =>
+                    const count = filteredMessages.filter(msg =>
                         msg.senderId.toString() === otherParticipant.toString() && !msg.seen
                     ).length;
                     unreadCounts[otherParticipant.toString()] = count;
@@ -461,7 +472,7 @@ export const deleteConversation = async (req, res) => {
             return res.status(400).json({ success: false, message: "Invalid target ID" });
         }
 
-        const conversation = await Conversation.findOneAndDelete({
+        const conversation = await Conversation.findOne({
             $or: [
                 { _id: targetId, participants: senderId }, // Group or ID based
                 { participants: { $all: [senderId, targetId], $size: 2 }, isGroup: false } // 1v1
@@ -472,7 +483,14 @@ export const deleteConversation = async (req, res) => {
             return res.status(404).json({ success: false, message: "Conversation not found" });
         }
 
-        res.status(200).json({ success: true, message: "Chat deleted successfully" });
+        // "Delete for Me": Store the timestamp when the user cleared this chat
+        if (!conversation.clearedAt) conversation.clearedAt = new Map();
+        conversation.clearedAt.set(senderId.toString(), new Date());
+
+        // For individual messages, we could also hide them, but using a single 'clearedAt' point is cleaner
+        await conversation.save();
+
+        res.status(200).json({ success: true, message: "Chat history cleared for you" });
     } catch (error) {
         console.error(error);
         res.status(500).json({ success: false, message: "Internal server error" });

@@ -115,7 +115,7 @@ const chatSlice = createSlice({
                 }
             }
         },
-        markStoryUnsent: (state, action) => {
+            markStoryUnsent: (state, action) => {
             const { storyId } = action.payload;
             state.messages.forEach(msg => {
                 if (msg.storyId === storyId) {
@@ -143,7 +143,11 @@ const chatSlice = createSlice({
             if (state.lastMessages && state.lastMessages[userId]) {
                 delete state.lastMessages[userId];
             }
-            state.chatUsers = state.chatUsers.filter(u => String(u._id) !== userId);
+            if (state.unreadCounts) {
+                state.unreadCounts[userId] = 0;
+            }
+            // Do NOT remove user from sidebar
+            // state.chatUsers = state.chatUsers.filter(u => String(u._id) !== userId);
         }
     }
 });
