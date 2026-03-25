@@ -311,8 +311,9 @@ export const deleteMessage = async (req, res) => {
         message.isDeleted = true;
         await conversation.save();
 
-        broadcastToUser(message.receiverId, "message_deleted", { messageId });
-        broadcastToUser(message.senderId, "message_deleted", { messageId });
+        const roomId = conversation._id.toString();
+        // Broadcast to everyone in the room (Group or 1v1 room)
+        io.to(roomId).emit("message_deleted", { messageId, conversationId: roomId });
 
         res.status(200).json({ success: true, message: "Message unsent" });
     } catch (error) {
@@ -526,6 +527,47 @@ export const addGroupMembers = async (req, res) => {
         conversation.participants.forEach(p => {
             broadcastToUser(p._id.toString(), "group_updated", updatedGroup);
         });
+
+        res.status(200).json({ success: true, group: updatedGroup });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false });
+    }
+};
+
+export const updateGroup = async (req, res) => {
+    try {
+        const senderId = req.id;
+        const { conversationId, groupName, groupProfilePicture } = req.body;
+
+        const conversation = await Conversation.findById(conversationId);
+        if (!conversation) return res.status(404).json({ success: false });
+        if (!conversation.isGroup) return res.status(400).json({ success: false });
+
+        // Check if admin
+        if (!conversation.groupAdmin.some(adminId => String(adminId) === String(senderId))) {
+            return res.status(403).json({ success: false, message: "Only admins can edit group" });
+        }
+
+        if (groupName) conversation.groupName = groupName;
+        if (groupProfilePicture) conversation.groupProfilePicture = groupProfilePicture;
+
+        await conversation.save();
+        await conversation.populate('participants', 'username profilePicture');
+
+        const updatedGroup = {
+            _id: conversation._id,
+            username: conversation.groupName,
+            profilePicture: conversation.groupProfilePicture,
+            isGroup: true,
+            participants: conversation.participants,
+            groupAdmin: conversation.groupAdmin,
+            conversationId: conversation._id,
+            updatedAt: conversation.updatedAt
+        };
+
+        // Notify everyone
+        io.to(conversation._id.toString()).emit("group_updated", updatedGroup);
 
         res.status(200).json({ success: true, group: updatedGroup });
     } catch (error) {

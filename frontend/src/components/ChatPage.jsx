@@ -621,7 +621,7 @@ const ChatPage = () => {
                                             <div className="flex justify-between items-center w-full">
                                                 <div className="flex items-center gap-1.5 overflow-hidden">
                                                     <span className={`text-[15px] truncate font-black ${isSelected ? 'text-[#111]' : 'text-[#262626]'}`}>
-                                                        {suggestedUser.isGroup && String(suggestedUser.groupAdmin?.[0] || suggestedUser.groupAdmin) === String(user?._id) ? user.username : suggestedUser?.username}
+                                                        {suggestedUser?.username}
                                                     </span>
                                                     {unreadCount > 0 && !isSelected && (
                                                         <div className="w-2 h-2 bg-blue-500 rounded-full shrink-0"></div>
@@ -734,7 +734,7 @@ const ChatPage = () => {
                                     onClick={() => !selectedUser.isGroup && navigate(`/profile/${selectedUser?._id}`)}
                                 >
                                     <span className='font-black text-[18px] text-[#111] leading-none mb-1.5'>
-                                        {selectedUser.isGroup && String(selectedUser.groupAdmin?.[0] || selectedUser.groupAdmin) === String(user?._id) ? user.username : selectedUser.username}
+                                        {selectedUser?.username}
                                     </span>
                                     <div className="flex items-center gap-1.5">
                                         <span className={`text-[11px] font-black uppercase tracking-wider ${onlineUsers.includes(selectedUser?._id) || selectedUser.isGroup ? 'text-green-500' : 'text-gray-400'}`}>
@@ -1209,7 +1209,40 @@ const ChatPage = () => {
                                     <Users size={16} strokeWidth={2.5} />
                                 </div>
                             </div>
-                            <h3 className="text-[24px] font-black text-[#111] tracking-tight">{selectedUser.username}</h3>
+                            <div className="flex items-center gap-2 group/edit">
+                                <h3 className="text-[24px] font-black text-[#111] tracking-tight">{selectedUser.username}</h3>
+                                {selectedUser.groupAdmin.some(adminId => String(adminId) === String(user?._id)) && (
+                                    <button 
+                                        className="p-1.5 rounded-full hover:bg-gray-100 text-gray-400 opacity-0 group-hover/edit:opacity-100 transition-all"
+                                        onClick={async () => {
+                                            const { value: newName } = await Swal.fire({
+                                                title: 'Rename Group',
+                                                input: 'text',
+                                                inputLabel: 'New group name',
+                                                inputValue: selectedUser.username,
+                                                showCancelButton: true,
+                                                inputValidator: (value) => {
+                                                    if (!value) return 'Please enter a name'
+                                                }
+                                            })
+                                            if (newName && newName !== selectedUser.username) {
+                                                try {
+                                                    const res = await api.post('/message/group/update', { conversationId: selectedUser.conversationId, groupName: newName });
+                                                    if (res.data.success) {
+                                                        dispatch(setSelectedUser({ ...selectedUser, username: newName }));
+                                                        dispatch(setChatUsers(chatUsers.map(u => String(u._id) === String(selectedUser._id) ? { ...u, username: newName } : u)));
+                                                        toast.success("Group renamed!");
+                                                    }
+                                                } catch (err) {
+                                                    toast.error("Failed to rename group");
+                                                }
+                                            }
+                                        }}
+                                    >
+                                        <Plus className="rotate-45" size={16} />
+                                    </button>
+                                )}
+                            </div>
                             <div className="mt-1.5 px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-[11px] font-black uppercase tracking-widest">
                                 {selectedUser.participants.length} Active Members
                             </div>

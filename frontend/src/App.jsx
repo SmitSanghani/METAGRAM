@@ -630,6 +630,24 @@ function App() {
         }
       });
 
+      socketio.on('message_deleted', ({ messageId, conversationId }) => {
+        // 1. Update the preview in the sidebar for ALL users
+        const targetId = String(conversationId);
+        const exists = chatUsersRef.current?.some(u => String(u._id) === targetId);
+        if (exists) {
+            dispatch(updateLastMessage({ 
+                userId: targetId, 
+                message: { _id: messageId, isDeleted: true, message: "Message unsent", createdAt: new Date().toISOString() } 
+            }));
+        }
+
+        // 2. Update the chat history if this chat is open
+        const openUser = selectedUserRef.current;
+        if (openUser && String(openUser._id) === targetId) {
+            dispatch(markUnsent({ messageId }));
+        }
+      });
+
       socketio.on('postCommentAdded', ({ postId, comment }) => {
         dispatch(addPostComment({ postId, comment }));
         dispatch(updateUserProfilePostStats({ postId, comment }));
