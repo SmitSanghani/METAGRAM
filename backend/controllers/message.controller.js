@@ -195,7 +195,53 @@ export const getMessages = async (req, res) => {
             return res.status(400).json({ success: false, message: "Invalid target ID" });
         }
 
-        let conversation = await Conversation.findById(targetId).populate([
+        // 1. Initial Fetch WITHOUT heavy population to avoid save validation errors
+        let conversation = await Conversation.findById(targetId);
+
+        if (!conversation) {
+            conversation = await Conversation.findOne({
+                isGroup: false,
+                participants: { $all: [senderId, targetId], $size: 2 }
+            });
+        }
+
+        if (!conversation) return res.status(200).json({ success: true, messages: [], conversationId: null });
+
+        // 2. Mark as seen on fetching (before population to keep save() safe)
+        let hasChanges = false;
+        const currentUserIdStr = senderId.toString();
+
+        if (conversation.isGroup) {
+            conversation.messages.forEach(msg => {
+                const msgSenderIdStr = msg.senderId.toString();
+                if (msgSenderIdStr !== currentUserIdStr) {
+                    if (!msg.seenBy.some(id => id.toString() === currentUserIdStr)) {
+                        msg.seenBy.push(senderId);
+                        hasChanges = true;
+                    }
+                }
+            });
+        } else {
+            const otherParticipantId = conversation.participants.find(p => p.toString() !== currentUserIdStr);
+            if (otherParticipantId) {
+                const otherIdStr = otherParticipantId.toString();
+                conversation.messages.forEach(msg => {
+                    const msgSenderIdStr = msg.senderId.toString();
+                    if (msgSenderIdStr === otherIdStr && !msg.seen) {
+                        msg.seen = true;
+                        hasChanges = true;
+                    }
+                });
+            }
+        }
+
+        if (hasChanges) {
+            conversation.markModified('messages');
+            await conversation.save();
+        }
+
+        // 3. Now populate EVERYTHING for the response
+        await conversation.populate([
             { path: 'participants', select: 'username profilePicture' },
             { path: 'messages.senderId', select: 'username profilePicture' },
             { path: 'messages.storyId', select: 'mediaUrl mediaType userId createdAt' },
@@ -203,48 +249,6 @@ export const getMessages = async (req, res) => {
             { path: 'messages.postId', select: 'image images caption author likes', populate: { path: 'author', select: 'username profilePicture' } },
             { path: 'messages.reactions.userId', select: 'username profilePicture' }
         ]);
-
-        if (!conversation) {
-            // Revert to 1v1 check if not a direct conversation ID
-            conversation = await Conversation.findOne({
-                isGroup: false,
-                participants: { $all: [senderId, targetId], $size: 2 }
-            }).populate([
-                { path: 'participants', select: 'username profilePicture' },
-                { path: 'messages.senderId', select: 'username profilePicture' },
-                { path: 'messages.storyId', select: 'mediaUrl mediaType userId createdAt' },
-                { path: 'messages.reelId', select: 'videoUrl caption author', populate: { path: 'author', select: 'username profilePicture' } },
-                { path: 'messages.postId', select: 'image images caption author likes', populate: { path: 'author', select: 'username profilePicture' } },
-                { path: 'messages.reactions.userId', select: 'username profilePicture' }
-            ]);
-        }
-
-        if (!conversation) return res.status(200).json({ success: true, messages: [], conversationId: null });
-
-        // Mark as seen when fetching
-        if (conversation) {
-            if (conversation.isGroup) {
-                conversation.messages.forEach(msg => {
-                    if (String(msg.senderId) !== String(senderId)) {
-                        if (!msg.seenBy) msg.seenBy = [];
-                        if (!msg.seenBy.includes(senderId)) {
-                            msg.seenBy.push(senderId);
-                        }
-                    }
-                });
-            } else {
-                const other = conversation.participants.find(p => p.toString() !== senderId.toString());
-                if (other) {
-                    conversation.messages.forEach(msg => {
-                        if (String(msg.senderId) === String(other) && !msg.seen) {
-                            msg.seen = true;
-                        }
-                    });
-                }
-            }
-            conversation.markModified('messages');
-            await conversation.save();
-        }
 
         const clearTime = conversation.clearedAt?.get(senderId.toString());
         const filteredMessages = clearTime 
@@ -577,9 +581,41 @@ export const addGroupMembers = async (req, res) => {
         }
 
         const newMembers = targetUserIds.filter(id => !conversation.participants.some(p => String(p) === String(id)));
-        conversation.participants.push(...newMembers);
-        await conversation.save();
-        await conversation.populate('participants', 'username profilePicture');
+        if (newMembers.length > 0) {
+            conversation.participants.push(...newMembers);
+            
+            // Create a "System Message" describing the additions
+            const admin = await User.findById(senderId).select("username");
+            const newUsers = await User.find({ _id: { $in: newMembers } }).select("username");
+            const usernames = newUsers.map(u => u.username).join(", ");
+            
+            const systemMessage = {
+                senderId: senderId,
+                message: `${admin.username} added ${usernames}`,
+                messageType: 'system'
+            };
+            
+            conversation.messages.push(systemMessage);
+            await conversation.save();
+
+            // Populate everything for the real-time message sync
+            await conversation.populate([
+                { path: 'participants', select: 'username profilePicture' },
+                { path: 'messages.senderId', select: 'username profilePicture' }
+            ]);
+
+            const savedMsg = conversation.messages[conversation.messages.length - 1];
+            const msgObj = savedMsg.toObject();
+            msgObj.conversationId = conversation._id.toString();
+            msgObj.isGroup = true;
+            msgObj.groupName = conversation.groupName;
+
+            // Broadcast the new system message
+            io.to(conversation._id.toString()).emit("receive_message", msgObj);
+        } else {
+            await conversation.save();
+            await conversation.populate('participants', 'username profilePicture');
+        }
 
         const updatedGroup = {
             _id: conversation._id,
@@ -592,9 +628,10 @@ export const addGroupMembers = async (req, res) => {
             updatedAt: conversation.updatedAt
         };
 
-        // Notify all participants (old and new) about the update
+        // Notify all participants about the group state update
         conversation.participants.forEach(p => {
-            broadcastToUser(p._id.toString(), "group_updated", updatedGroup);
+            const pid = p._id ? p._id.toString() : p.toString();
+            broadcastToUser(pid, "group_updated", updatedGroup);
         });
 
         res.status(200).json({ success: true, group: updatedGroup });
@@ -656,26 +693,46 @@ export const removeGroupMember = async (req, res) => {
         const conversation = await Conversation.findById(conversationId);
         if (!conversation) return res.status(404).json({ success: false });
         
-        // Admin can remove anyone, member can remove themselves
-        const isAdmin = conversation.groupAdmin.includes(senderId);
-        const isSelf = senderId === userId;
+        const isAdmin = conversation.groupAdmin.some(adminId => String(adminId) === String(senderId));
+        const isSelf = String(senderId) === String(userId);
 
         if (!isAdmin && !isSelf) {
             return res.status(403).json({ success: false, message: "Unauthorized" });
         }
 
-        conversation.participants = conversation.participants.filter(id => id.toString() !== userId);
+        const removedUser = await User.findById(userId).select("username");
+        const admin = await User.findById(senderId).select("username");
+        
+        conversation.participants = conversation.participants.filter(id => id.toString() !== String(userId));
         
         // If admin removed, assign new admin if any members left
-        if (conversation.groupAdmin.includes(userId)) {
-            conversation.groupAdmin = conversation.groupAdmin.filter(id => id.toString() !== userId);
+        if (conversation.groupAdmin.some(id => String(id) === String(userId))) {
+            conversation.groupAdmin = conversation.groupAdmin.filter(id => String(id) !== String(userId));
             if (conversation.groupAdmin.length === 0 && conversation.participants.length > 0) {
                 conversation.groupAdmin.push(conversation.participants[0]);
             }
         }
 
+        // Create System Message
+        const systemMessage = {
+            senderId: senderId,
+            message: isSelf ? `${removedUser?.username} left the group` : `${admin?.username} removed ${removedUser?.username}`,
+            messageType: 'system'
+        };
+        conversation.messages.push(systemMessage);
+        
         await conversation.save();
         await conversation.populate('participants', 'username profilePicture');
+        await conversation.populate('messages.senderId', 'username profilePicture');
+
+        const savedMsg = conversation.messages[conversation.messages.length - 1];
+        const msgObj = savedMsg.toObject();
+        msgObj.conversationId = conversation._id.toString();
+        msgObj.isGroup = true;
+        msgObj.groupName = conversation.groupName;
+
+        // Broadcast the system message
+        io.to(conversation._id.toString()).emit("receive_message", msgObj);
 
         const updatedGroup = {
             _id: conversation._id,

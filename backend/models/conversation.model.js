@@ -4,7 +4,7 @@ const messageSchema = new mongoose.Schema({
     senderId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     receiverId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // Optional for groups
     message: { type: String, default: "" },
-    messageType: { type: String, enum: ['text', 'image', 'video', 'gif', 'story_reply', 'story_reaction', 'reel', 'post', 'file'], default: 'text' },
+    messageType: { type: String, enum: ['text', 'image', 'video', 'gif', 'story_reply', 'story_reaction', 'reel', 'post', 'file', 'system'], default: 'text' },
     mediaUrl: { type: String, default: "" },
     storyId: { type: mongoose.Schema.Types.ObjectId, ref: 'Story' },
     reelId: { type: mongoose.Schema.Types.ObjectId, ref: 'Reel' },

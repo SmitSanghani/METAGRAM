@@ -53,7 +53,7 @@ const chatSlice = createSlice({
             }
         },
         removeTempMessage: (state, action) => {
-            const { tempId } = action.payload;
+            const tempId = action.payload;
             state.messages = state.messages.filter(m => m.tempId !== tempId);
         },
         updateLastMessage: (state, action) => {
@@ -139,25 +139,18 @@ const chatSlice = createSlice({
         },
         clearChat: (state, action) => {
             const userId = String(action.payload);
-            state.messages = [];
-            if (state.lastMessages && state.lastMessages[userId]) {
-                delete state.lastMessages[userId];
-            }
-            if (state.unreadCounts) {
-                state.unreadCounts[userId] = 0;
-            }
+            const isSelected = state.selectedUser && String(state.selectedUser._id) === userId;
+            if (isSelected) state.messages = [];
+            if (state.lastMessages && state.lastMessages[userId]) delete state.lastMessages[userId];
+            if (state.unreadCounts) state.unreadCounts[userId] = 0;
             state.chatUsers = state.chatUsers.filter(u => String(u._id) !== userId);
         },
         clearChatLocally: (state, action) => {
             const userId = String(action.payload);
-            state.messages = [];
-            if (state.lastMessages && state.lastMessages[userId]) {
-                delete state.lastMessages[userId];
-            }
-            if (state.unreadCounts) {
-                state.unreadCounts[userId] = 0;
-            }
-            // Do NOT filter chatUsers
+            const isSelected = state.selectedUser && String(state.selectedUser._id) === userId;
+            if (isSelected) state.messages = [];
+            if (state.lastMessages && state.lastMessages[userId]) delete state.lastMessages[userId];
+            if (state.unreadCounts) state.unreadCounts[userId] = 0;
         }
     }
 });

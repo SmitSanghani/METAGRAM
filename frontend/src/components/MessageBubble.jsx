@@ -46,6 +46,19 @@ const MessageBubble = ({ msg, isSender, onReply, onDelete, onReact, onScrollTo, 
         );
     }
 
+    if (msg.messageType === 'system') {
+        return (
+            <div className="flex justify-center w-full my-6 px-10 animate-in fade-in zoom-in-95 duration-700">
+                <div className="flex flex-col items-center gap-2">
+                    <span className="text-[10px] font-black text-[#8e8e8e] text-center uppercase tracking-[0.2em] bg-white border border-gray-100/80 px-6 py-2.5 rounded-full shadow-[0_4px_15px_rgba(0,0,0,0.03)] backdrop-blur-sm">
+                        {msg.message}
+                    </span>
+                    <span className="text-[8px] font-black text-gray-300 uppercase tracking-widest">System Message</span>
+                </div>
+            </div>
+        );
+    }
+
     // Hide story_reaction messages from the SENDER's view — only the story owner should see it
     // Note: Re-enabled after user feedback "message hi nahi show ho raha he"
     /*

@@ -149,7 +149,7 @@ function App() {
   const { socket } = useSelector(store => store.socketio);
   const { selectedUser, chatUsers = [], messages = [] } = useSelector(store => store.chat || {});
   const selectedUserRef = useRef(null);
-  const audioRef = useRef(null); 
+  const audioRef = useRef(null);
   const chatUsersRef = useRef(chatUsers);
   const messagesRef = useRef(messages);
   const dispatch = useDispatch();
@@ -165,7 +165,7 @@ function App() {
   useEffect(() => {
     // Initialize audio only once on mount
     if (!audioRef.current) {
-        audioRef.current = new Audio('/notification.mp3');
+      audioRef.current = new Audio('/notification.mp3');
     }
     selectedUserRef.current = selectedUser;
   }, [selectedUser]);
@@ -201,7 +201,7 @@ function App() {
       audioRef.current.play().then(() => {
         audioRef.current.pause();
         audioRef.current.currentTime = 0;
-      }).catch(() => {});
+      }).catch(() => { });
       window.removeEventListener('click', unlockAudio);
     };
     window.addEventListener('click', unlockAudio);
@@ -229,7 +229,7 @@ function App() {
             api.get('/message/unread-counts'),
             api.get('/notification')
           ]);
-          
+
           if (msgRes.data.success) dispatch(setBulkUnreadCounts(msgRes.data.unreadCounts));
           if (notiRes.data.success) dispatch(setNotifications(notiRes.data.notifications));
         } catch (err) {
@@ -238,13 +238,17 @@ function App() {
       };
       fetchInitialData();
 
-      const socketUrl = window.location.hostname === 'localhost' 
-        ? 'http://localhost:8000' 
+      const socketUrl = window.location.hostname === 'localhost'
+        ? 'http://localhost:8000'
         : 'https://metagram-3.onrender.com';
-        
+
       const socketio = io(socketUrl, {
         query: { userId: user._id },
-        auth: { token: localStorage.getItem('token') }
+        auth: { token: localStorage.getItem('token') },
+        transports: ['websocket'], // Force websocket to avoid polling delays
+        reconnection: true,
+        reconnectionAttempts: Infinity,
+        reconnectionDelay: 1000
       });
 
       dispatch(setSocket(socketio));
@@ -262,7 +266,7 @@ function App() {
         dispatch(addNotification(notification));
         if (audioRef.current) {
           audioRef.current.currentTime = 0;
-          audioRef.current.play().catch(() => {});
+          audioRef.current.play().catch(() => { });
         }
       });
 
@@ -299,15 +303,15 @@ function App() {
 
         // Check if the chat exists in sidebar
         const chatExistsInSidebar = chatUsersRef.current?.some(u => String(u._id) === targetId);
-        
+
         // Auto-add 1v1 ONLY if not from me (others' messages should add them to list)
         if (!chatExistsInSidebar && !isFromMe && !newMessage.isGroup) {
-           dispatch(addChatUser({
-             _id: targetId,
-             username: newMessage.senderUsername,
-             profilePicture: newMessage.senderProfilePicture,
-             conversationId: newMessage.conversationId
-           }));
+          dispatch(addChatUser({
+            _id: targetId,
+            username: newMessage.senderUsername,
+            profilePicture: newMessage.senderProfilePicture,
+            conversationId: newMessage.conversationId
+          }));
         }
 
         // Always update last message preview and reorder the sidebar 
@@ -322,7 +326,7 @@ function App() {
         const isCurrentlyViewingThisChat = openChatUser && String(openChatUser._id) === targetId;
 
         // EXTRA CHECK: Verify this message belongs to the OPENED conversation
-        const isCorrectConversation = newMessage.isGroup 
+        const isCorrectConversation = newMessage.isGroup
           ? (openChatUser?.isGroup && String(newMessage.conversationId) === String(openChatUser.conversationId))
           : (isCurrentlyViewingThisChat && (isFromMe || isToMe));
 
@@ -340,7 +344,7 @@ function App() {
         const isFromMe = senderId === currentUserId;
         const isToMe = receiverId === currentUserId;
         const targetId = newMessage.isGroup ? String(newMessage.conversationId) : (isFromMe ? String(newMessage.receiverId) : senderId);
-        
+
         console.log(`[Socket] Received "notification" (${newMessage.isGroup ? 'Group' : 'Direct'}) - From: ${senderId}`);
 
         // Isolation Check: Ignore notifications for conversations I'm not part of
@@ -351,58 +355,59 @@ function App() {
         // 1. Ensure the relevant chat exists in sidebar (Group or User)
         const chatExistsInSidebar = chatUsersRef.current?.some(u => String(u._id) === targetId);
         if (!chatExistsInSidebar) {
-           // For 1v1: auto-add based on sender details
-           if (!newMessage.isGroup) {
-              dispatch(addChatUser({
-                _id: isFromMe ? newMessage.receiverId : senderId,
-                username: isFromMe ? "" : newMessage.senderUsername,
-                profilePicture: isFromMe ? "" : newMessage.senderProfilePicture,
-                conversationId: newMessage.conversationId
-              }));
-           } 
-           // For Groups: wait for fetch or add with minimal info (better to add placeholder than miss it)
-           else {
-              dispatch(addChatUser({
-                _id: targetId,
-                 username: newMessage.groupName || "Group Chat",
-                 profilePicture: newMessage.groupProfilePicture,
-                 isGroup: true,
-                 groupAdmin: newMessage.groupAdmin,
-                 conversationId: targetId
-              }));
-           }
+          // For 1v1: auto-add based on sender details
+          if (!newMessage.isGroup) {
+            dispatch(addChatUser({
+              _id: isFromMe ? newMessage.receiverId : senderId,
+              username: isFromMe ? "" : newMessage.senderUsername,
+              profilePicture: isFromMe ? "" : newMessage.senderProfilePicture,
+              conversationId: newMessage.conversationId
+            }));
+          }
+          // For Groups: wait for fetch or add with minimal info (better to add placeholder than miss it)
+          else {
+            dispatch(addChatUser({
+              _id: targetId,
+              username: newMessage.groupName || "Group Chat",
+              profilePicture: newMessage.groupProfilePicture,
+              isGroup: true,
+              groupAdmin: newMessage.groupAdmin,
+              conversationId: targetId
+            }));
+          }
         }
 
         const openChatUser = selectedUserRef.current;
-        const isViewingThisChat = openChatUser && String(openChatUser._id) === targetId;
+        const isOnChatPage = window.location.pathname === '/chat';
+        const isViewingThisChat = isOnChatPage && openChatUser && String(openChatUser._id) === String(targetId);
 
         if (isViewingThisChat) {
-          // If viewing, add to messages and clear unread (Only if not from me)
+          // If viewing on /chat page, add to messages and clear unread (Only if not from me)
           if (!isFromMe) {
             dispatch(addMessage(newMessage));
             dispatch(clearUnreadCount(targetId));
-            api.get(`/message/seen/${targetId}`).catch(() => {});
+            api.get(`/message/seen/${targetId}`).catch(() => { });
           }
         } else {
           // Check if muted (either the sender or the group)
           const isMuted = user?.mutedUsers?.includes(targetId) || user?.mutedUsers?.includes(senderId);
 
-          // Play sound and show toast only if: 
-          // 1. NOT looking at this chat
+          // Play sound and show toast if: 
+          // 1. NOT viewing this chat ON the chat page
           // 2. NOT from me
           // 3. NOT muted
           if (!isFromMe && !isMuted) {
             if (audioRef.current) {
               audioRef.current.currentTime = 0;
-              audioRef.current.play().catch(() => {});
+              audioRef.current.play().catch(() => { });
             }
 
             toast.custom((t) => (
-              <div 
-                onClick={() => { 
+              <div
+                onClick={() => {
                   localStorage.setItem('lastChatUserId', targetId);
-                  window.location.href = '/chat'; 
-                  toast.dismiss(t); 
+                  window.location.href = '/chat';
+                  toast.dismiss(t);
                 }}
                 className="bg-white border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.06)] rounded-[24px] p-5 flex gap-4 relative max-w-[450px] w-full cursor-pointer hover:bg-gray-50 transition-all pointer-events-auto"
               >
@@ -413,7 +418,7 @@ function App() {
                   </Avatar>
                   {newMessage.isGroup && <div className="absolute -top-1 -right-1 bg-indigo-600 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full ring-2 ring-white">GROUP</div>}
                 </div>
-                
+
                 <div className="flex flex-col flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-0.5">
                     <span className="text-[12px] font-medium text-gray-400 capitalize">Just now</span>
@@ -421,24 +426,24 @@ function App() {
                       <X size={16} />
                     </button>
                   </div>
-                  
+
                   <span className="text-[14px] font-semibold text-gray-500 leading-none mb-1">{newMessage.senderUsername}{newMessage.isGroup ? " in Group" : ""}</span>
                   <p className="text-[16px] font-bold text-gray-900 leading-tight truncate mb-3">
                     {newMessage.messageType === 'text' ? newMessage.message : `Sent a ${newMessage.messageType}`}
                   </p>
                   <div className="flex items-center gap-4">
-                    <button 
-                      onClick={(e) => { 
-                        e.stopPropagation(); 
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
                         localStorage.setItem('lastChatUserId', targetId);
-                        window.location.href = '/chat'; 
-                        toast.dismiss(t); 
-                      }} 
+                        window.location.href = '/chat';
+                        toast.dismiss(t);
+                      }}
                       className="text-[13px] font-bold text-indigo-600"
                     >
                       Reply
                     </button>
-                    <button onClick={(e) => { e.stopPropagation(); api.get(`/message/seen/${targetId}`).catch(() => {}); dispatch(clearUnreadCount(targetId)); toast.dismiss(t); }} className="text-[13px] font-bold text-gray-400">Mark as read</button>
+                    <button onClick={(e) => { e.stopPropagation(); api.get(`/message/seen/${targetId}`).catch(() => { }); dispatch(clearUnreadCount(targetId)); toast.dismiss(t); }} className="text-[13px] font-bold text-gray-400">Mark as read</button>
                   </div>
                 </div>
               </div>
@@ -452,7 +457,7 @@ function App() {
               });
             }
           }
-          
+
           // Increment unread count (if not from me)
           if (!isFromMe) {
             dispatch(incrementUnreadCount(targetId));
@@ -472,96 +477,100 @@ function App() {
       socketio.on('message_reaction_added', ({ messageId, user_id, reaction, reactions, action, isGroup, conversationId, reactorUsername, reactorProfilePicture }) => {
         // user_id is the person who reacted
         dispatch(updateReactions({ messageId, reactions }));
-        
+
         const senderId = String(user_id);
         const emoji = reaction;
 
-        // Find existing user in sidebar to update preview
-        const personInSidebar = chatUsersRef.current?.find(u => String(u._id) === senderId);
-        
         // Only show notification/preview if the reaction is NOT from the current user AND it wasn't a removal
         if (senderId !== String(user?._id) && action !== 'removed') {
-             // Find target message to see what was reacted to
-             const targetMsg = messagesRef.current?.find(m => String(m._id) === String(messageId));
-             let typeLabel = "message";
-             if (targetMsg) {
-                 if (targetMsg.messageType === 'reel') typeLabel = "reel";
-                 else if (targetMsg.messageType === 'story_reply' || targetMsg.messageType === 'story_reaction') typeLabel = "story";
-                 else if (targetMsg.messageType === 'image') typeLabel = "photo";
-                 else if (targetMsg.messageType === 'video') typeLabel = "video";
-             }
+          // Find target message to see what was reacted to
+          const targetMsg = messagesRef.current?.find(m => String(m._id) === String(messageId));
+          let typeLabel = "message";
+          if (targetMsg) {
+            if (targetMsg.messageType === 'reel') typeLabel = "reel";
+            else if (targetMsg.messageType === 'story_reply' || targetMsg.messageType === 'story_reaction') typeLabel = "story";
+            else if (targetMsg.messageType === 'image') typeLabel = "photo";
+            else if (targetMsg.messageType === 'video') typeLabel = "video";
+          }
 
-             const previewText = isGroup ? `${reactorUsername}: Reacted ${emoji} to your ${typeLabel}` : `Reacted ${emoji} to your ${typeLabel}`;
-             
-             const previewMsg = {
-                 _id: `react-${messageId}-${Date.now()}`,
-                 senderId: senderId,
-                 message: previewText,
-                 messageType: 'reaction_info',
-                 createdAt: new Date().toISOString()
-             };
-             
-             const targetSidebarId = isGroup ? conversationId : senderId;
-             dispatch(updateLastMessage({ userId: targetSidebarId, message: previewMsg }));
-             dispatch(reorderUsers(targetSidebarId));
-             
-             // ✅ Always show toast for reaction — even while in that chat
-             const isMuted = user?.mutedUsers?.includes(senderId);
-             if (audioRef.current && !isMuted) {
-               audioRef.current.currentTime = 0;
-               audioRef.current.play().catch(() => {});
-             }
-             toast.custom((t) => (
-               <div 
-                 onClick={() => { 
-                   localStorage.setItem('lastChatUserId', senderId);
-                   window.location.href = '/chat'; 
-                   toast.dismiss(t); 
-                 }}
-                 className="bg-white border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.06)] rounded-[24px] p-5 flex gap-4 relative max-w-[450px] w-full cursor-pointer hover:bg-gray-50 transition-all pointer-events-auto"
-               >
-                 <div className="relative shrink-0">
-                   <Avatar className="w-14 h-14 border border-pink-50 shadow-sm">
-                     <AvatarImage src={reactorProfilePicture} className="object-cover" />
-                     <AvatarFallback className="bg-pink-100 text-pink-600 font-bold uppercase">{reactorUsername?.charAt(0)}</AvatarFallback>
-                   </Avatar>
-                   <div className="absolute -bottom-1 -right-1 w-7 h-7 bg-white rounded-full flex items-center justify-center shadow-md border border-pink-50 text-[16px]">
-                     {emoji}
-                   </div>
-                 </div>
-                 
-                 <div className="flex flex-col flex-1 min-w-0">
-                   <div className="flex items-center justify-between mb-0.5">
-                     <span className="text-[12px] font-medium text-gray-400 capitalize">Just now</span>
-                     <button 
-                       onClick={(e) => { e.stopPropagation(); toast.dismiss(t); }}
-                       className="text-gray-300 hover:text-gray-500 transition-colors p-1"
-                     >
-                       <X size={16} />
-                     </button>
-                   </div>
-                   
-                   <span className="text-[14px] font-semibold text-gray-500 leading-none mb-1">{reactorUsername}</span>
-                   <p className="text-[16px] font-bold text-gray-900 leading-tight truncate mb-3">
-                     {isGroup ? `Reacted ${emoji} to your ${typeLabel} in Group` : `Reacted ${emoji} to your ${typeLabel}`}
-                   </p>
-                   
-                   <div className="flex items-center gap-4">
-                     <button 
-                       onClick={(e) => { 
-                         e.stopPropagation(); 
-                         localStorage.setItem('lastChatUserId', senderId);
-                         window.location.href = '/chat'; 
-                         toast.dismiss(t); 
-                       }}
-                       className="text-[13px] font-bold text-pink-600 hover:text-pink-700 transition-colors"
-                     >
-                       View Chat
-                     </button>
-                   </div>
-                 </div>
-               </div>
-             ), { id: `react-${messageId}`, duration: 5000, position: 'top-right' });
+          const previewText = isGroup ? `${reactorUsername}: Reacted ${emoji} to your ${typeLabel}` : `Reacted ${emoji} to your ${typeLabel}`;
+
+          const previewMsg = {
+            _id: `react-${messageId}-${Date.now()}`,
+            senderId: senderId,
+            message: previewText,
+            messageType: 'reaction_info',
+            createdAt: new Date().toISOString()
+          };
+
+        const targetSidebarId = isGroup ? conversationId : senderId;
+        const openChatUser = selectedUserRef.current;
+        const isOnChatPage = window.location.pathname === '/chat';
+        const isViewingThisChat = isOnChatPage && openChatUser && String(openChatUser._id) === String(targetSidebarId);
+
+        // Always update sidebar state
+        dispatch(updateLastMessage({ userId: targetSidebarId, message: previewMsg }));
+        dispatch(reorderUsers(targetSidebarId));
+
+        // ✅ Show toast if NOT viewing this chat on the /chat page
+        if (!isViewingThisChat) {
+          const isMuted = user?.mutedUsers?.includes(senderId) || user?.mutedUsers?.includes(targetSidebarId);
+          if (audioRef.current && !isMuted) {
+            audioRef.current.currentTime = 0;
+            audioRef.current.play().catch(() => { });
+          }
+          toast.custom((t) => (
+            <div
+              onClick={() => {
+                localStorage.setItem('lastChatUserId', targetSidebarId);
+                window.location.href = '/chat';
+                toast.dismiss(t);
+              }}
+              className="bg-white border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.06)] rounded-[24px] p-5 flex gap-4 relative max-w-[450px] w-full cursor-pointer hover:bg-gray-50 transition-all pointer-events-auto"
+            >
+              <div className="relative shrink-0">
+                <Avatar className="w-14 h-14 border border-pink-50 shadow-sm">
+                  <AvatarImage src={reactorProfilePicture} className="object-cover" />
+                  <AvatarFallback className="bg-pink-100 text-pink-600 font-bold uppercase">{reactorUsername?.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <div className="absolute -bottom-1 -right-1 w-7 h-7 bg-white rounded-full flex items-center justify-center shadow-md border border-pink-50 text-[16px]">
+                  {emoji}
+                </div>
+              </div>
+
+              <div className="flex flex-col flex-1 min-w-0">
+                <div className="flex items-center justify-between mb-0.5">
+                  <span className="text-[12px] font-medium text-gray-400 capitalize">Just now</span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); toast.dismiss(t); }}
+                    className="text-gray-300 hover:text-gray-500 transition-colors p-1"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+
+                <span className="text-[14px] font-semibold text-gray-500 leading-none mb-1">{reactorUsername}</span>
+                <p className="text-[16px] font-bold text-gray-900 leading-tight truncate mb-3">
+                  {isGroup ? `Reacted ${emoji} to your ${typeLabel} in Group` : `Reacted ${emoji} to your ${typeLabel}`}
+                </p>
+
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      localStorage.setItem('lastChatUserId', targetSidebarId);
+                      window.location.href = '/chat';
+                      toast.dismiss(t);
+                    }}
+                    className="text-[13px] font-bold text-pink-600 hover:text-pink-700 transition-colors"
+                  >
+                    View Chat
+                  </button>
+                </div>
+              </div>
+            </div>
+          ), { id: `react-${messageId}`, duration: 5000, position: 'top-right' });
+        }
         }
       });
 
@@ -606,12 +615,15 @@ function App() {
       });
 
       socketio.on('group_updated', (updatedGroup) => {
-        // Update the item in the sidebar list
+        // Update or Add the item in the sidebar list
         const exists = chatUsersRef.current?.some(u => String(u._id) === String(updatedGroup._id));
         if (exists) {
-          dispatch(setChatUsers(chatUsersRef.current.map(u => 
+          dispatch(setChatUsers(chatUsersRef.current.map(u =>
             String(u._id) === String(updatedGroup._id) ? { ...u, ...updatedGroup } : u
           )));
+        } else {
+          // If it didn't exist (newly added member), add it to the sidebar
+          dispatch(addChatUser(updatedGroup));
         }
 
         // If the updated group is currently the selected chat, update it too
@@ -635,16 +647,16 @@ function App() {
         const targetId = String(conversationId);
         const exists = chatUsersRef.current?.some(u => String(u._id) === targetId);
         if (exists) {
-            dispatch(updateLastMessage({ 
-                userId: targetId, 
-                message: { _id: messageId, isDeleted: true, message: "Message unsent", createdAt: new Date().toISOString() } 
-            }));
+          dispatch(updateLastMessage({
+            userId: targetId,
+            message: { _id: messageId, isDeleted: true, message: "Message unsent", createdAt: new Date().toISOString() }
+          }));
         }
 
         // 2. Update the chat history if this chat is open
         const openUser = selectedUserRef.current;
         if (openUser && String(openUser._id) === targetId) {
-            dispatch(markUnsent({ messageId }));
+          dispatch(markUnsent({ messageId }));
         }
       });
 

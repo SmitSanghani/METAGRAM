@@ -38,6 +38,7 @@ const ChatPage = () => {
 
     const [isTyping, setIsTyping] = useState(false);
     const [isSending, setIsSending] = useState(false);
+    const [isLoadingMessages, setIsLoadingMessages] = useState(false);
     const [highlightedMessageId, setHighlightedMessageId] = useState(null);
     const [searchQuery, setSearchQuery] = useState("");
     const [searchResults, setSearchResults] = useState([]);
@@ -56,7 +57,7 @@ const ChatPage = () => {
 
     // Clear unread count when chat selected
     const handleSelectUser = (targetUser) => {
-        if (!targetUser || targetUser._id === selectedUser?._id) return;
+        if (!targetUser || String(targetUser._id) === String(selectedUser?._id)) return;
 
         // Ensure user is in sidebar immediately with full search result details
         const exists = chatUsers.some(u => String(u._id) === String(targetUser._id));
@@ -69,9 +70,9 @@ const ChatPage = () => {
             socket.emit("leave_room", String(selectedUser.conversationId));
         }
 
+        dispatch(setMessages([])); // CLEAR IMMEDIATELY TO AVOID CROSS-CHAT GHOST MESSAGES
         dispatch(setSelectedUser(targetUser));
         localStorage.setItem('lastChatUserId', targetUser._id);
-        dispatch(setMessages([])); // Clear messages for new user immediately
         dispatch(clearUnreadCount(String(targetUser._id)));
 
         // Immediate sync with backend
@@ -103,31 +104,34 @@ const ChatPage = () => {
 
     // Fetch messages when a user is selected
     useEffect(() => {
-        if (!selectedUser?._id || selectedUser?._id === '[object Object]') return;
+        const targetId = String(selectedUser?._id);
+        if (!targetId || targetId === '[object Object]' || targetId === 'undefined') return;
 
-        console.log(`[ChatPage] Loading chat with ${selectedUser.username} (${selectedUser._id})`);
+        console.log(`[ChatPage] Loading chat with ${selectedUser.username} (${targetId})`);
+        let isCancelled = false;
 
-        const fetchMessages = async () => {
+        const fetchChatMessages = async () => {
+            setIsLoadingMessages(true);
             try {
-                const res = await api.get(`/message/all/${selectedUser._id}`);
-                if (res.data.success) {
+                const res = await api.get(`/message/all/${targetId}`);
+                if (!isCancelled && res.data.success) {
                     dispatch(setMessages(res.data.messages || []));
                     markAsSeen();
 
-                    // Join the conversation socket room
                     const conversationId = res.data.conversationId;
                     if (conversationId && socket) {
-                        console.log(`[ChatPage] Joining room: ${conversationId}`);
                         socket.emit("join_room", String(conversationId));
-                        // Update the conversationId in the chatUsers list
-                        dispatch(updateChatUserConversation({ userId: selectedUser._id, conversationId }));
+                        dispatch(updateChatUserConversation({ userId: targetId, conversationId }));
                     }
                 }
             } catch (error) {
-                console.error("[ChatPage] Error fetching messages:", error);
+                if (!isCancelled) console.error("[ChatPage] Error fetching messages:", error);
+            } finally {
+                if (!isCancelled) setIsLoadingMessages(false);
             }
         };
-        fetchMessages();
+        fetchChatMessages();
+        return () => { isCancelled = true; };
     }, [selectedUser?._id, dispatch, socket]);
 
     // Fetch user stories for the header
@@ -197,7 +201,7 @@ const ChatPage = () => {
     }, [groupSearchQuery, isGroupModalOpen]);
 
     useEffect(() => {
-        if (selectedUser && messages.length > 0) {
+        if (selectedUser && (messages?.length || 0) > 0) {
             const lastMsg = messages[messages.length - 1];
             const lastMsgSenderId = lastMsg.senderId?._id ? String(lastMsg.senderId._id) : String(lastMsg.senderId);
             if (lastMsgSenderId === String(selectedUser._id) && !lastMsg.seen) {
@@ -213,9 +217,11 @@ const ChatPage = () => {
             await api.get(`/message/seen/${selectedUser._id}`);
             if (socket) {
                 const lastMsg = messages[messages.length - 1];
-                const lastMsgSenderId = lastMsg.senderId?._id ? String(lastMsg.senderId._id) : String(lastMsg.senderId);
-                if (lastMsg && lastMsgSenderId === String(selectedUser._id)) {
-                    socket.emit("message_seen", { messageId: lastMsg._id, senderId: lastMsgSenderId });
+                if (lastMsg) {
+                    const lastMsgSenderId = lastMsg.senderId?._id ? String(lastMsg.senderId._id) : String(lastMsg.senderId);
+                    if (lastMsgSenderId === String(selectedUser._id)) {
+                        socket.emit("message_seen", { messageId: lastMsg._id, senderId: lastMsgSenderId });
+                    }
                 }
             }
         } catch (error) {
@@ -229,13 +235,29 @@ const ChatPage = () => {
         if (isSending) return;
 
         const originalText = textMessage;
-        setTextMessage(""); // Clear UI immediately to prevent double-send
+        const tempId = `temp-${Date.now()}`;
+        
+        // 1. Optimistic UI: Add message to state immediately
+        const optimisticMsg = {
+            _id: tempId,
+            tempId: tempId,
+            senderId: user._id, 
+            receiverId: selectedUser.isGroup ? null : selectedUser._id,
+            message: originalText,
+            messageType: 'text',
+            replyTo: replyTo ? { ...replyTo } : null,
+            isLoading: true, // Show loading indicator/opacity in UI
+            createdAt: new Date().toISOString(),
+            isGroup: !!selectedUser.isGroup,
+            conversationId: selectedUser.conversationId
+        };
+
+        dispatch(addMessage(optimisticMsg));
+        setTextMessage(""); // Clear UI immediately
         setIsSending(true);
 
         try {
-            const tempId = Date.now().toString();
-
-            // Optimistic socket emit
+            // 2. Optimistic socket emit for others (optional but good for speed)
             if (socket) {
                 socket.emit("send_message", {
                     conversationId: selectedUser.conversationId,
@@ -247,6 +269,7 @@ const ChatPage = () => {
                 });
             }
 
+            // 3. Actual API call
             const res = await api.post(`/message/send/${selectedUser?._id}`, {
                 message: originalText,
                 replyTo: replyTo?._id,
@@ -261,6 +284,8 @@ const ChatPage = () => {
                     replyTo: replyTo ? { ...replyTo } : null
                 };
 
+                // Remove temp and add real
+                dispatch(removeTempMessage(tempId));
                 dispatch(addMessage(populatedNewMsg));
 
                 // Ensure user is in sidebar immediately with full search result details
@@ -269,8 +294,9 @@ const ChatPage = () => {
                     dispatch(addChatUser(selectedUser));
                 }
 
-                dispatch(updateLastMessage({ userId: selectedUser._id, message: populatedNewMsg }));
-                dispatch(reorderUsers(selectedUser._id));
+                const targetId = String(selectedUser?._id);
+                dispatch(updateLastMessage({ userId: targetId, message: populatedNewMsg }));
+                dispatch(reorderUsers(targetId));
 
                 if (!selectedUser.conversationId && res.data.newMessage.conversationId) {
                     const updatedUser = { ...selectedUser, conversationId: res.data.newMessage.conversationId };
@@ -322,12 +348,12 @@ const ChatPage = () => {
         // Normalize the ID
         const targetUserId = (targetIdInput && typeof targetIdInput === 'string' && targetIdInput !== '[object Object]') ? targetIdInput : selectedUser?._id;
         const username = (targetUserId && typeof targetUserId === 'string') ? chatUsers.find(u => u._id === targetUserId)?.username : selectedUser?.username;
-        
+
         if (!targetUserId) return;
 
         const result = await Swal.fire({
             title: fromSidebar ? 'Delete Chat?' : 'Clear Chat history?',
-            text: fromSidebar 
+            text: fromSidebar
                 ? `Are you sure you want to remove ${username} from your sidebar? Conversation will stay for them.`
                 : `Are you sure you want to clear your chat history with ${username}? This will only delete the conversation for you, and not the other user.`,
             icon: 'warning',
@@ -350,7 +376,7 @@ const ChatPage = () => {
             const res = await api.delete(`/message/delete-chat/${targetUserId}${fromSidebar ? '?sidebar=true' : ''}`);
             if (res.data.success) {
                 toast.success(fromSidebar ? "Chat deleted" : "Chat history cleared");
-                
+
                 if (fromSidebar) {
                     // Remove from sidebar
                     dispatch(clearChat(targetUserId));
@@ -632,14 +658,14 @@ const ChatPage = () => {
                     </div>
                     <div className='flex flex-col gap-1'>
                         {/* Map filtered chat users, sorted by latest message activity */}
-                        {[...chatUsers].filter(u => u.username?.toLowerCase().includes(searchQuery.toLowerCase())).sort((a, b) => {
-                            const timeA = lastMessages[String(a?._id)]?.createdAt || a.updatedAt || 0;
-                            const timeB = lastMessages[String(b?._id)]?.createdAt || b.updatedAt || 0;
+                        {(chatUsers || []).filter(u => u?.username?.toLowerCase().includes(searchQuery.toLowerCase())).sort((a, b) => {
+                            const timeA = a?._id ? (lastMessages[String(a._id)]?.createdAt || a.updatedAt || 0) : 0;
+                            const timeB = b?._id ? (lastMessages[String(b._id)]?.createdAt || b.updatedAt || 0) : 0;
                             return new Date(timeB) - new Date(timeA);
                         }).map((suggestedUser) => {
                             if (!suggestedUser || String(suggestedUser._id) === String(user?._id)) return null;
                             const isOnline = onlineUsers.includes(String(suggestedUser?._id));
-                            const isSelected = selectedUser?._id === suggestedUser?._id;
+                            const isSelected = selectedUser?._id && String(selectedUser?._id) === String(suggestedUser?._id);
                             const unreadCount = unreadCounts[String(suggestedUser?._id)] || 0;
                             const lastMsg = lastMessages[String(suggestedUser?._id)];
 
@@ -769,8 +795,8 @@ const ChatPage = () => {
                         <div className='flex items-center justify-between px-8 py-5 border-b border-[#efefef] bg-white/95 backdrop-blur-md z-40 sticky top-0'>
                             <div className='flex items-center gap-4'>
                                 <div
-                                    className={`relative z-10 ${headerStories.length > 0 ? 'cursor-pointer' : ''}`}
-                                    onClick={() => headerStories.length > 0 && setIsHeaderStoryOpen(true)}
+                                    className={`relative z-10 ${(headerStories?.length || 0) > 0 ? 'cursor-pointer' : ''}`}
+                                    onClick={() => (headerStories?.length || 0) > 0 && setIsHeaderStoryOpen(true)}
                                 >
                                     <Avatar className={`w-13 h-13 border-2 ${headerStories.length > 0 ? 'border-pink-500' : 'border-indigo-50'} shadow-sm transition-transform active:scale-95`}>
                                         <AvatarImage src={selectedUser?.profilePicture} className="object-cover" />
@@ -806,7 +832,13 @@ const ChatPage = () => {
 
                         <ScrollToBottom className='flex-1 p-0 flex flex-col bg-[#fafafa] overflow-hidden' scrollViewClassName="custom-scrollbar px-10 py-8" followButtonClassName='hidden'>
                             <div className="flex flex-col gap-1 min-h-full pb-6">
-                                {Object.keys(groupedMessages || {}).map(date => {
+                                {isLoadingMessages ? (
+                                    <div className="flex-1 flex flex-col items-center justify-center py-20 animate-in fade-in duration-500">
+                                        <div className="w-12 h-12 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
+                                        <p className="text-[13px] font-black text-indigo-900/40 uppercase tracking-widest">Securing your chat...</p>
+                                    </div>
+                                ) : (
+                                    Object.keys(groupedMessages || {}).map(date => {
                                     const label = formatDateLabel(date);
                                     if (!label) return null;
                                     return (
@@ -838,7 +870,8 @@ const ChatPage = () => {
                                             ))}
                                         </React.Fragment>
                                     );
-                                })}
+                                    })
+                                )}
                                 {isTyping && (
                                     <div className='flex mb-6 justify-start animate-in slide-in-from-bottom-4 duration-500'>
                                         <div className='flex items-center gap-2 px-6 py-4 rounded-[24px] bg-white border border-[#efefef] shadow-[0_4px_12px_rgba(0,0,0,0.03)]'>
@@ -1161,7 +1194,7 @@ const ChatPage = () => {
                                 </div>
 
                                 <div className="space-y-1.5 pt-2">
-                                    {groupSearchResults.length > 0 ? groupSearchResults
+                                    {(groupSearchResults?.length || 0) > 0 ? groupSearchResults
                                         .filter(u => !selectedUser?.participants?.some(p => String(p._id || p) === String(u._id)))
                                         .map((u) => (
                                             <div
@@ -1267,7 +1300,7 @@ const ChatPage = () => {
                             </div>
                             <div className="flex items-center gap-2 group/edit">
                                 <h3 className="text-[24px] font-black text-[#111] tracking-tight">{selectedUser.username}</h3>
-                                {selectedUser.groupAdmin.some(adminId => String(adminId) === String(user?._id)) && (
+                                {selectedUser?.groupAdmin?.some(adminId => String(adminId) === String(user?._id)) && (
                                     <button
                                         className="p-1.5 rounded-full hover:bg-gray-100 text-gray-400 opacity-0 group-hover/edit:opacity-100 transition-all"
                                         onClick={async () => {
@@ -1300,7 +1333,7 @@ const ChatPage = () => {
                                 )}
                             </div>
                             <div className="mt-1.5 px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-[11px] font-black uppercase tracking-widest">
-                                {selectedUser.participants.length} Active Members
+                                {selectedUser?.participants?.length || 0} Active Members
                             </div>
                         </div>
 
@@ -1308,7 +1341,7 @@ const ChatPage = () => {
                         <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-4">
                             <div className="flex items-center px-4 mb-4 justify-between sticky -top-4 bg-white z-[30] py-4 -mx-6 px-10 border-b border-gray-50/50">
                                 <label className="text-[11px] font-black uppercase text-gray-400 tracking-widest">Group Members</label>
-                                {selectedUser.groupAdmin.some(adminId => String(adminId) === String(user?._id)) && (
+                                {selectedUser?.groupAdmin?.some(adminId => String(adminId) === String(user?._id)) && (
                                     <button
                                         className="text-[12px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-1.5 hover:bg-indigo-50 px-3 py-1.5 rounded-full transition-all"
                                         onClick={() => {
@@ -1323,10 +1356,10 @@ const ChatPage = () => {
                             </div>
 
                             <div className="space-y-1">
-                                {selectedUser.participants.map(p => {
-                                    const isMe = String(p._id || p) === String(user?._id);
-                                    const isAdmin = selectedUser.groupAdmin.some(adminId => String(adminId) === String(p._id || p));
-                                    const amIAdmin = selectedUser.groupAdmin.some(adminId => String(adminId) === String(user?._id));
+                                {selectedUser?.participants?.map(p => {
+                                    const isMe = String(p?._id || p) === String(user?._id);
+                                    const isAdmin = selectedUser?.groupAdmin?.some(adminId => String(adminId) === String(p?._id || p));
+                                    const amIAdmin = selectedUser?.groupAdmin?.some(adminId => String(adminId) === String(user?._id));
                                     return (
                                         <div key={p._id} className="flex items-center justify-between p-3.5 rounded-2xl hover:bg-gray-50 group transition-all">
                                             <div className="flex items-center gap-4">
