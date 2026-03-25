@@ -281,8 +281,8 @@ function App() {
       // 1. Room-specific message delivery (Fallback/Optimization for multi-tab or active rooms)
       socketio.on('receive_message', (newMessage) => {
         const currentUserId = String(user?._id);
-        const senderId = String(newMessage.senderId);
-        const receiverId = String(newMessage.receiverId);
+        const senderId = newMessage.senderId?._id ? String(newMessage.senderId._id) : String(newMessage.senderId);
+        const receiverId = newMessage.receiverId ? String(newMessage.receiverId) : null;
         const isFromMe = senderId === currentUserId;
         const targetId = newMessage.isGroup ? String(newMessage.conversationId) : (isFromMe ? receiverId : senderId);
 
@@ -321,7 +321,7 @@ function App() {
       // 2. Global direct notification delivery (Universal reliability)
       socketio.on('new_message_notification', (newMessage) => {
         const currentUserId = String(user?._id);
-        const senderId = String(newMessage.senderId);
+        const senderId = newMessage.senderId?._id ? String(newMessage.senderId._id) : String(newMessage.senderId);
         const isFromMe = senderId === currentUserId;
         const targetId = newMessage.isGroup ? String(newMessage.conversationId) : (isFromMe ? String(newMessage.receiverId) : senderId);
         

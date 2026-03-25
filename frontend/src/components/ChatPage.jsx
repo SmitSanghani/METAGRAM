@@ -192,7 +192,8 @@ const ChatPage = () => {
     useEffect(() => {
         if (selectedUser && messages.length > 0) {
             const lastMsg = messages[messages.length - 1];
-            if (lastMsg.senderId === selectedUser._id && !lastMsg.seen) {
+            const lastMsgSenderId = lastMsg.senderId?._id ? String(lastMsg.senderId._id) : String(lastMsg.senderId);
+            if (lastMsgSenderId === String(selectedUser._id) && !lastMsg.seen) {
                 markAsSeen();
                 dispatch(clearUnreadCount(String(selectedUser._id)));
             }
@@ -205,8 +206,9 @@ const ChatPage = () => {
             await api.get(`/message/seen/${selectedUser._id}`);
             if (socket) {
                 const lastMsg = messages[messages.length - 1];
-                if (lastMsg && lastMsg.senderId === selectedUser._id) {
-                    socket.emit("message_seen", { messageId: lastMsg._id, senderId: lastMsg.senderId });
+                const lastMsgSenderId = lastMsg.senderId?._id ? String(lastMsg.senderId._id) : String(lastMsg.senderId);
+                if (lastMsg && lastMsgSenderId === String(selectedUser._id)) {
+                    socket.emit("message_seen", { messageId: lastMsg._id, senderId: lastMsgSenderId });
                 }
             }
         } catch (error) {
@@ -409,12 +411,16 @@ const ChatPage = () => {
         const handleIncomingMessage = (newMessage) => {
             setIsTyping(false);
 
+            const senderId = newMessage.senderId?._id ? String(newMessage.senderId._id) : String(newMessage.senderId);
+            const receiverId = newMessage.receiverId ? String(newMessage.receiverId) : null;
+            const currentUserId = String(user?._id);
+
             // 1. Group Logic: Match by conversationId
             const isGroupMatch = selectedUser?.isGroup && String(newMessage.conversationId) === String(selectedUser.conversationId);
 
             // 2. 1v1 Logic: Match by sender/receiver IDs
-            const messageInvolvesSender = !selectedUser?.isGroup && String(newMessage.senderId) === String(selectedUser?._id);
-            const messageInvolvesReceiver = !selectedUser?.isGroup && String(newMessage.receiverId) === String(selectedUser?._id);
+            const messageInvolvesSender = !selectedUser?.isGroup && senderId === String(selectedUser?._id);
+            const messageInvolvesReceiver = !selectedUser?.isGroup && receiverId === String(selectedUser?._id);
 
             if (isGroupMatch || messageInvolvesSender || messageInvolvesReceiver) {
                 dispatch(addMessage(newMessage)); // addMessage deduplicates by _id automatically
@@ -424,7 +430,7 @@ const ChatPage = () => {
                 dispatch(updateLastMessage({ userId: targetId, message: newMessage }));
                 dispatch(reorderUsers(targetId));
 
-                if (messageInvolvesSender || (isGroupMatch && String(newMessage.senderId) !== String(user?._id))) {
+                if (messageInvolvesSender || (isGroupMatch && senderId !== currentUserId)) {
                     // Other user sent this — clear unread count for this "user" (Identity is _id)
                     dispatch(clearUnreadCount(targetId));
                 }

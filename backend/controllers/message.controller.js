@@ -156,6 +156,10 @@ export const sendMessage = async (req, res) => {
         messageObj.tempId = tempId;
         messageObj.conversationId = conversation._id.toString();
         messageObj.isGroup = conversation.isGroup;
+        if (conversation.isGroup) {
+            messageObj.groupName = conversation.groupName;
+            messageObj.groupProfilePicture = conversation.groupProfilePicture;
+        }
         if (replyToPopulated) messageObj.replyTo = replyToPopulated;
 
         // Broadcast to specific conversation room
