@@ -10,25 +10,44 @@ export const sendMessage = async (req, res) => {
     try {
         const senderId = req.id;
         const sender = await User.findById(senderId).select("username profilePicture");
-        const receiverId = req.params.id;
+        const targetId = req.params.id; // Could be a User ID (1v1) or Conversation ID (Group)
         const { message, messageType = 'text', storyId = null, reelId = null, postId = null, replyTo = null, tempId } = req.body;
-
-        const receiver = await User.findById(receiverId);
-        if (!receiver) return res.status(404).json({ success: false, message: "Receiver not found" });
-
-        // BLOCK CHECK:
-        const senderUser = await User.findById(senderId);
-        if (senderUser.blockedUsers.includes(receiverId) || senderUser.blockedBy.includes(receiverId)) {
-            return res.status(403).json({ success: false, message: "You cannot message this account." });
-        }
-
-        // Validation to prevent 500 errors if ID is malformed
-        if (!receiverId || receiverId.length !== 24) {
-            return res.status(400).json({ success: false, message: "Invalid receiver ID" });
-        }
 
         const file = req.file;
         let mediaUrl = req.body.mediaUrl || "";
+
+        // Determine if targetId is a conversation ID or a user ID
+        let conversation = null;
+        let isGroupMessage = false;
+
+        // 1. Try finding conversation by its ID first (Group OR existing 1v1 reference)
+        conversation = await Conversation.findById(targetId);
+        if (conversation) {
+            isGroupMessage = conversation.isGroup;
+        } else {
+            // 2. If not found, targetId MUST be a User ID (1v1)
+            const receiver = await User.findById(targetId);
+            if (!receiver) return res.status(404).json({ success: false, message: "Recipient not found" });
+
+            // BLOCK CHECK (Only for 1v1):
+            const senderUser = await User.findById(senderId);
+            if (senderUser.blockedUsers.includes(targetId) || senderUser.blockedBy.includes(targetId)) {
+                return res.status(403).json({ success: false, message: "You cannot message this account." });
+            }
+
+            // Find or create 1v1 conversation
+            conversation = await Conversation.findOne({
+                isGroup: false,
+                participants: { $all: [senderId, targetId], $size: 2 }
+            });
+
+            if (!conversation) {
+                conversation = await Conversation.create({
+                    participants: [senderId, targetId],
+                    messages: []
+                });
+            }
+        }
 
         if (file) {
             const isImage = file.mimetype.startsWith('image/');
@@ -43,10 +62,8 @@ export const sendMessage = async (req, res) => {
                 const cloudResponse = await cloudinary.uploader.upload(fileUri, {
                     folder: "instagram-clone/messages",
                 });
-                console.log(">>> CLOUDINARY IMAGE SUCCESS:", cloudResponse.public_id);
                 mediaUrl = cloudResponse.secure_url;
             } else if (isVideo) {
-                // Promise wrapper for video upload
                 const uploadVideo = () => {
                     return new Promise((resolve, reject) => {
                         const stream = cloudinary.uploader.upload_stream({
@@ -62,23 +79,17 @@ export const sendMessage = async (req, res) => {
                 const cloudResponse = await uploadVideo();
                 mediaUrl = cloudResponse.secure_url;
             } else {
-                // Support generic files (ZIP, Excel, etc.)
                 const uploadFile = () => {
                     return new Promise((resolve, reject) => {
                         const stream = cloudinary.uploader.upload_stream({
-                            resource_type: "raw", // Use raw to preserve exact filename/extension
+                            resource_type: "raw",
                             folder: "instagram-clone/messages/files",
                             use_filename: true,
                             unique_filename: true,
                             filename_override: file.originalname
                         }, (error, result) => {
-                            if (error) {
-                                console.error("!!! CLOUDINARY ERROR:", error);
-                                reject(error);
-                            } else {
-                                console.log(">>> CLOUDINARY SUCCESS:", result.public_id);
-                                resolve(result);
-                            }
+                            if (error) reject(error);
+                            else resolve(result);
                         });
                         stream.end(file.buffer);
                     });
@@ -86,17 +97,6 @@ export const sendMessage = async (req, res) => {
                 const cloudResponse = await uploadFile();
                 mediaUrl = cloudResponse.secure_url;
             }
-        }
-
-        let conversation = await Conversation.findOne({
-            participants: { $all: [senderId, receiverId] }
-        });
-
-        if (!conversation) {
-            conversation = await Conversation.create({
-                participants: [senderId, receiverId],
-                messages: []
-            });
         }
 
         let finalMessageType = messageType;
@@ -111,7 +111,7 @@ export const sendMessage = async (req, res) => {
 
         const newMessageData = {
             senderId,
-            receiverId,
+            receiverId: isGroupMessage ? null : (conversation.participants.find(p => p.toString() !== senderId.toString()) || targetId),
             message: file && finalMessageType === 'file' ? (message || file.originalname) : message,
             messageType: finalMessageType,
             storyId,
@@ -124,10 +124,9 @@ export const sendMessage = async (req, res) => {
         conversation.messages.push(newMessageData);
         await conversation.save();
 
-        // Get the newly created message (last in the array)
         let savedMessage = conversation.messages[conversation.messages.length - 1];
 
-        // Manual "population" for replyTo if it exists
+        // Manual "population" for replyTo
         let replyToPopulated = null;
         if (replyTo) {
             const replyMsg = conversation.messages.id(replyTo);
@@ -141,64 +140,73 @@ export const sendMessage = async (req, res) => {
             }
         }
 
-        // Populate story and reactions for broadcast
         await conversation.populate([
+            { path: 'participants', select: 'username profilePicture' },
+            { path: 'messages.senderId', select: 'username profilePicture' },
             { path: 'messages.storyId', select: 'mediaUrl mediaType userId createdAt' },
             { path: 'messages.reelId', select: 'videoUrl caption author', populate: { path: 'author', select: 'username profilePicture' } },
             { path: 'messages.postId', select: 'image images caption author likes', populate: { path: 'author', select: 'username profilePicture' } },
             { path: 'messages.reactions.userId', select: 'username profilePicture' }
         ]);
 
-        // Get the fully populated version of our new message
         const newMessage = conversation.messages.id(savedMessage._id);
         const messageObj = newMessage.toObject();
         messageObj.senderUsername = sender.username;
         messageObj.senderProfilePicture = sender.profilePicture;
-
-        // Add the manually populated reply info
-        if (replyToPopulated) {
-            messageObj.replyTo = replyToPopulated;
-        }
-
-        // Include metadata for frontend tracking/room logic
         messageObj.tempId = tempId;
         messageObj.conversationId = conversation._id.toString();
+        messageObj.isGroup = conversation.isGroup;
+        if (replyToPopulated) messageObj.replyTo = replyToPopulated;
 
-        // 1. Broadcast to the conversation room (Primary for participants currently in chat)
+        // Broadcast to specific conversation room
         io.to(conversation._id.toString()).emit("receive_message", messageObj);
 
-        // 2. Also notify receiver directly (for toasts and sidebar updates when NOT directly in room)
-        if (String(receiverId) !== String(senderId)) {
-            broadcastToUser(receiverId, "new_message_notification", messageObj);
-        }
-
-        if (messageType === 'story_reply') broadcastToUser(receiverId, "story_reply_receive", messageObj);
-        else if (messageType === 'story_reaction') broadcastToUser(receiverId, "story_reaction_receive", messageObj);
+        // Individual notifications for sidebar update / toasts
+        conversation.participants.forEach(p => {
+            if (p.toString() !== senderId.toString()) {
+                broadcastToUser(p.toString(), "new_message_notification", messageObj);
+            }
+        });
 
         return res.status(201).json({ success: true, newMessage: messageObj });
     } catch (error) {
         console.error("SendMessage Error:", error);
-        const errorMessage = error.message || "Internal server error";
-        res.status(400).json({ success: false, message: errorMessage });
+        res.status(400).json({ success: false, message: error.message || "Internal server error" });
     }
 };
 
 export const getMessages = async (req, res) => {
     try {
         const senderId = req.id;
-        const receiverId = req.params.id;
-        const conversation = await Conversation.findOne({
-            participants: { $all: [senderId, receiverId] }
-        }).populate([
+        const targetId = req.params.id; // User ID or Conversation ID
+
+        let conversation = await Conversation.findById(targetId).populate([
+            { path: 'participants', select: 'username profilePicture' },
+            { path: 'messages.senderId', select: 'username profilePicture' },
             { path: 'messages.storyId', select: 'mediaUrl mediaType userId createdAt' },
             { path: 'messages.reelId', select: 'videoUrl caption author', populate: { path: 'author', select: 'username profilePicture' } },
             { path: 'messages.postId', select: 'image images caption author likes', populate: { path: 'author', select: 'username profilePicture' } },
             { path: 'messages.reactions.userId', select: 'username profilePicture' }
         ]);
 
+        if (!conversation) {
+            // Revert to 1v1 check if not a direct conversation ID
+            conversation = await Conversation.findOne({
+                isGroup: false,
+                participants: { $all: [senderId, targetId], $size: 2 }
+            }).populate([
+                { path: 'participants', select: 'username profilePicture' },
+                { path: 'messages.senderId', select: 'username profilePicture' },
+                { path: 'messages.storyId', select: 'mediaUrl mediaType userId createdAt' },
+                { path: 'messages.reelId', select: 'videoUrl caption author', populate: { path: 'author', select: 'username profilePicture' } },
+                { path: 'messages.postId', select: 'image images caption author likes', populate: { path: 'author', select: 'username profilePicture' } },
+                { path: 'messages.reactions.userId', select: 'username profilePicture' }
+            ]);
+        }
+
         if (!conversation) return res.status(200).json({ success: true, messages: [], conversationId: null });
 
-        // Populate replyTo content manually for all messages
+        // Populate replyTo content manually
         const populatedMessages = conversation.messages.map(msg => {
             const msgObj = msg.toObject();
             if (msgObj.replyTo) {
@@ -215,7 +223,7 @@ export const getMessages = async (req, res) => {
             return msgObj;
         });
 
-        res.status(200).json({ success: true, messages: populatedMessages, conversationId: conversation._id.toString() });
+        res.status(200).json({ success: true, messages: populatedMessages, conversationId: conversation._id.toString(), isGroup: conversation.isGroup, groupName: conversation.groupName });
     } catch (error) {
         console.error(error);
         res.status(500).json({ success: false, message: "Internal server error" });
@@ -225,25 +233,60 @@ export const getMessages = async (req, res) => {
 export const markAsSeen = async (req, res) => {
     try {
         const userId = req.id;
-        const receiverId = req.params.id; // The other person
+        const targetId = req.params.id; // Could be a User ID or Conversation ID
 
-        const conversation = await Conversation.findOne({
-            participants: { $all: [userId, receiverId] }
-        });
+        // 1. Try finding conversation by ID directly (handles groups or known ID refs)
+        let conversation = await Conversation.findById(targetId);
 
-        if (conversation) {
-            conversation.messages.forEach(msg => {
-                if (msg.senderId.toString() === receiverId.toString() && !msg.seen) {
-                    msg.seen = true;
-                }
+        if (!conversation) {
+            // 2. Fallback: targetId is a User ID, find original 1v1 conversation with exactly these participants
+            conversation = await Conversation.findOne({
+                isGroup: false,
+                participants: { $all: [userId, targetId], $size: 2 }
             });
-            await conversation.save();
         }
 
-        broadcastToUser(receiverId, "message_seen_update", { receiverId: userId });
+        if (conversation) {
+            const isGroup = conversation.isGroup;
+            let targetReceiverId;
+
+            if (isGroup) {
+                // For Groups: Add user to seenBy array of all non-own messages
+                conversation.messages.forEach(msg => {
+                    if (String(msg.senderId) !== String(userId)) {
+                        const alreadySeen = msg.seenBy.some(id => String(id) === String(userId));
+                        if (!alreadySeen) {
+                            msg.seenBy.push(userId);
+                        }
+                    }
+                });
+            } else {
+                // For 1v1: Set seen = true for messages from the other user
+                const otherParticipant = conversation.participants.find(p => p.toString() !== userId.toString());
+                if (otherParticipant) {
+                    targetReceiverId = otherParticipant.toString();
+                    conversation.messages.forEach(msg => {
+                        if (String(msg.senderId) === String(otherParticipant) && !msg.seen) {
+                            msg.seen = true;
+                        }
+                    });
+                }
+            }
+            
+            conversation.markModified('messages');
+            await conversation.save();
+
+            // Broadcast real-time update
+            if (isGroup) {
+                io.to(conversation._id.toString()).emit("message_seen_update", { conversationId: conversation._id, userId });
+            } else if (targetReceiverId) {
+                broadcastToUser(targetReceiverId, "message_seen_update", { receiverId: userId });
+            }
+        }
+
         res.status(200).json({ success: true });
     } catch (error) {
-        console.error(error);
+        console.error("markAsSeen Error:", error);
         res.status(500).json({ success: false });
     }
 };
@@ -342,18 +385,28 @@ export const getUnreadCounts = async (req, res) => {
 
         const unreadCounts = {};
         conversations.forEach(conv => {
-            const otherParticipant = conv.participants.find(p => p.toString() !== userId.toString());
-            if (otherParticipant) {
-                const count = conv.messages.filter(msg =>
-                    msg.senderId.toString() === otherParticipant.toString() && !msg.seen
+            const currentUserIdStr = String(userId);
+            if (conv.isGroup) {
+                // For Groups: Key is conversation ID, check seenBy array
+                const count = conv.messages.filter(msg => 
+                    String(msg.senderId) !== currentUserIdStr && !msg.seenBy.some(id => String(id) === currentUserIdStr)
                 ).length;
-                unreadCounts[otherParticipant.toString()] = count;
+                unreadCounts[conv._id.toString()] = count;
+            } else {
+                // For 1v1: Key is other person's ID, check seen flag
+                const otherParticipant = conv.participants.find(p => p.toString() !== currentUserIdStr);
+                if (otherParticipant) {
+                    const count = conv.messages.filter(msg =>
+                        msg.senderId.toString() === otherParticipant.toString() && !msg.seen
+                    ).length;
+                    unreadCounts[otherParticipant.toString()] = count;
+                }
             }
         });
 
         res.status(200).json({ success: true, unreadCounts });
     } catch (error) {
-        console.error(error);
+        console.error("getUnreadCounts Error:", error);
         res.status(500).json({ success: false });
     }
 };
@@ -361,10 +414,13 @@ export const getUnreadCounts = async (req, res) => {
 export const deleteConversation = async (req, res) => {
     try {
         const senderId = req.id;
-        const receiverId = req.params.id;
+        const targetId = req.params.id; // Could be a userId or conversationId
 
         const conversation = await Conversation.findOneAndDelete({
-            participants: { $all: [senderId, receiverId] }
+            $or: [
+                { _id: targetId, participants: senderId }, // Group or ID based
+                { participants: { $all: [senderId, targetId], $size: 2 }, isGroup: false } // 1v1
+            ]
         });
 
         if (!conversation) {
@@ -375,5 +431,149 @@ export const deleteConversation = async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ success: false, message: "Internal server error" });
+    }
+};
+
+// Group Management
+export const createGroup = async (req, res) => {
+    try {
+        const senderId = req.id;
+        const { groupName, participants } = req.body; // participants is an array of user IDs
+
+        if (!groupName || !participants || participants.length < 1) {
+            return res.status(400).json({ success: false, message: "Group name and participants are required" });
+        }
+
+        const allParticipants = [...new Set([...participants, senderId])];
+
+        const conversation = await Conversation.create({
+            participants: allParticipants,
+            isGroup: true,
+            groupName: groupName,
+            groupAdmin: [senderId],
+            messages: []
+        });
+
+        await conversation.populate('participants', 'username profilePicture');
+
+        const groupObj = {
+            _id: conversation._id,
+            username: conversation.groupName,
+            profilePicture: conversation.groupProfilePicture,
+            isGroup: true,
+            participants: conversation.participants,
+            groupAdmin: conversation.groupAdmin,
+            conversationId: conversation._id,
+            updatedAt: conversation.updatedAt
+        };
+
+        // Notify all participants
+        allParticipants.forEach(p => {
+            broadcastToUser(p.toString(), "group_created", groupObj);
+        });
+
+        res.status(201).json({ success: true, group: groupObj });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false });
+    }
+};
+
+export const addGroupMembers = async (req, res) => {
+    try {
+        const senderId = req.id;
+        const { conversationId, participants, userIds } = req.body;
+        const targetUserIds = participants || userIds;
+
+        if (!targetUserIds || !Array.isArray(targetUserIds)) {
+            return res.status(400).json({ success: false, message: "No members provided" });
+        }
+
+        const conversation = await Conversation.findById(conversationId);
+        if (!conversation) return res.status(404).json({ success: false });
+        if (!conversation.isGroup) return res.status(400).json({ success: false, message: "Not a group" });
+        
+        // Check if sender is admin
+        if (!conversation.groupAdmin.some(adminId => String(adminId) === String(senderId))) {
+            return res.status(403).json({ success: false, message: "Only admins can add members" });
+        }
+
+        const newMembers = targetUserIds.filter(id => !conversation.participants.some(p => String(p) === String(id)));
+        conversation.participants.push(...newMembers);
+        await conversation.save();
+        await conversation.populate('participants', 'username profilePicture');
+
+        const updatedGroup = {
+            _id: conversation._id,
+            username: conversation.groupName,
+            profilePicture: conversation.groupProfilePicture,
+            isGroup: true,
+            participants: conversation.participants,
+            groupAdmin: conversation.groupAdmin,
+            conversationId: conversation._id,
+            updatedAt: conversation.updatedAt
+        };
+
+        // Notify all participants (old and new) about the update
+        conversation.participants.forEach(p => {
+            broadcastToUser(p._id.toString(), "group_updated", updatedGroup);
+        });
+
+        res.status(200).json({ success: true, group: updatedGroup });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false });
+    }
+};
+
+export const removeGroupMember = async (req, res) => {
+    try {
+        const senderId = req.id;
+        const { conversationId, userId } = req.body;
+
+        const conversation = await Conversation.findById(conversationId);
+        if (!conversation) return res.status(404).json({ success: false });
+        
+        // Admin can remove anyone, member can remove themselves
+        const isAdmin = conversation.groupAdmin.includes(senderId);
+        const isSelf = senderId === userId;
+
+        if (!isAdmin && !isSelf) {
+            return res.status(403).json({ success: false, message: "Unauthorized" });
+        }
+
+        conversation.participants = conversation.participants.filter(id => id.toString() !== userId);
+        
+        // If admin removed, assign new admin if any members left
+        if (conversation.groupAdmin.includes(userId)) {
+            conversation.groupAdmin = conversation.groupAdmin.filter(id => id.toString() !== userId);
+            if (conversation.groupAdmin.length === 0 && conversation.participants.length > 0) {
+                conversation.groupAdmin.push(conversation.participants[0]);
+            }
+        }
+
+        await conversation.save();
+        await conversation.populate('participants', 'username profilePicture');
+
+        const updatedGroup = {
+            _id: conversation._id,
+            username: conversation.groupName,
+            profilePicture: conversation.groupProfilePicture,
+            isGroup: true,
+            participants: conversation.participants,
+            groupAdmin: conversation.groupAdmin,
+            conversationId: conversation._id,
+            updatedAt: conversation.updatedAt
+        };
+
+        // Notify all remaining participants about the change
+        conversation.participants.forEach(p => {
+            broadcastToUser(p._id.toString(), "group_updated", updatedGroup);
+        });
+
+        res.status(200).json({ success: true, group: updatedGroup });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false });
     }
 };

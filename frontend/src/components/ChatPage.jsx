@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { cn, getAvatarColor } from '@/lib/utils';
 import { Button } from './ui/button';
-import { MessageCircle, Send, X, Image as ImageIcon, Smile, Plus, FileText, Reply, Trash2, Search, BellOff, Bell, VolumeOff, Volume2 } from 'lucide-react';
+import { MessageCircle, Send, X, Image as ImageIcon, Smile, Plus, FileText, Reply, Trash2, Search, BellOff, Bell, VolumeOff, Volume2, Users, UserPlus, UserMinus, Shield } from 'lucide-react';
 import api from '@/api';
 import { toast } from 'sonner';
 import { toggleMuteUserAction } from '../redux/authSlice';
@@ -43,6 +43,12 @@ const ChatPage = () => {
     const [isSearching, setIsSearching] = useState(false);
     const [isPlusMenuOpen, setIsPlusMenuOpen] = useState(false); // New state for (+) menu
     const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, targetUser: null });
+    const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
+    const [isAddingMembers, setIsAddingMembers] = useState(false);
+    const [isGroupSearching, setIsGroupSearching] = useState(false);
+    const [groupSearchQuery, setGroupSearchQuery] = useState("");
+    const [groupSearchResults, setGroupSearchResults] = useState([]);
+    const [isGroupInfoOpen, setIsGroupInfoOpen] = useState(false);
     const searchInputRef = useRef(null);
     let typingTimeout = useRef(null);
 
@@ -77,15 +83,13 @@ const ChatPage = () => {
         };
     }, [dispatch]);
 
-    // Restore last chat on refresh
+    // Restore or switch chat from localStorage (e.g., when clicking notifications)
     useEffect(() => {
-        if (!selectedUser && chatUsers.length > 0) {
-            const savedId = localStorage.getItem('lastChatUserId');
-            if (savedId) {
-                const userToRestore = chatUsers.find(u => String(u._id) === savedId);
-                if (userToRestore) {
-                    handleSelectUser(userToRestore);
-                }
+        const savedId = localStorage.getItem('lastChatUserId');
+        if (savedId && String(selectedUser?._id) !== String(savedId) && chatUsers.length > 0) {
+            const userToRestore = chatUsers.find(u => String(u._id) === String(savedId));
+            if (userToRestore) {
+                handleSelectUser(userToRestore);
             }
         }
     }, [chatUsers, selectedUser]);
@@ -139,30 +143,51 @@ const ChatPage = () => {
     }, [selectedUser?._id]);
 
     useEffect(() => {
-        const delayDebounceFn = setTimeout(async () => {
-            if (searchQuery.trim()) {
-                setIsSearching(true);
-                try {
-                    const res = await api.get(`/user/search?query=${searchQuery}`);
-                    if (res.data.success) {
-                        // Filter out users already in active chat list to avoid duplicates
-                        const filtered = res.data.users.filter(u =>
-                            !chatUsers.some(cu => String(cu._id) === String(u._id))
-                        );
-                        setSearchResults(filtered);
-                    }
-                } catch (err) {
-                    console.error("Search error", err);
-                } finally {
-                    setIsSearching(false);
-                }
-            } else {
+        const fetchSearch = async () => {
+            if (!searchQuery.trim()) {
                 setSearchResults([]);
+                return;
             }
-        }, 300);
 
-        return () => clearTimeout(delayDebounceFn);
+            setIsSearching(true);
+            try {
+                const res = await api.get(`/user/search?query=${searchQuery}`);
+                if (res.data.success) {
+                    const filtered = res.data.users.filter(u =>
+                        !chatUsers.some(cu => String(cu._id) === String(u._id))
+                    );
+                    setSearchResults(filtered);
+                }
+            } catch (err) {
+                console.error("Search error", err);
+            } finally {
+                setIsSearching(false);
+            }
+        };
+
+        const timeout = setTimeout(fetchSearch, 300);
+        return () => clearTimeout(timeout);
     }, [searchQuery, chatUsers]);
+    useEffect(() => {
+        const fetchGroupSearch = async () => {
+            if (!isGroupModalOpen) return;
+
+            setIsGroupSearching(true);
+            try {
+                const res = await api.get(`/user/search?query=${groupSearchQuery}&followersOnly=true`);
+                if (res.data.success) {
+                    setGroupSearchResults(res.data.users);
+                }
+            } catch (err) {
+                console.error("Group search error", err);
+            } finally {
+                setIsGroupSearching(false);
+            }
+        };
+
+        const timeout = setTimeout(fetchGroupSearch, 300);
+        return () => clearTimeout(timeout);
+    }, [groupSearchQuery, isGroupModalOpen]);
 
     useEffect(() => {
         if (selectedUser && messages.length > 0) {
@@ -196,12 +221,12 @@ const ChatPage = () => {
         try {
             const tempId = Date.now().toString();
 
-            // Optimistic socket emit as requested
+            // Optimistic socket emit
             if (socket) {
                 socket.emit("send_message", {
                     conversationId: selectedUser.conversationId,
                     senderId: user._id,
-                    receiverId: selectedUser._id,
+                    receiverId: selectedUser.isGroup ? null : selectedUser._id,
                     text: textMessage,
                     messageType: 'text',
                     tempId: tempId
@@ -384,16 +409,43 @@ const ChatPage = () => {
         const handleIncomingMessage = (newMessage) => {
             setIsTyping(false);
 
-            // Accept messages that belong to the current conversation
-            const messageInvolvesSender = String(newMessage.senderId) === String(selectedUser._id);
-            const messageInvolvesReceiver = String(newMessage.receiverId) === String(selectedUser._id);
+            // 1. Group Logic: Match by conversationId
+            const isGroupMatch = selectedUser?.isGroup && String(newMessage.conversationId) === String(selectedUser.conversationId);
 
-            if (messageInvolvesSender || messageInvolvesReceiver) {
+            // 2. 1v1 Logic: Match by sender/receiver IDs
+            const messageInvolvesSender = !selectedUser?.isGroup && String(newMessage.senderId) === String(selectedUser?._id);
+            const messageInvolvesReceiver = !selectedUser?.isGroup && String(newMessage.receiverId) === String(selectedUser?._id);
+
+            if (isGroupMatch || messageInvolvesSender || messageInvolvesReceiver) {
                 dispatch(addMessage(newMessage)); // addMessage deduplicates by _id automatically
-                if (messageInvolvesSender) {
-                    // Other user sent this — clear unread count
-                    dispatch(clearUnreadCount(String(newMessage.senderId)));
+                
+                // Update sidebar even in active chat
+                const targetId = String(selectedUser?._id);
+                dispatch(updateLastMessage({ userId: targetId, message: newMessage }));
+                dispatch(reorderUsers(targetId));
+
+                if (messageInvolvesSender || (isGroupMatch && String(newMessage.senderId) !== String(user?._id))) {
+                    // Other user sent this — clear unread count for this "user" (Identity is _id)
+                    dispatch(clearUnreadCount(targetId));
                 }
+            } else {
+                // Message for a chat NOT currently open
+                const targetId = newMessage.isGroup ? String(newMessage.conversationId) : String(newMessage.senderId);
+                
+                // Ensure user/group is in sidebar
+                const exists = chatUsers.some(u => String(u._id) === targetId);
+                if (!exists && !newMessage.isGroup) {
+                    dispatch(addChatUser({
+                        _id: newMessage.senderId,
+                        username: newMessage.senderUsername,
+                        profilePicture: newMessage.senderProfilePicture,
+                        conversationId: newMessage.conversationId
+                    }));
+                }
+
+                dispatch(updateLastMessage({ userId: targetId, message: newMessage }));
+                dispatch(reorderUsers(targetId));
+                dispatch(incrementUnreadCount(targetId));
             }
         };
 
@@ -471,8 +523,17 @@ const ChatPage = () => {
             <section className='hidden md:flex flex-col w-[350px] shrink-0 border-r border-[#efefef] bg-white px-2'>
                 <div className='py-8 px-4 flex items-center justify-between'>
                     <h1 className='font-black text-[22px] tracking-tight text-[#262626]'>{user?.username}</h1>
-                    <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => searchInputRef.current?.focus()}>
-                        <MessageCircle size={18} className="text-[#262626]" />
+                    <div className="flex gap-2">
+                        <div
+                            className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center cursor-pointer hover:bg-indigo-100 transition-colors"
+                            title="Create Group"
+                            onClick={() => setIsGroupModalOpen(true)}
+                        >
+                            <Users size={18} className="text-indigo-600" />
+                        </div>
+                        <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => searchInputRef.current?.focus()}>
+                            <MessageCircle size={18} className="text-[#262626]" />
+                        </div>
                     </div>
                 </div>
                 <div className='px-4 mb-4'>
@@ -483,8 +544,8 @@ const ChatPage = () => {
                         <input
                             ref={searchInputRef}
                             type="text"
-                            placeholder='Search people...'
-                            value={searchQuery}
+                            placeholder="Search people..." 
+                            value={searchQuery} 
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className='w-full bg-gray-100/80 border-none rounded-xl py-2.5 pl-10 pr-10 text-[14px] font-medium outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white transition-all'
                         />
@@ -497,13 +558,14 @@ const ChatPage = () => {
                             </button>
                         )}
                     </div>
-                </div>                <div className='flex-1 overflow-y-auto custom-scrollbar pb-10 px-2'>
+                </div>
+                <div className='flex-1 overflow-y-auto custom-scrollbar pb-10 px-2'>
                     <div className='px-2 mb-4 text-[12px] font-black text-[#8e8e8e] tracking-widest uppercase opacity-60'>
                         {searchQuery ? (isSearching ? 'Searching...' : 'Search Results') : 'Messages'}
                     </div>
                     <div className='flex flex-col gap-1'>
                         {/* Map filtered chat users */}
-                        {chatUsers?.filter(u => u.username.toLowerCase().includes(searchQuery.toLowerCase())).map((suggestedUser) => {
+                        {chatUsers?.filter(u => u.username?.toLowerCase().includes(searchQuery.toLowerCase())).map((suggestedUser) => {
                             if (!suggestedUser || String(suggestedUser._id) === String(user?._id)) return null;
                             const isOnline = onlineUsers.includes(String(suggestedUser?._id));
                             const isSelected = selectedUser?._id === suggestedUser?._id;
@@ -637,23 +699,26 @@ const ChatPage = () => {
                                         <AvatarImage src={selectedUser?.profilePicture} className="object-cover" />
                                         <AvatarFallback className={cn("text-black font-black uppercase text-[15px]", getAvatarColor(selectedUser?.username))}>{selectedUser?.username?.charAt(0)}</AvatarFallback>
                                     </Avatar>
-                                    {onlineUsers.includes(selectedUser?._id) && (
+                                    {!selectedUser.isGroup && onlineUsers.includes(selectedUser?._id) && (
                                         <div className="absolute bottom-0 right-0.5 w-4 h-4 bg-green-500 border-[3px] border-white rounded-full"></div>
                                     )}
                                 </div>
                                 <div
                                     className='flex flex-col cursor-pointer hover:opacity-70 transition-opacity z-10'
-                                    onClick={() => navigate(`/profile/${selectedUser?._id}`)}
+                                    onClick={() => !selectedUser.isGroup && navigate(`/profile/${selectedUser?._id}`)}
                                 >
                                     <span className='font-black text-[18px] text-[#111] leading-none mb-1.5'>{selectedUser?.username}</span>
                                     <div className="flex items-center gap-1.5">
-                                        <span className={`text-[11px] font-black uppercase tracking-wider ${onlineUsers.includes(selectedUser?._id) ? 'text-green-500' : 'text-gray-400'}`}>
-                                            {onlineUsers.includes(selectedUser?._id) ? 'Active now' : 'Offline'}
+                                        <span className={`text-[11px] font-black uppercase tracking-wider ${onlineUsers.includes(selectedUser?._id) || selectedUser.isGroup ? 'text-green-500' : 'text-gray-400'}`}>
+                                            {selectedUser.isGroup ? `${selectedUser.participants.length} members` : (onlineUsers.includes(selectedUser?._id) ? 'Active now' : 'Offline')}
                                         </span>
                                     </div>
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
+                                {selectedUser.isGroup && (
+                                    <Button variant="ghost" size="icon" onClick={() => setIsGroupInfoOpen(true)} className="rounded-full w-10 h-10 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all"><Users size={20} /></Button>
+                                )}
                                 <Button variant="ghost" size="icon" onClick={() => searchInputRef.current?.focus()} className="rounded-full w-10 h-10 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all"><MessageCircle size={20} /></Button>
                                 <Button variant="ghost" size="icon" onClick={deleteChatHandler} className="rounded-full w-10 h-10 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"><Trash2 size={20} /></Button>
                                 <Button variant="ghost" size="icon" onClick={() => dispatch(setSelectedUser(null))} className="rounded-full w-10 h-10 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"><X size={20} /></Button>
@@ -676,7 +741,7 @@ const ChatPage = () => {
                                                 <MessageBubble
                                                     key={msg._id}
                                                     msg={msg}
-                                                    isSender={String(msg.senderId) === String(user?._id)}
+                                                    isSender={String(msg.senderId?._id || msg.senderId) === String(user?._id)}
                                                     currentUser={user}
                                                     otherUser={selectedUser}
                                                     onReply={setReplyTo}
@@ -751,8 +816,8 @@ const ChatPage = () => {
                                 <div className="flex-1 flex items-center bg-[#f9fafb] border border-[#f3f4f6] rounded-[28px] py-0.5 pl-6 pr-2 focus-within:ring-2 focus-within:ring-indigo-500/10 focus-within:border-indigo-500/50 transition-all duration-300 relative">
                                     {/* Plus (+) Menu Trigger and Dropup */}
                                     <div className="relative">
-                                        <button 
-                                            type="button" 
+                                        <button
+                                            type="button"
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 setIsPlusMenuOpen(!isPlusMenuOpen);
@@ -761,11 +826,11 @@ const ChatPage = () => {
                                         >
                                             <Plus size={22} strokeWidth={2.5} />
                                         </button>
-                                        
+
                                         {/* Dropup Menu */}
                                         {isPlusMenuOpen && (
                                             <div className="absolute bottom-[calc(100%+8px)] left-0 bg-white border border-gray-100 shadow-[0_-4px_24px_rgba(0,0,0,0.08)] rounded-[20px] py-1.5 min-w-[180px] z-50 animate-in slide-in-from-bottom-2 duration-300">
-                                                <button 
+                                                <button
                                                     type="button"
                                                     onClick={() => {
                                                         document.getElementById('media-upload-final').setAttribute('accept', '*/*');
@@ -779,8 +844,8 @@ const ChatPage = () => {
                                                     </div>
                                                     <span className="text-[13px] font-bold">Document</span>
                                                 </button>
-                                                
-                                                <button 
+
+                                                <button
                                                     type="button"
                                                     onClick={() => {
                                                         document.getElementById('media-upload-final').setAttribute('accept', 'image/*,video/*');
@@ -870,6 +935,14 @@ const ChatPage = () => {
                                                                 replyTo: replyTo ? { ...replyTo } : null
                                                             };
                                                             dispatch(addMessage(populatedNewMsg));
+                                                            
+                                                            // Ensure user is in sidebar
+                                                            // Critical: Ensure user is in sidebar and at the top
+                                                            const exists = chatUsers.some(u => String(u._id) === String(selectedUser?._id));
+                                                            if (!exists && !selectedUser.isGroup) {
+                                                                dispatch(addChatUser(selectedUser));
+                                                            }
+                                                            
                                                             dispatch(updateLastMessage({ userId: selectedUser._id, message: populatedNewMsg }));
                                                             dispatch(reorderUsers(selectedUser._id));
                                                             setReplyTo(null);
@@ -958,8 +1031,302 @@ const ChatPage = () => {
                 </div>
             )}
 
-            <PostModal open={openPostModal} setOpen={setOpenPostModal} post={selectedPostForModal} onOpenComment={() => { setOpenPostModal(false); setOpenCommentDialog(true); }} />
-            <CommentDialog open={openCommentDialog} setOpen={setOpenCommentDialog} />
+            {/* Group Creation Modal */}
+            {isGroupModalOpen && (
+                <div className="fixed inset-0 z-[50] flex items-center justify-center bg-black/40 backdrop-blur-[8px] animate-in fade-in duration-300 px-4">
+                    <div className="bg-white rounded-[32px] w-full max-w-[440px] max-h-[85vh] flex flex-col overflow-hidden shadow-[0_25px_70px_-15px_rgba(0,0,0,0.3)] animate-in zoom-in-95 duration-300 border border-gray-100">
+                        {/* Fixed Header */}
+                        <div className="px-8 pt-10 pb-6 bg-white shrink-0 border-b border-gray-50 relative">
+                            <button 
+                                onClick={() => { setIsGroupModalOpen(false); setIsAddingMembers(false); setGroupSearchQuery(""); }}
+                                className="absolute top-6 right-6 p-2 rounded-full hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-600"
+                            >
+                                <X size={20} strokeWidth={3} />
+                            </button>
+                            <h2 className="text-[26px] font-black text-[#111] tracking-tight leading-7">
+                                {isAddingMembers ? "Add Members" : "Create Group"}
+                            </h2>
+                            <p className="text-[13px] font-medium text-gray-400 mt-1">{isAddingMembers ? "Expand your conversation" : "Select members to start"}</p>
+                        </div>
+                        
+                        {/* Scrollable Content */}
+                        <div className="flex-1 overflow-y-auto custom-scrollbar p-8 space-y-6">
+                            {!isAddingMembers && (
+                                <div className="space-y-2.5">
+                                    <label className="text-[11px] font-black uppercase text-gray-500 tracking-widest px-1">Group Title</label>
+                                    <input 
+                                        type="text" 
+                                        id="group-name-input"
+                                        placeholder="Name your group..." 
+                                        className="w-full bg-gray-50 border-gray-100 border rounded-2xl py-4 px-5 text-[15px] font-bold outline-none ring-4 ring-transparent focus:ring-indigo-500/10 focus:bg-white focus:border-indigo-500/30 transition-all"
+                                    />
+                                </div>
+                            )}
+
+                            <div className="space-y-4">
+                                <label className="text-[11px] font-black uppercase text-gray-500 tracking-widest px-1">Select Participants</label>
+                                <div className="relative group">
+                                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-500 transition-colors" size={17} />
+                                    <input 
+                                        type="text" 
+                                        value={groupSearchQuery} 
+                                        placeholder="Find followers..." 
+                                        onChange={(e) => setGroupSearchQuery(e.target.value)}
+                                        className="w-full bg-gray-50 border-gray-100 border rounded-2xl py-3.5 pl-12 pr-5 text-[14px] font-bold outline-none ring-4 ring-transparent focus:ring-indigo-500/10 focus:bg-white focus:border-indigo-500/30 transition-all"
+                                    />
+                                </div>
+
+                                <div className="space-y-1.5 pt-2">
+                                    {groupSearchResults.length > 0 ? groupSearchResults
+                                        .filter(u => !selectedUser?.participants?.some(p => String(p._id || p) === String(u._id)))
+                                        .map((u) => (
+                                            <div 
+                                                key={u._id} 
+                                                onClick={() => {
+                                                    const el = document.getElementById(`check-${u._id}`);
+                                                    if (el) el.checked = !el.checked;
+                                                }}
+                                                className="flex items-center justify-between p-3.5 rounded-2xl hover:bg-indigo-50/50 cursor-pointer transition-all group border border-transparent hover:border-indigo-100/50"
+                                            >
+                                                <div className="flex items-center gap-3.5">
+                                                    <Avatar className="w-11 h-11 border-2 border-white shadow-sm transition-transform group-hover:scale-105">
+                                                        <AvatarImage src={u.profilePicture} className="object-cover" />
+                                                        <AvatarFallback className={cn("font-bold text-sm", getAvatarColor(u.username))}>{u.username?.charAt(0)}</AvatarFallback>
+                                                    </Avatar>
+                                                    <div className="flex flex-col">
+                                                        <span className="text-[15px] font-black text-[#262626]">{u.username}</span>
+                                                        <span className="text-[12px] text-gray-400 font-medium">@{u.username}</span>
+                                                    </div>
+                                                </div>
+                                                <div className="relative flex items-center">
+                                                    <input 
+                                                        type="checkbox" 
+                                                        id={`check-${u._id}`}
+                                                        value={u._id}
+                                                        className="w-6 h-6 rounded-lg border-2 border-gray-200 text-indigo-600 focus:ring-indigo-500/20 cursor-pointer accent-indigo-600 shadow-sm transition-all"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                    />
+                                                </div>
+                                            </div>
+                                )) : (
+                                    groupSearchQuery && !isGroupSearching ? (
+                                        <div className="py-8 text-center text-gray-400 font-medium text-[14px]">No followers found</div>
+                                    ) : null
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Fixed Footer */}
+                    <div className="px-8 pb-8 pt-2 bg-white shrink-0">
+                            <Button 
+                                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-[20px] h-14 font-black text-[15px] shadow-lg shadow-indigo-100 active:scale-[0.98] transition-all"
+                                onClick={async () => {
+                                    const groupNameInput = document.getElementById('group-name-input');
+                                    const groupName = isAddingMembers ? null : groupNameInput?.value;
+                                    const selectedIds = Array.from(document.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
+                                    
+                                    if (!isAddingMembers && !groupName) return toast.error("Please name your group");
+                                    if (selectedIds.length === 0) return toast.error("Select at least one member");
+
+                                    try {
+                                        if (isAddingMembers) {
+                                            const res = await api.post('/message/group/add', { conversationId: selectedUser.conversationId, participants: selectedIds });
+                                            if (res.data.success) {
+                                                const updatedParticipants = res.data.group.participants;
+                                                dispatch(setSelectedUser({ ...selectedUser, participants: updatedParticipants }));
+                                                setIsGroupModalOpen(false);
+                                                setIsAddingMembers(false);
+                                                toast.success("Group members updated!");
+                                            }
+                                        } else {
+                                            const res = await api.post('/message/group/create', { groupName, participants: selectedIds });
+                                            if (res.data.success) {
+                                                dispatch(addChatUser(res.data.group));
+                                                handleSelectUser(res.data.group);
+                                                setIsGroupModalOpen(false);
+                                                toast.success("Group created!");
+                                            }
+                                        }
+                                    } catch (err) {
+                                        toast.error(isAddingMembers ? "Failed to add members" : "Failed to create group");
+                                    }
+                                }}
+                            >
+                                {isAddingMembers ? "Add Members" : "Create My Group"}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Group Info Modal */}
+            {isGroupInfoOpen && selectedUser?.isGroup && (
+                <div className="fixed inset-0 z-[50] flex items-center justify-center bg-black/40 backdrop-blur-[8px] animate-in fade-in duration-300 px-4">
+                    <div className="bg-white rounded-[32px] w-full max-w-[440px] max-h-[85vh] flex flex-col overflow-hidden shadow-[0_25px_70px_-15px_rgba(0,0,0,0.3)] animate-in zoom-in-95 duration-300 border border-gray-100">
+                        {/* Header Section */}
+                        <div className="px-8 pt-10 pb-8 flex flex-col items-center bg-white border-b border-gray-50 shrink-0 relative">
+                            <button 
+                                onClick={() => setIsGroupInfoOpen(false)}
+                                className="absolute top-6 right-6 p-2 rounded-full hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-600"
+                            >
+                                <X size={20} strokeWidth={3} />
+                            </button>
+                            <div className="relative mb-5">
+                                <Avatar className="w-24 h-24 border-4 border-white shadow-[0_12px_24px_-10px_rgba(0,0,0,0.2)]">
+                                    <AvatarImage src={selectedUser.profilePicture} className="object-cover" />
+                                    <AvatarFallback className={cn("text-3xl font-black", getAvatarColor(selectedUser.username))}>{selectedUser.username?.charAt(0)}</AvatarFallback>
+                                </Avatar>
+                                <div className="absolute -bottom-1 -right-1 p-2.5 bg-indigo-600 rounded-full text-white shadow-lg shadow-indigo-100 ring-4 ring-white">
+                                    <Users size={16} strokeWidth={2.5} />
+                                </div>
+                            </div>
+                            <h3 className="text-[24px] font-black text-[#111] tracking-tight">{selectedUser.username}</h3>
+                            <div className="mt-1.5 px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-[11px] font-black uppercase tracking-widest">
+                                {selectedUser.participants.length} Active Members
+                            </div>
+                        </div>
+
+                        {/* Members List Section */}
+                        <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-4">
+                            <div className="flex items-center px-4 mb-4 justify-between sticky -top-4 bg-white z-[30] py-4 -mx-6 px-10 border-b border-gray-50/50">
+                                <label className="text-[11px] font-black uppercase text-gray-400 tracking-widest">Group Members</label>
+                                {selectedUser.groupAdmin.some(adminId => String(adminId) === String(user?._id)) && (
+                                    <button 
+                                        className="text-[12px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-1.5 hover:bg-indigo-50 px-3 py-1.5 rounded-full transition-all"
+                                        onClick={() => {
+                                            setIsAddingMembers(true);
+                                            setIsGroupModalOpen(true);
+                                            setIsGroupInfoOpen(false);
+                                        }}
+                                    >
+                                        <Plus size={14} strokeWidth={3} /> Add
+                                    </button>
+                                )}
+                            </div>
+                            
+                            <div className="space-y-1">
+                                {selectedUser.participants.map(p => {
+                                    const isMe = String(p._id || p) === String(user?._id);
+                                    const isAdmin = selectedUser.groupAdmin.some(adminId => String(adminId) === String(p._id || p));
+                                    const amIAdmin = selectedUser.groupAdmin.some(adminId => String(adminId) === String(user?._id));  
+                                    return (
+                                        <div key={p._id} className="flex items-center justify-between p-3.5 rounded-2xl hover:bg-gray-50 group transition-all">
+                                            <div className="flex items-center gap-4">
+                                                <div className="relative">
+                                                    <Avatar className="w-11 h-11 border-2 border-white shadow-sm group-hover:scale-105 transition-transform">
+                                                        <AvatarImage src={p.profilePicture} className="object-cover" />
+                                                        <AvatarFallback className={cn("font-bold text-sm", getAvatarColor(p.username))}>{p.username?.charAt(0)}</AvatarFallback>
+                                                    </Avatar>
+                                                    {onlineUsers.includes(p._id) && <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>}
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className="text-[15px] font-black text-[#262626] flex items-center gap-2">
+                                                        {p.username} 
+                                                        {isMe && <span className="text-[9px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-black uppercase tracking-tighter">You</span>}
+                                                    </span>
+                                                    {isAdmin && (
+                                                        <span className="text-[10px] font-black text-indigo-600 uppercase flex items-center gap-1 mt-0.5 opacity-80">
+                                                            <Shield size={10} strokeWidth={3} /> Administrator
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            
+                                            {amIAdmin && !isMe && (
+                                                <button 
+                                                    onClick={async () => {
+                                                        const confirm = await Swal.fire({
+                                                            title: 'Remove Member?',
+                                                            text: `Remove ${p.username} from the group?`,
+                                                            icon: 'warning',
+                                                            showCancelButton: true,
+                                                            confirmButtonText: 'Remove',
+                                                            confirmButtonColor: '#ef4444',
+                                                            cancelButtonColor: '#94a3b8',
+                                                            borderRadius: '24px'
+                                                        });
+                                                        
+                                                        if (confirm.isConfirmed) {
+                                                            try {
+                                                                const res = await api.post('/message/group/remove', { 
+                                                                    conversationId: selectedUser.conversationId, 
+                                                                    userId: p._id || p
+                                                                });
+                                                                if (res.data.success) {
+                                                                    const updatedParticipants = selectedUser.participants.filter(m => String(m._id || m) !== String(p._id || p));
+                                                                    dispatch(setSelectedUser({ ...selectedUser, participants: updatedParticipants }));
+                                                                    toast.success("Member removed");
+                                                                }
+                                                            } catch (err) {
+                                                                toast.error("Failed to remove member");
+                                                            }
+                                                        }
+                                                    }}
+                                                    className="p-2.5 opacity-0 group-hover:opacity-100 hover:bg-red-50 hover:text-red-600 text-gray-400 rounded-full transition-all"
+                                                >
+                                                    <UserMinus size={18} />
+                                                </button>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* Footer Section */}
+                        <div className="p-8 border-t border-gray-50 flex gap-4 bg-white shrink-0">
+                            <Button variant="outline" className="flex-1 rounded-2xl h-13 font-black text-[14px] bg-gray-50 border-transparent hover:bg-gray-100 text-gray-600 transition-all border-none shadow-none" onClick={() => setIsGroupInfoOpen(false)}>CLOSE</Button>
+                            <Button 
+                                variant="destructive" 
+                                className="flex-1 rounded-2xl h-13 font-black text-[14px] bg-red-50 text-red-600 hover:bg-red-100 transition-all border-none shadow-none"
+                                onClick={async () => {
+                                    const confirm = await Swal.fire({
+                                        title: 'Leave Group?',
+                                        text: "You won't be able to send or receive messages in this group.",
+                                        icon: 'warning',
+                                        showCancelButton: true,
+                                        confirmButtonText: 'Yes, leave',
+                                        confirmButtonColor: '#ef4444',
+                                        cancelButtonColor: '#94a3b8',
+                                        borderRadius: '24px'
+                                    });
+                                    if (confirm.isConfirmed) {
+                                        try {
+                                            await api.post('/message/group/remove', { 
+                                                conversationId: selectedUser.conversationId, 
+                                                userId: user._id 
+                                            });
+                                            dispatch(setSelectedUser(null));
+                                            dispatch(clearChat(selectedUser._id));
+                                            setIsGroupInfoOpen(false);
+                                            toast.success("You left the group");
+                                        } catch (err) {
+                                            toast.error("Failed to leave group");
+                                        }
+                                    }
+                                }}
+                            >
+                                LEAVE GROUP
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Post Modal */}
+            {openPostModal && selectedPostForModal && (
+                <PostModal
+                    open={openPostModal}
+                    onClose={() => setOpenPostModal(false)}
+                    post={selectedPostForModal}
+                />
+            )}
+
+            {/* Comment Dialog */}
+            {openCommentDialog && (
+                <CommentDialog open={openCommentDialog} setOpen={setOpenCommentDialog} />
+            )}
         </div>
     );
 };

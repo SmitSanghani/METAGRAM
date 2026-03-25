@@ -60,15 +60,28 @@ const MessageBubble = ({ msg, isSender, onReply, onDelete, onReact, onScrollTo, 
     };
 
     const reactionsList = ["❤️", "😂", "🔥", "👍", "😮", "😢"];
-    const avatarUser = isSender ? currentUser : otherUser;
+    
+    // In group chats, otherUser is just one of many. We prefer msg.senderProfilePicture
+    const senderData = typeof msg.senderId === 'object' ? msg.senderId : (
+        otherUser?.isGroup ? 
+        otherUser.participants.find(p => String(p._id || p) === String(msg.senderId?._id || msg.senderId)) : 
+        (isSender ? currentUser : otherUser)
+    );
+    const senderProfile = msg.senderProfilePicture || senderData?.profilePicture;
+    const senderName = msg.senderUsername || senderData?.username;
 
     return (
         <div id={`msg-${msg._id}`} className={`group flex flex-col ${msg.reactions?.length > 0 ? 'mb-8' : 'mb-4'} ${isSender ? 'items-end' : 'items-start'} transition-all duration-500`}>
+            {otherUser?.isGroup && !isSender && (
+                <span className="text-[10px] font-black text-gray-400 mb-1 ml-10 uppercase tracking-tight">
+                    {senderName}
+                </span>
+            )}
             <div className={`flex items-end gap-1.5 max-w-[85%] ${isSender ? 'flex-row-reverse' : 'flex-row'}`}>
                 <Avatar className="w-8 h-8 shrink-0 border border-white shadow-sm mb-0.5">
-                    <AvatarImage src={avatarUser?.profilePicture} className="object-cover" />
+                    <AvatarImage src={senderProfile} className="object-cover" />
                     <AvatarFallback className="bg-indigo-50 text-indigo-500 text-sm font-black uppercase">
-                        {avatarUser?.username?.charAt(0) || '?'}
+                        {senderName?.charAt(0) || '?'}
                     </AvatarFallback>
                 </Avatar>
 
@@ -83,7 +96,7 @@ const MessageBubble = ({ msg, isSender, onReply, onDelete, onReact, onScrollTo, 
                             <div className="w-1 self-stretch bg-current opacity-20 rounded-full"></div>
                             <div className="truncate max-w-[200px]">
                                 <span className="font-black block text-[9px] uppercase tracking-wider mb-0.5">
-                                    Replying to {msg.replyTo.senderId?.toString() === currentUser?._id?.toString() ? "yourself" : "them"}
+                                    Replying to {msg.replyTo.senderId?.toString() === currentUser?._id?.toString() ? "yourself" : (msg.replyTo.senderUsername || "them")}
                                 </span>
                                 <span className="italic">
                                     {msg.replyTo.message || (msg.replyTo.messageType === 'image' ? 'photo' : 'video')}

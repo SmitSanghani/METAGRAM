@@ -130,7 +130,7 @@ const LeftSidebar = () => {
     }
 
     return (
-        <div className='LeftSidebar fixed top-0 z-[100] left-0 w-[280px] h-screen bg-white border-r border-gray-100 flex flex-col justify-between pb-6 px-6 transition-all duration-300'>
+        <div className='LeftSidebar fixed top-0 z-[20] left-0 w-[280px] h-screen bg-white border-r border-gray-100 flex flex-col justify-between pb-6 px-6 transition-all duration-300'>
             <div className='flex flex-col'>
                 <div className='my-10 pl-3 flex flex-col'>
                     <div

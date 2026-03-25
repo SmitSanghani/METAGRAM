@@ -598,7 +598,7 @@ export const deleteFollowRequest = async (req, res) => {
     }
 }
 
-// Get Chat Users (Sorted by activity)
+// // Get Chat Users (Sorted by activity, Includes Groups)
 export const getChatUsers = async (req, res) => {
     try {
         const userId = req.id;
@@ -608,18 +608,39 @@ export const getChatUsers = async (req, res) => {
 
         const user = await User.findById(userId);
 
-        const chattedUsers = conversations.map(conv => {
-            const other = conv.participants.find(p => p._id.toString() !== userId.toString());
-            if (!other) return null;
-            return {
-                ...other.toObject(),
-                conversationId: conv._id
-            };
-        }).filter(u => u != null && !user.blockedUsers.some(id => String(id) === String(u._id)) && !user.blockedBy.some(id => String(id) === String(u._id)));
+        const chatItems = conversations.map(conv => {
+            if (conv.isGroup) {
+                return {
+                    _id: conv._id, // Conversation ID acts as the "user" identity in frontend select
+                    username: conv.groupName,
+                    profilePicture: conv.groupProfilePicture,
+                    isGroup: true,
+                    participants: conv.participants,
+                    groupAdmin: conv.groupAdmin,
+                    conversationId: conv._id,
+                    updatedAt: conv.updatedAt
+                };
+            } else {
+                const other = conv.participants.find(p => p._id.toString() !== userId.toString());
+                if (!other) return null;
+                return {
+                    ...other.toObject(),
+                    conversationId: conv._id,
+                    isGroup: false,
+                    updatedAt: conv.updatedAt
+                };
+            }
+        }).filter(item => {
+            if (!item) return false;
+            if (item.isGroup) return true;
+            // Block filter for 1v1
+            return !user.blockedUsers.some(id => String(id) === String(item._id)) && 
+                   !user.blockedBy.some(id => String(id) === String(item._id));
+        });
 
         return res.status(200).json({
             success: true,
-            users: chattedUsers
+            users: chatItems
         });
     } catch (error) {
         console.error(error);
@@ -689,15 +710,26 @@ export const changePassword = async (req, res) => {
 export const searchUsers = async (req, res) => {
     try {
         const query = req.query.query;
-        if (!query) {
-            return res.status(200).json({ users: [], success: true });
-        }
+        const followersOnly = req.query.followersOnly === 'true';
+        
         const currentUser = await User.findById(req.id);
-        const users = await User.find({
-            username: { $regex: query, $options: 'i' },
+        const filter = {
             _id: { $ne: req.id, $nin: [...currentUser.blockedUsers, ...currentUser.blockedBy] },
             isActive: { $ne: false }
-        }).select("username profilePicture fullName").limit(10);
+        };
+
+        if (query) {
+            filter.$or = [
+                { username: { $regex: query, $options: 'i' } },
+                { fullName: { $regex: query, $options: 'i' } }
+            ];
+        }
+
+        if (followersOnly) {
+            filter._id.$in = currentUser.followers;
+        }
+
+        const users = await User.find(filter).select("username profilePicture fullName").limit(20);
 
         return res.status(200).json({ users, success: true });
     } catch (error) {

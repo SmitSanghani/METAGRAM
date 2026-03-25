@@ -280,17 +280,20 @@ function App() {
 
       // 1. Room-specific message delivery (Fallback/Optimization for multi-tab or active rooms)
       socketio.on('receive_message', (newMessage) => {
-        const currentUserId = String(user._id);
+        const currentUserId = String(user?._id);
         const senderId = String(newMessage.senderId);
         const receiverId = String(newMessage.receiverId);
         const isFromMe = senderId === currentUserId;
-        const targetUserId = isFromMe ? receiverId : senderId;
+        const targetId = newMessage.isGroup ? String(newMessage.conversationId) : (isFromMe ? receiverId : senderId);
 
-        console.log(`[Socket] Received "receive_message" (Room) - Content: ${newMessage.message} - Sender: ${senderId}`);
+        console.log(`[Socket] Received "receive_message" (${newMessage.isGroup ? 'Group' : 'Room'}) - Content: ${newMessage.message} - Sender: ${senderId}`);
 
-        // Update list previews & sync conversationId for the sidebar
-        const senderExistsInSidebar = chatUsersRef.current?.some(u => String(u._id) === targetUserId);
-        if (!senderExistsInSidebar && !isFromMe) {
+        // Check if the chat exists in sidebar
+        const chatExistsInSidebar = chatUsersRef.current?.some(u => String(u._id) === targetId);
+        
+        // Only auto-add if NOT a group message (groups should be added via join/create)
+        // OR if you really want to auto-add groups, you need more group info.
+        if (!chatExistsInSidebar && !isFromMe && !newMessage.isGroup) {
            dispatch(addChatUser({
              _id: senderId,
              username: newMessage.senderUsername,
@@ -300,38 +303,36 @@ function App() {
         }
 
         // Always update last message preview and reorder the sidebar 
-        dispatch(updateLastMessage({ userId: targetUserId, message: newMessage }));
-        dispatch(reorderUsers(targetUserId));
+        dispatch(updateLastMessage({ userId: targetId, message: newMessage }));
+        dispatch(reorderUsers(targetId));
 
         if (newMessage.conversationId) {
-          dispatch(updateChatUserConversation({ userId: targetUserId, conversationId: newMessage.conversationId }));
+          dispatch(updateChatUserConversation({ userId: targetId, conversationId: newMessage.conversationId }));
         }
 
         const openChatUser = selectedUserRef.current;
-        const isViewingThisChat = openChatUser && String(openChatUser._id) === targetUserId;
-        
-        if (isViewingThisChat) {
-          console.log(`[Socket] Appending to active chat (Room delivery)`);
+        const isCurrentlyViewingThisChat = openChatUser && String(openChatUser._id) === targetId;
+
+        if (isCurrentlyViewingThisChat && !isFromMe) {
           dispatch(addMessage(newMessage));
-          if (!isFromMe) {
-            dispatch(clearUnreadCount(senderId));
-            api.get(`/message/seen/${senderId}`).catch(() => {});
-          }
         }
       });
+
 
       // 2. Global direct notification delivery (Universal reliability)
       socketio.on('new_message_notification', (newMessage) => {
         const currentUserId = String(user?._id);
         const senderId = String(newMessage.senderId);
-        if (senderId === currentUserId) return; // Prevent echoing back to sender
+        const targetId = newMessage.isGroup ? String(newMessage.conversationId) : senderId;
+        
+        if (senderId === currentUserId) return; // Prevent alerting for own messages
 
-        console.log(`[Socket] Received "new_message_notification" (Direct) - From: ${senderId}`);
+        console.log(`[Socket] Received "new_message_notification" (${newMessage.isGroup ? 'Group' : 'Direct'}) - From: ${senderId}`);
 
-        // 1. Ensure user exists in sidebar
-        const senderExistsInSidebar = chatUsersRef.current?.some(u => String(u._id) === senderId);
-        if (!senderExistsInSidebar) {
-           console.log(`[Socket] Adding missing user ${senderId} to sidebar`);
+        // 1. Ensure the relevant chat exists in sidebar (Group or User)
+        // We only auto-add 1v1s for now to avoid broken group previews without group info
+        const chatExistsInSidebar = chatUsersRef.current?.some(u => String(u._id) === targetId);
+        if (!chatExistsInSidebar && !newMessage.isGroup) {
            dispatch(addChatUser({
              _id: senderId,
              username: newMessage.senderUsername,
@@ -341,13 +342,12 @@ function App() {
         }
 
         const openChatUser = selectedUserRef.current;
-        const isViewingThisChat = openChatUser && String(openChatUser._id) === senderId;
+        const isViewingThisChat = openChatUser && String(openChatUser._id) === targetId;
 
         if (isViewingThisChat) {
-          console.log(`[Socket] Appending to active chat (Direct delivery)`);
           dispatch(addMessage(newMessage));
-          dispatch(clearUnreadCount(senderId));
-          api.get(`/message/seen/${senderId}`).catch(() => {});
+          dispatch(clearUnreadCount(targetId));
+          api.get(`/message/seen/${targetId}`).catch(() => {});
         } else {
           // Play sound and show toast only if NOT looking at this chat
           const isMuted = user?.mutedUsers?.includes(senderId);
@@ -358,7 +358,11 @@ function App() {
 
           toast.custom((t) => (
             <div 
-              onClick={() => { window.location.href = '/chat'; toast.dismiss(t); }}
+              onClick={() => { 
+                localStorage.setItem('lastChatUserId', targetId);
+                window.location.href = '/chat'; 
+                toast.dismiss(t); 
+              }}
               className="bg-white border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.06)] rounded-[24px] p-5 flex gap-4 relative max-w-[360px] w-full cursor-pointer hover:bg-gray-50 transition-all pointer-events-auto"
             >
               <div className="relative shrink-0">
@@ -366,65 +370,53 @@ function App() {
                   <AvatarImage src={newMessage.senderProfilePicture} className="object-cover" />
                   <AvatarFallback className="bg-indigo-100 text-indigo-600 font-bold uppercase">{newMessage.senderUsername?.charAt(0)}</AvatarFallback>
                 </Avatar>
-                <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-white rounded-full"></div>
+                {newMessage.isGroup && <div className="absolute -top-1 -right-1 bg-indigo-600 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full ring-2 ring-white">GROUP</div>}
               </div>
               
               <div className="flex flex-col flex-1 min-w-0">
                 <div className="flex items-center justify-between mb-0.5">
                   <span className="text-[12px] font-medium text-gray-400 capitalize">Just now</span>
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); toast.dismiss(t); }}
-                    className="text-gray-300 hover:text-gray-500 transition-colors p-1"
-                  >
+                  <button onClick={(e) => { e.stopPropagation(); toast.dismiss(t); }} className="text-gray-300 hover:text-gray-500 transition-colors p-1">
                     <X size={16} />
                   </button>
                 </div>
                 
-                <span className="text-[14px] font-semibold text-gray-500 leading-none mb-1">{newMessage.senderUsername}</span>
+                <span className="text-[14px] font-semibold text-gray-500 leading-none mb-1">{newMessage.senderUsername}{newMessage.isGroup ? " in Group" : ""}</span>
                 <p className="text-[16px] font-bold text-gray-900 leading-tight truncate mb-3">
                   {newMessage.messageType === 'text' ? newMessage.message : `Sent a ${newMessage.messageType}`}
                 </p>
-                
                 <div className="flex items-center gap-4">
                   <button 
                     onClick={(e) => { 
                       e.stopPropagation(); 
+                      localStorage.setItem('lastChatUserId', targetId);
                       window.location.href = '/chat'; 
                       toast.dismiss(t); 
-                    }}
-                    className="text-[13px] font-bold text-indigo-600 hover:text-indigo-700 transition-colors"
+                    }} 
+                    className="text-[13px] font-bold text-indigo-600"
                   >
                     Reply
                   </button>
-                  <button 
-                    onClick={(e) => { 
-                      e.stopPropagation(); 
-                      api.get(`/message/seen/${newMessage.senderId}`).catch(() => {});
-                      dispatch(clearUnreadCount(newMessage.senderId));
-                      toast.dismiss(t); 
-                    }}
-                    className="text-[13px] font-bold text-gray-400 hover:text-gray-600 transition-colors"
-                  >
-                    Mark as read
-                  </button>
+                  <button onClick={(e) => { e.stopPropagation(); api.get(`/message/seen/${targetId}`).catch(() => {}); dispatch(clearUnreadCount(targetId)); toast.dismiss(t); }} className="text-[13px] font-bold text-gray-400">Mark as read</button>
                 </div>
               </div>
             </div>
           ), { id: `msg-${newMessage._id}`, duration: 5000, position: 'top-right' });
 
           if (document.visibilityState !== 'visible' && Notification.permission === "granted") {
-            new Notification(`New Message from ${newMessage.senderUsername || 'User'}`, {
+            new Notification(`Group Message from ${newMessage.senderUsername}`, {
               body: newMessage.message || `Sent a ${newMessage.messageType}`,
               icon: "/logo.png"
             });
           }
-          dispatch(incrementUnreadCount(senderId));
+          dispatch(incrementUnreadCount(targetId));
         }
 
-        // Always keep the sidebar preview accurate
-        dispatch(updateLastMessage({ userId: senderId, message: newMessage }));
-        dispatch(reorderUsers(senderId));
+        // Always keep the Correct sidebar preview accurate (Group OR User)
+        dispatch(updateLastMessage({ userId: targetId, message: newMessage }));
+        dispatch(reorderUsers(targetId));
       });
+
 
       socketio.on('message_seen_update', ({ receiverId }) => {
         dispatch(updateMessageStatus({ targetUserId: receiverId, status: { seen: true } }));
@@ -470,7 +462,11 @@ function App() {
              }
              toast.custom((t) => (
                <div 
-                 onClick={() => { window.location.href = '/chat'; toast.dismiss(t); }}
+                 onClick={() => { 
+                   localStorage.setItem('lastChatUserId', senderId);
+                   window.location.href = '/chat'; 
+                   toast.dismiss(t); 
+                 }}
                  className="bg-white border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.06)] rounded-[24px] p-5 flex gap-4 relative max-w-[360px] w-full cursor-pointer hover:bg-gray-50 transition-all pointer-events-auto"
                >
                  <div className="relative shrink-0">
@@ -503,6 +499,7 @@ function App() {
                      <button 
                        onClick={(e) => { 
                          e.stopPropagation(); 
+                         localStorage.setItem('lastChatUserId', senderId);
                          window.location.href = '/chat'; 
                          toast.dismiss(t); 
                        }}
@@ -555,6 +552,31 @@ function App() {
 
       socketio.on('deletePostComment', ({ postId, commentId }) => {
         dispatch(deletePostComment({ postId, commentId }));
+      });
+
+      socketio.on('group_updated', (updatedGroup) => {
+        // Update the item in the sidebar list
+        const exists = chatUsersRef.current?.some(u => String(u._id) === String(updatedGroup._id));
+        if (exists) {
+          dispatch(setChatUsers(chatUsersRef.current.map(u => 
+            String(u._id) === String(updatedGroup._id) ? { ...u, ...updatedGroup } : u
+          )));
+        }
+
+        // If the updated group is currently the selected chat, update it too
+        const openUser = selectedUserRef.current;
+        if (openUser && String(openUser._id) === String(updatedGroup._id)) {
+          dispatch(setSelectedUser({ ...openUser, ...updatedGroup }));
+        }
+      });
+
+      socketio.on('removed_from_group', ({ conversationId }) => {
+        dispatch(clearChat(conversationId));
+        const openUser = selectedUserRef.current;
+        if (openUser && String(openUser._id) === String(conversationId)) {
+          dispatch(setSelectedUser(null));
+          toast.error("You are no longer a member of this group");
+        }
       });
 
       socketio.on('newPostComment', ({ postId, comment }) => {
