@@ -48,7 +48,7 @@ const Header = () => {
     };
 
     return (
-        <header className='fixed top-0 right-0 left-0 sm:left-[280px] z-40 h-[70px] bg-white/80 backdrop-blur-md border-b border-gray-100 px-6 sm:px-10 transition-all duration-300'>
+        <header className='main-header-layout fixed top-0 right-0 left-0 sm:left-[280px] z-40 h-[70px] bg-white/80 backdrop-blur-md border-b border-gray-100 px-6 sm:px-10 transition-all duration-300'>
             <div className='h-full w-full max-w-[1200px] mx-auto flex items-center justify-between'>
                 
                 {/* Search Bar Container */}

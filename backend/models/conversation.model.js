@@ -32,6 +32,7 @@ const conversationschema = new mongoose.Schema({
     groupName: { type: String },
     groupProfilePicture: { type: String },
     groupAdmin: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    leftParticipants: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     messages: [messageSchema]
 }, { timestamps: true });
 

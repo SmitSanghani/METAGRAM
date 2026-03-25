@@ -130,17 +130,17 @@ const LeftSidebar = () => {
     }
 
     return (
-        <div className='LeftSidebar fixed top-0 z-[100] left-0 w-[280px] h-screen bg-white border-r border-gray-100 flex flex-col justify-between pb-6 px-6 transition-all duration-300'>
+        <div className={`LeftSidebar fixed top-0 z-[100] left-0 w-[280px] h-screen bg-white border-r border-gray-200 flex flex-col justify-between pb-6 px-6 transition-all duration-300`}>
             <div className='flex flex-col'>
                 <div className='my-10 pl-3 flex flex-col'>
                     <div
                         onClick={() => navigate('/')}
                         className='flex items-center gap-3 cursor-pointer group'
                     >
-                        <div className="relative w-10 h-10 flex items-center justify-center group-hover:scale-110 transition-transform duration-500">
+                        <div className={`relative w-10 h-10 flex items-center justify-center group-hover:scale-110 transition-transform duration-500`}>
                             <img src={logo} alt="logo" className="w-full h-full object-contain" />
                         </div>
-                        <h1 className='text-2xl font-black tracking-tighter text-gray-900'
+                        <h1 className='text-2xl font-black tracking-tighter text-gray-900 animate-in fade-in duration-300'
                             style={{ fontFamily: "'Outfit', sans-serif" }}
                         >
                             METAGRAM
@@ -159,12 +159,12 @@ const LeftSidebar = () => {
                                 <div onClick={() => !isDisabled && sidebarHandler(item.text)} key={index}
                                     className={`flex items-center gap-4 cursor-pointer px-4 py-3 rounded-xl transition-all duration-300 group active:scale-[0.98] ${isDisabled ? 'opacity-40 cursor-not-allowed filter grayscale' : active
                                         ? 'bg-indigo-600 text-white shadow-md shadow-indigo-100'
-                                        : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
-                                        }`}>
+                                        : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900 border-transparent w-full'
+                                        } select-none`}>
                                     <div className={`transition-transform duration-300 group-hover:scale-110 ${active ? 'text-white' : 'group-hover:text-black'}`}>
                                         {React.cloneElement(item.icon, { strokeWidth: active ? 2.5 : 2 })}
                                     </div>
-                                    <span className={`text-[15px] ${active ? 'font-bold' : 'font-semibold'}`}>{item.text}</span>
+                                    <span className={`text-[15px] ${active ? 'font-bold' : 'font-semibold'} animate-in fade-in duration-300`}>{item.text}</span>
 
 
                                     {item.text === 'Notifications' && unreadCount > 0 && (
@@ -190,23 +190,23 @@ const LeftSidebar = () => {
                 <div onClick={() => sidebarHandler('Profile')}
                     className={`flex items-center gap-4 cursor-pointer px-4 py-3.5 rounded-2xl transition-all duration-300 group active:scale-[0.98] ${isActive('Profile')
                         ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100'
-                        : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
-                        }`}>
-                    <Avatar className="w-10 h-10 border-2 border-indigo-50 shadow-sm transition-transform group-hover:scale-105">
+                        : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900 border-transparent w-full'
+                        } select-none`}>
+                    <Avatar className={`w-10 h-10 border-2 border-indigo-50 shadow-sm transition-transform group-hover:scale-105`}>
                         <AvatarImage src={user?.profilePicture} className="object-cover" />
                         <AvatarFallback className={cn("font-bold text-base uppercase", getAvatarColor(user?.username))}>
                             {user?.username?.charAt(0)?.toUpperCase()}
                         </AvatarFallback>
                     </Avatar>
-                    <span className={`text-[15px] ${isActive('Profile') ? 'font-bold' : 'font-semibold'}`}>Profile</span>
+                    <span className={`text-[15px] ${isActive('Profile') ? 'font-bold' : 'font-semibold'} animate-in fade-in duration-300`}>Profile</span>
                 </div>
 
                 <div onClick={() => sidebarHandler('Logout')}
-                    className='flex items-center gap-4 cursor-pointer px-4 py-3.5 rounded-2xl transition-all duration-300 text-gray-500 hover:bg-red-50 hover:text-red-600 group active:scale-[0.98]'>
-                    <div className='transition-transform duration-300 group-hover:scale-110'>
+                    className={`flex items-center gap-4 cursor-pointer px-4 py-3.5 rounded-2xl transition-all duration-300 text-gray-500 hover:bg-red-50 hover:text-red-600 group active:scale-[0.98] w-full select-none`}>
+                    <div className={`transition-transform duration-300 group-hover:scale-110`}>
                         <LogOut size={22} strokeWidth={2} />
                     </div>
-                    <span className='text-[15px] font-semibold'>Logout</span>
+                    <span className='text-[15px] font-semibold animate-in fade-in duration-300'>Logout</span>
                 </div>
             </div>
 
@@ -214,14 +214,15 @@ const LeftSidebar = () => {
             <ReelUploadModal open={reelOpen} setOpen={setReelOpen} />
 
 
-            {/* Notifications Backdrop/Overlay */}
+            {/* Notifications Backdrop/Overlay (Blur Home Feed only, keep sidebar clear) */}
             {notificationOpen && (
                 <div
-                    className='fixed inset-0 bg-black/5 backdrop-blur-[2px] z-[90] transition-opacity'
+                    className='fixed inset-0 sm:left-[280px] bg-black/5 backdrop-blur-[1.5px] z-[90] transition-opacity duration-300'
                     onClick={() => setNotificationOpen(false)}
                 />
             )}
 
+            {/* Notifications Panel (Overlay content) */}
             {notificationOpen && <NotificationDropdown onClose={() => setNotificationOpen(false)} />}
         </div>
     )

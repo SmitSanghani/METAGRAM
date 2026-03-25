@@ -146,7 +146,7 @@ const NotificationDropdown = ({ onClose }) => {
     };
 
     return (
-        <div className="absolute top-0 left-full h-screen w-[360px] bg-white border-r border-gray-100 shadow-[20px_0_40px_-15px_rgba(0,0,0,0.1)] z-[110] flex flex-col animate-in slide-in-from-left duration-300">
+        <div className="absolute top-0 left-full h-screen w-[360px] bg-white border-r border-l border-gray-200 shadow-[20px_0_40px_-15px_rgba(0,0,0,0.1)] z-[110] flex flex-col animate-in slide-in-from-left duration-300">
             <div className="pt-10 pb-6 px-6 border-b border-gray-50 flex flex-col gap-4">
                 <div className="flex items-center justify-between">
                     <h2 className="text-2xl font-black tracking-tighter text-gray-900">Notifications</h2>

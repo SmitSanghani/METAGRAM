@@ -615,30 +615,41 @@ function App() {
       });
 
       socketio.on('group_updated', (updatedGroup) => {
-        // Update or Add the item in the sidebar list
-        const exists = chatUsersRef.current?.some(u => String(u._id) === String(updatedGroup._id));
-        if (exists) {
-          dispatch(setChatUsers(chatUsersRef.current.map(u =>
-            String(u._id) === String(updatedGroup._id) ? { ...u, ...updatedGroup } : u
-          )));
-        } else {
-          // If it didn't exist (newly added member), add it to the sidebar
-          dispatch(addChatUser(updatedGroup));
-        }
+        // Refresh membership status in the sidebar and main chat
+        dispatch(setChatUsers(chatUsersRef.current.map(u => 
+          String(u._id) === String(updatedGroup._id) ? { ...u, ...updatedGroup } : u
+        )));
 
-        // If the updated group is currently the selected chat, update it too
+        // If newly added (doesn't exist in sidebar yet), add it
+        const exists = chatUsersRef.current?.some(u => String(u._id) === String(updatedGroup._id));
+        if (!exists) dispatch(addChatUser(updatedGroup));
+
         const openUser = selectedUserRef.current;
         if (openUser && String(openUser._id) === String(updatedGroup._id)) {
           dispatch(setSelectedUser({ ...openUser, ...updatedGroup }));
         }
       });
 
+      socketio.on('added_to_group', (updatedGroup) => {
+        // Re-join the socket room for this group instantly
+        socketio.emit('join_room', updatedGroup._id);
+        
+        // Refresh sidebar and open chat
+        dispatch(addChatUser(updatedGroup));
+        const openUser = selectedUserRef.current;
+        if (openUser && String(openUser._id) === String(updatedGroup._id)) {
+           dispatch(setSelectedUser(updatedGroup));
+        }
+      });
+
       socketio.on('removed_from_group', ({ conversationId }) => {
-        dispatch(clearChat(conversationId));
+        // Update membership state to empty participants for the local user
+        // This ensures isNotAMember becomes true in ChatPage while keeping it in sidebar
+        dispatch(updateChatUserMembership({ conversationId, participants: [] }));
+        
         const openUser = selectedUserRef.current;
         if (openUser && String(openUser._id) === String(conversationId)) {
-          dispatch(setSelectedUser(null));
-          toast.error("You are no longer a member of this group");
+          toast.error("You are no longer an active member of this group");
         }
       });
 

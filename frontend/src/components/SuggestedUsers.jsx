@@ -19,8 +19,9 @@ const SuggestedUsers = () => {
     const handleFollowUnfollow = async (targetUserId) => {
         if (pendingId) return;
 
-        const isCurrentlyFollowing = user?.following?.includes(targetUserId);
+        const isCurrentlyFollowing = user?.following?.some(u => String(u._id || u) === String(targetUserId));
         if (isCurrentlyFollowing) {
+            setIsSeeAllOpen(false); // Close modal if open
             const result = await Swal.fire({
                 title: 'Unfollow?',
                 text: "Are you sure you want to unfollow this user?",
@@ -32,9 +33,16 @@ const SuggestedUsers = () => {
                 background: '#ffffff',
                 borderRadius: '24px',
                 customClass: {
+                    container: 'z-[99999]',
                     popup: 'rounded-[24px]',
-                    confirmButton: 'rounded-xl px-6 py-2.5 font-bold uppercase tracking-wider text-xs',
-                    cancelButton: 'rounded-xl px-6 py-2.5 font-bold uppercase tracking-wider text-xs'
+                    confirmButton: 'rounded-xl px-4 py-2 font-bold uppercase tracking-wider text-[11px] cursor-pointer hover:bg-red-600 transition-colors !cursor-pointer',
+                    cancelButton: 'rounded-xl px-4 py-2 font-bold uppercase tracking-wider text-[11px] cursor-pointer hover:bg-gray-400 transition-colors !cursor-pointer'
+                },
+                didRender: () => {
+                    const confirmBtn = Swal.getConfirmButton();
+                    const cancelBtn = Swal.getCancelButton();
+                    if (confirmBtn) confirmBtn.style.cursor = 'pointer';
+                    if (cancelBtn) cancelBtn.style.cursor = 'pointer';
                 }
             });
 
@@ -47,28 +55,33 @@ const SuggestedUsers = () => {
             const res = await api.post(`/user/followorunfollow/${targetUserId}`, {});
             if (res.data.success) {
                 let updatedFollowing = [...(user.following || [])];
+                const targetIdStr = String(targetUserId);
 
                 if (res.data.status === 'followed') {
-                    updatedFollowing.push(targetUserId);
-                    toast.success(`Following ${res.data.user?.username || 'user'}`);
+                    const targetUserInList = suggestedUsers.find(u => String(u._id) === targetIdStr);
+                    if (!updatedFollowing.some(u => String(u._id || u) === targetIdStr)) {
+                        updatedFollowing.push(targetUserInList);
+                    }
+                    toast.success(`Followed @${targetUserInList?.username || 'user'} successfully`);
                 } else if (res.data.status === 'unfollowed') {
-                    updatedFollowing = updatedFollowing.filter(id => id !== targetUserId);
-                    toast.success(`Unfollowed ${res.data.user?.username || 'user'}`);
+                    updatedFollowing = updatedFollowing.filter(u => String(u._id || u) !== targetIdStr);
+                    const targetUserInList = suggestedUsers.find(u => String(u._id) === targetIdStr);
+                    toast.success(`Unfollowed @${targetUserInList?.username || 'user'} successfully`);
                 } else if (res.data.status === 'requested') {
-                    const targetUser = suggestedUsers.find(u => u._id === targetUserId);
+                    const targetUser = suggestedUsers.find(u => String(u._id) === targetIdStr);
                     if (targetUser) {
                         dispatch(updateSuggestedUser({
                             targetUserId,
-                            updates: { followRequests: [...(targetUser.followRequests || []), user._id] }
+                            updates: { followRequests: [...(targetUser.followRequests || []), String(user._id)] }
                         }));
                     }
                     toast.success("Follow request sent");
                 } else if (res.data.status === 'canceled') {
-                    const targetUser = suggestedUsers.find(u => u._id === targetUserId);
+                    const targetUser = suggestedUsers.find(u => String(u._id) === targetIdStr);
                     if (targetUser) {
                         dispatch(updateSuggestedUser({
                             targetUserId,
-                            updates: { followRequests: (targetUser.followRequests || []).filter(id => id !== user._id) }
+                            updates: { followRequests: (targetUser.followRequests || []).filter(id => String(id) !== String(user._id)) }
                         }));
                     }
                     toast.success("Follow request canceled");
@@ -102,10 +115,10 @@ const SuggestedUsers = () => {
             {/* Users List */}
             <div className='flex flex-col gap-3'>
                 {
-                    topSuggestions.map((suggestedUser) => {
-                        const isFollowing = user?.following?.includes(suggestedUser?._id);
-                        const isFollower = user?.followers?.includes(suggestedUser?._id) || suggestedUser?.following?.includes(user?._id);
-                        const hasRequested = suggestedUser?.followRequests?.includes(user?._id);
+                    topSuggestions.map((suggestedUser, index) => {
+                        const isFollowing = user?.following?.some(u => String(u._id || u) === String(suggestedUser?._id));
+                        const isFollower = user?.followers?.some(u => String(u._id || u) === String(suggestedUser?._id)) || suggestedUser?.following?.some(u => String(u._id || u) === String(user?._id));
+                        const hasRequested = suggestedUser?.followRequests?.some(id => String(id) === String(user?._id));
 
                         let buttonState = 'Follow';
                         let buttonColor = 'text-[#3b82f6]';
@@ -125,7 +138,7 @@ const SuggestedUsers = () => {
 
                         return (
                             <div
-                                key={suggestedUser._id}
+                                key={suggestedUser?._id || index}
                                 className='flex items-center justify-between py-1 px-1'
                             >
                                 <div className='flex items-center gap-3'>

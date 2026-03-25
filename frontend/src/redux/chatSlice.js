@@ -151,6 +151,16 @@ const chatSlice = createSlice({
             if (isSelected) state.messages = [];
             if (state.lastMessages && state.lastMessages[userId]) delete state.lastMessages[userId];
             if (state.unreadCounts) state.unreadCounts[userId] = 0;
+        },
+        updateChatUserMembership: (state, action) => {
+            const { conversationId, participants } = action.payload;
+            const index = state.chatUsers.findIndex(u => String(u._id) === String(conversationId));
+            if (index !== -1) {
+                state.chatUsers[index].participants = participants;
+            }
+            if (state.selectedUser && String(state.selectedUser._id) === String(conversationId)) {
+                state.selectedUser = { ...state.selectedUser, participants: participants };
+            }
         }
     }
 });
@@ -174,7 +184,8 @@ export const {
     markUnsent,
     removeTempMessage,
     markStoryUnsent,
-    clearChatLocally
+    clearChatLocally,
+    updateChatUserMembership
 } = chatSlice.actions;
 
 export default chatSlice.reducer;

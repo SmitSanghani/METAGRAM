@@ -207,37 +207,23 @@ export const getMessages = async (req, res) => {
 
         if (!conversation) return res.status(200).json({ success: true, messages: [], conversationId: null });
 
-        // 2. Mark as seen on fetching (before population to keep save() safe)
-        let hasChanges = false;
+        // 2. Atomic Mark as Seen for Groups and 1v1
         const currentUserIdStr = senderId.toString();
-
         if (conversation.isGroup) {
-            conversation.messages.forEach(msg => {
-                const msgSenderIdStr = msg.senderId.toString();
-                if (msgSenderIdStr !== currentUserIdStr) {
-                    if (!msg.seenBy.some(id => id.toString() === currentUserIdStr)) {
-                        msg.seenBy.push(senderId);
-                        hasChanges = true;
-                    }
-                }
-            });
+            await Conversation.updateOne(
+                { _id: conversation._id },
+                { $addToSet: { "messages.$[elem].seenBy": senderId } },
+                { arrayFilters: [{ "elem.senderId": { $ne: senderId } }] }
+            );
         } else {
             const otherParticipantId = conversation.participants.find(p => p.toString() !== currentUserIdStr);
             if (otherParticipantId) {
-                const otherIdStr = otherParticipantId.toString();
-                conversation.messages.forEach(msg => {
-                    const msgSenderIdStr = msg.senderId.toString();
-                    if (msgSenderIdStr === otherIdStr && !msg.seen) {
-                        msg.seen = true;
-                        hasChanges = true;
-                    }
-                });
+                await Conversation.updateOne(
+                    { _id: conversation._id, isGroup: false },
+                    { $set: { "messages.$[elem].seen": true } },
+                    { arrayFilters: [{ "elem.senderId": otherParticipantId, "elem.seen": false }] }
+                );
             }
-        }
-
-        if (hasChanges) {
-            conversation.markModified('messages');
-            await conversation.save();
         }
 
         // 3. Now populate EVERYTHING for the response
@@ -299,30 +285,24 @@ export const markAsSeen = async (req, res) => {
             let targetReceiverId;
 
             if (isGroup) {
-                // For Groups: Add user to seenBy array of all non-own messages
-                conversation.messages.forEach(msg => {
-                    if (String(msg.senderId) !== String(userId)) {
-                        const alreadySeen = msg.seenBy.some(id => String(id) === String(userId));
-                        if (!alreadySeen) {
-                            msg.seenBy.push(userId);
-                        }
-                    }
-                });
+                // Atomic addition of userId to seenBy of all non-own messages
+                await Conversation.updateOne(
+                    { _id: conversation._id },
+                    { $addToSet: { "messages.$[elem].seenBy": userId } },
+                    { arrayFilters: [{ "elem.senderId": { $ne: userId } }] }
+                );
             } else {
                 // For 1v1: Set seen = true for messages from the other user
                 const otherParticipant = conversation.participants.find(p => p.toString() !== userId.toString());
                 if (otherParticipant) {
                     targetReceiverId = otherParticipant.toString();
-                    conversation.messages.forEach(msg => {
-                        if (String(msg.senderId) === String(otherParticipant) && !msg.seen) {
-                            msg.seen = true;
-                        }
-                    });
+                    await Conversation.updateOne(
+                        { _id: conversation._id, isGroup: false },
+                        { $set: { "messages.$[elem].seen": true } },
+                        { arrayFilters: [{ "elem.senderId": otherParticipant, "elem.seen": false }] }
+                    );
                 }
             }
-            
-            conversation.markModified('messages');
-            await conversation.save();
 
             // Broadcast real-time update
             if (isGroup) {
@@ -485,7 +465,7 @@ export const deleteConversation = async (req, res) => {
 
         const conversation = await Conversation.findOne({
             $or: [
-                { _id: targetId, participants: senderId }, // Group or ID based
+                { _id: targetId, $or: [{ participants: senderId }, { leftParticipants: senderId }] }, // Group or ID based
                 { participants: { $all: [senderId, targetId], $size: 2 }, isGroup: false } // 1v1
             ]
         });
@@ -584,6 +564,11 @@ export const addGroupMembers = async (req, res) => {
         if (newMembers.length > 0) {
             conversation.participants.push(...newMembers);
             
+            // Remove from leftParticipants if they re-joined
+            if (conversation.leftParticipants) {
+                conversation.leftParticipants = conversation.leftParticipants.filter(id => !newMembers.some(nm => String(nm) === String(id)));
+            }
+            
             // Create a "System Message" describing the additions
             const admin = await User.findById(senderId).select("username");
             const newUsers = await User.find({ _id: { $in: newMembers } }).select("username");
@@ -632,6 +617,11 @@ export const addGroupMembers = async (req, res) => {
         conversation.participants.forEach(p => {
             const pid = p._id ? p._id.toString() : p.toString();
             broadcastToUser(pid, "group_updated", updatedGroup);
+        });
+
+        // Explicitly notify NEW members they've been added
+        newMembers.forEach(uid => {
+            broadcastToUser(uid.toString(), "added_to_group", updatedGroup);
         });
 
         res.status(200).json({ success: true, group: updatedGroup });
@@ -700,10 +690,22 @@ export const removeGroupMember = async (req, res) => {
             return res.status(403).json({ success: false, message: "Unauthorized" });
         }
 
+        // Check if user is actually in group before removing
+        if (!conversation.participants.some(p => String(p) === String(userId))) {
+            return res.status(200).json({ success: true, message: "User is already not a member" });
+        }
+
         const removedUser = await User.findById(userId).select("username");
         const admin = await User.findById(senderId).select("username");
         
         conversation.participants = conversation.participants.filter(id => id.toString() !== String(userId));
+        
+        // Track that they left so it stays in their sidebar
+        if (conversation.leftParticipants) {
+            if (!conversation.leftParticipants.some(id => String(id) === String(userId))) {
+                conversation.leftParticipants.push(userId);
+            }
+        }
         
         // If admin removed, assign new admin if any members left
         if (conversation.groupAdmin.some(id => String(id) === String(userId))) {
@@ -747,8 +749,12 @@ export const removeGroupMember = async (req, res) => {
 
         // Notify all remaining participants about the change
         conversation.participants.forEach(p => {
-            broadcastToUser(p._id.toString(), "group_updated", updatedGroup);
+            const pId = p._id ? p._id.toString() : p.toString();
+            broadcastToUser(pId, "group_updated", updatedGroup);
         });
+
+        // NOTIFY THE REMOVED USER EXPLICITLY
+        broadcastToUser(userId.toString(), "removed_from_group", { conversationId: conversation._id });
 
         res.status(200).json({ success: true, group: updatedGroup });
     } catch (error) {

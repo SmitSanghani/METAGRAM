@@ -14,7 +14,7 @@ const MainLayout = () => {
   return (
     <div className="bg-[#F6F7FB] min-h-screen">
       <LeftSidebar />
-      <div className="sm:ml-[280px] ml-0 transition-all duration-300">
+      <div className="main-content-layout sm:ml-[280px] ml-0 transition-all duration-300">
         {!hideHeader && <Header />}
         <main className={`${!hideHeader ? 'pt-[70px]' : ''} min-h-screen px-4 sm:px-10`}>
           <Outlet />

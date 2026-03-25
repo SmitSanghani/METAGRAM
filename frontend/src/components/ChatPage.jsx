@@ -52,8 +52,11 @@ const ChatPage = () => {
     const [groupSearchResults, setGroupSearchResults] = useState([]);
     const [isGroupInfoOpen, setIsGroupInfoOpen] = useState(false);
     const searchInputRef = useRef(null);
-    let typingTimeout = useRef(null);
-
+    const currentUserId = String(user?._id || user?.id || "");
+    const isNotAMember = selectedUser?.isGroup && (
+        !selectedUser?.participants?.some(p => String(p?._id || p) === currentUserId) &&
+        !selectedUser?.groupAdmin?.some(a => String(a?._id || a) === currentUserId)
+    );
 
     // Clear unread count when chat selected
     const handleSelectUser = (targetUser) => {
@@ -821,11 +824,30 @@ const ChatPage = () => {
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
-                                {selectedUser.isGroup && (
+                                {selectedUser.isGroup && !isNotAMember && (
                                     <Button variant="ghost" size="icon" onClick={() => setIsGroupInfoOpen(true)} className="rounded-full w-10 h-10 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all"><Users size={20} /></Button>
                                 )}
                                 <Button variant="ghost" size="icon" onClick={() => searchInputRef.current?.focus()} className="rounded-full w-10 h-10 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all"><MessageCircle size={20} /></Button>
-                                <Button variant="ghost" size="icon" onClick={() => deleteChatHandler(selectedUser._id, false)} className="rounded-full w-10 h-10 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"><Trash2 size={20} /></Button>
+                                <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    onClick={() => {
+                                        if (selectedUser.isGroup && !isNotAMember) {
+                                            Swal.fire({
+                                                title: "Group Locked",
+                                                text: "You must leave the group before you can delete the chat from your sidebar.",
+                                                icon: "info",
+                                                confirmButtonColor: "#4F46E5",
+                                                borderRadius: "24px"
+                                            });
+                                            return;
+                                        }
+                                        deleteChatHandler(selectedUser._id, false);
+                                    }} 
+                                    className={`rounded-full w-10 h-10 transition-all ${selectedUser.isGroup && !isNotAMember ? 'opacity-30 grayscale cursor-not-allowed' : 'text-gray-400 hover:text-red-500 hover:bg-red-50'}`}
+                                >
+                                    <Trash2 size={20} />
+                                </Button>
                                 <Button variant="ghost" size="icon" onClick={() => dispatch(setSelectedUser(null))} className="rounded-full w-10 h-10 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"><X size={20} /></Button>
                             </div>
                         </div>
@@ -905,189 +927,199 @@ const ChatPage = () => {
 
                         {/* Input Section */}
                         <div className='px-8 py-4 pb-5 bg-white border-t border-[#f3f4f6] flex flex-col gap-3 relative z-30'>
-                            {replyTo && (
-                                <div className="flex items-center justify-between bg-indigo-50 border-l-[4px] border-indigo-600 px-5 py-4 rounded-xl animate-in slide-in-from-bottom-2 duration-300">
-                                    <div className="flex flex-col overflow-hidden max-w-[85%]">
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <Reply size={13} className="text-indigo-600" strokeWidth={3} />
-                                            <span className="text-[11px] font-black text-indigo-600 uppercase tracking-tight">
-                                                Replying to {String(replyTo.senderId) === String(user?._id) ? "yourself" : selectedUser?.username}
-                                            </span>
-                                        </div>
-                                        <p className="text-[13px] text-indigo-900/60 truncate font-medium">
-                                            "{replyTo.message}"
-                                        </p>
-                                    </div>
-                                    <button onClick={() => setReplyTo(null)} className="p-2 bg-indigo-100 hover:bg-indigo-200 text-indigo-600 rounded-full transition-all">
-                                        <X size={16} strokeWidth={2.5} />
-                                    </button>
+                            {isNotAMember ? (
+                                <div className="flex items-center justify-center p-4 bg-gray-50/80 rounded-[28px] border border-gray-100 backdrop-blur-sm animate-in fade-in slide-in-from-bottom-2">
+                                    <span className="text-[13px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                                        <X size={14} /> You are no longer a member of this group
+                                    </span>
                                 </div>
-                            )}
-
-                            <form onSubmit={sendMessageHandler} className="flex items-center gap-3">
-                                <div className="flex-1 flex items-center bg-[#f9fafb] border border-[#f3f4f6] rounded-[28px] py-0.5 pl-6 pr-2 focus-within:ring-2 focus-within:ring-indigo-500/10 focus-within:border-indigo-500/50 transition-all duration-300 relative">
-                                    {/* Plus (+) Menu Trigger and Dropup */}
-                                    <div className="relative">
-                                        <button
-                                            type="button"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setIsPlusMenuOpen(!isPlusMenuOpen);
-                                            }}
-                                            className={`p-2 hover:bg-white rounded-full transition-all text-gray-400 hover:text-indigo-600 active:scale-95 flex items-center justify-center ${isPlusMenuOpen ? 'rotate-45 text-indigo-500' : ''}`}
-                                        >
-                                            <Plus size={22} strokeWidth={2.5} />
-                                        </button>
-
-                                        {/* Dropup Menu */}
-                                        {isPlusMenuOpen && (
-                                            <div className="absolute bottom-[calc(100%+8px)] left-0 bg-white border border-gray-100 shadow-[0_-4px_24px_rgba(0,0,0,0.08)] rounded-[20px] py-1.5 min-w-[180px] z-50 animate-in slide-in-from-bottom-2 duration-300">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                        document.getElementById('media-upload-final').setAttribute('accept', '*/*');
-                                                        document.getElementById('media-upload-final').click();
-                                                        setIsPlusMenuOpen(false);
-                                                    }}
-                                                    className="w-full h-11 flex items-center gap-3 px-4 hover:bg-indigo-50 text-[#262626] transition-all group"
-                                                >
-                                                    <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center group-hover:bg-indigo-100 transition-colors">
-                                                        <FileText size={16} className="text-indigo-600" />
-                                                    </div>
-                                                    <span className="text-[13px] font-bold">Document</span>
-                                                </button>
-
-                                                <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                        document.getElementById('media-upload-final').setAttribute('accept', 'image/*,video/*');
-                                                        document.getElementById('media-upload-final').click();
-                                                        setIsPlusMenuOpen(false);
-                                                    }}
-                                                    className="w-full h-11 flex items-center gap-3 px-4 hover:bg-indigo-50 text-[#262626] transition-all group"
-                                                >
-                                                    <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center group-hover:bg-indigo-100 transition-colors">
-                                                        <ImageIcon size={16} className="text-indigo-600" />
-                                                    </div>
-                                                    <span className="text-[13px] font-bold">Photos & videos</span>
-                                                </button>
+                            ) : (
+                                <>
+                                    {replyTo && (
+                                        <div className="flex items-center justify-between bg-indigo-50 border-l-[4px] border-indigo-600 px-5 py-4 rounded-xl animate-in slide-in-from-bottom-2 duration-300">
+                                            <div className="flex flex-col overflow-hidden max-w-[85%]">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <Reply size={13} className="text-indigo-600" strokeWidth={3} />
+                                                    <span className="text-[11px] font-black text-indigo-600 uppercase tracking-tight">
+                                                        Replying to {String(replyTo.senderId) === String(user?._id) ? "yourself" : selectedUser?.username}
+                                                    </span>
+                                                </div>
+                                                <p className="text-[13px] text-indigo-900/60 truncate font-medium">
+                                                    "{replyTo.message}"
+                                                </p>
                                             </div>
-                                        )}
-                                    </div>
+                                            <button onClick={() => setReplyTo(null)} className="p-2 bg-indigo-100 hover:bg-indigo-200 text-indigo-600 rounded-full transition-all">
+                                                <X size={16} strokeWidth={2.5} />
+                                            </button>
+                                        </div>
+                                    )}
 
-                                    <button type="button" className="p-2 hover:bg-white rounded-full transition-colors text-gray-400 hover:text-indigo-500 group">
-                                        <Smile className="group-hover:scale-110 transition-transform" size={24} strokeWidth={1.5} />
-                                    </button>
-                                    <input
-                                        type="text"
-                                        value={textMessage}
-                                        onChange={handleTyping}
-                                        disabled={isSending}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter' && textMessage.trim() && !isSending) {
-                                                e.preventDefault();
-                                                sendMessageHandler(e);
-                                            }
-                                        }}
-                                        placeholder="Message..."
-                                        className='flex-1 bg-transparent py-2.5 outline-none text-[15px] font-medium placeholder:text-gray-400 text-gray-800 disabled:opacity-50'
-                                    />
-                                    <div className="flex items-center gap-1">
-                                        <input
-                                            type="file"
-                                            className="hidden"
-                                            id="media-upload-final"
-                                            multiple
-                                            accept="*/*"
-                                            onChange={async (e) => {
-                                                const files = Array.from(e.target.files);
-                                                if (files.length === 0) return;
+                                    <form onSubmit={sendMessageHandler} className="flex items-center gap-3">
+                                        <div className="flex-1 flex items-center bg-[#f9fafb] border border-[#f3f4f6] rounded-[28px] py-0.5 pl-6 pr-2 focus-within:ring-2 focus-within:ring-indigo-500/10 focus-within:border-indigo-500/50 transition-all duration-300 relative">
+                                            {/* Plus (+) Menu Trigger and Dropup */}
+                                            <div className="relative">
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setIsPlusMenuOpen(!isPlusMenuOpen);
+                                                    }}
+                                                    className={`p-2 hover:bg-white rounded-full transition-all text-gray-400 hover:text-indigo-600 active:scale-95 flex items-center justify-center ${isPlusMenuOpen ? 'rotate-45 text-indigo-500' : ''}`}
+                                                >
+                                                    <Plus size={22} strokeWidth={2.5} />
+                                                </button>
 
-                                                for (const file of files) {
-                                                    if (file.size > 10 * 1024 * 1024) {
-                                                        toast.error(`File "${file.name}" is too large (>10MB).`);
-                                                        continue;
+                                                {/* Dropup Menu */}
+                                                {isPlusMenuOpen && (
+                                                    <div className="absolute bottom-[calc(100%+8px)] left-0 bg-white border border-gray-100 shadow-[0_-4px_24px_rgba(0,0,0,0.08)] rounded-[20px] py-1.5 min-w-[180px] z-50 animate-in slide-in-from-bottom-2 duration-300">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                document.getElementById('media-upload-final').setAttribute('accept', '*/*');
+                                                                document.getElementById('media-upload-final').click();
+                                                                setIsPlusMenuOpen(false);
+                                                            }}
+                                                            className="w-full h-11 flex items-center gap-3 px-4 hover:bg-indigo-50 text-[#262626] transition-all group"
+                                                        >
+                                                            <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center group-hover:bg-indigo-100 transition-colors">
+                                                                <FileText size={16} className="text-indigo-600" />
+                                                            </div>
+                                                            <span className="text-[13px] font-bold">Document</span>
+                                                        </button>
+
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                document.getElementById('media-upload-final').setAttribute('accept', 'image/*,video/*');
+                                                                document.getElementById('media-upload-final').click();
+                                                                setIsPlusMenuOpen(false);
+                                                            }}
+                                                            className="w-full h-11 flex items-center gap-3 px-4 hover:bg-indigo-50 text-[#262626] transition-all group"
+                                                        >
+                                                            <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center group-hover:bg-indigo-100 transition-colors">
+                                                                <ImageIcon size={16} className="text-indigo-600" />
+                                                            </div>
+                                                            <span className="text-[13px] font-bold">Photos & videos</span>
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <button type="button" className="p-2 hover:bg-white rounded-full transition-colors text-gray-400 hover:text-indigo-500 group">
+                                                <Smile className="group-hover:scale-110 transition-transform" size={24} strokeWidth={1.5} />
+                                            </button>
+                                            <input
+                                                type="text"
+                                                value={textMessage}
+                                                onChange={handleTyping}
+                                                disabled={isSending}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' && textMessage.trim() && !isSending) {
+                                                        e.preventDefault();
+                                                        sendMessageHandler(e);
                                                     }
+                                                }}
+                                                placeholder="Message..."
+                                                className='flex-1 bg-transparent py-2.5 outline-none text-[15px] font-medium placeholder:text-gray-400 text-gray-800 disabled:opacity-50'
+                                            />
+                                            <div className="flex items-center gap-1">
+                                                <input
+                                                    type="file"
+                                                    className="hidden"
+                                                    id="media-upload-final"
+                                                    multiple
+                                                    accept="*/*"
+                                                    onChange={async (e) => {
+                                                        const files = Array.from(e.target.files);
+                                                        if (files.length === 0) return;
 
-                                                    const tempId = Math.random().toString(36).substr(2, 9) + Date.now();
-                                                    const previewUrl = URL.createObjectURL(file);
-                                                    const isImg = file.type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(file.name);
-                                                    const isVid = file.type.startsWith('video/') || /\.(mp4|mov|avi|mkv|webm)$/i.test(file.name);
-                                                    const finalType = isImg ? 'image' : (isVid ? 'video' : 'file');
-
-                                                    try {
-                                                        // Optimistic local update
-                                                        const tempMsg = {
-                                                            _id: tempId,
-                                                            tempId: tempId,
-                                                            senderId: user._id,
-                                                            receiverId: selectedUser._id,
-                                                            message: finalType === 'file' ? file.name : "",
-                                                            messageType: finalType,
-                                                            mediaUrl: previewUrl,
-                                                            isLoading: true,
-                                                            createdAt: new Date().toISOString()
-                                                        };
-                                                        dispatch(addMessage(tempMsg));
-
-                                                        const formData = new FormData();
-                                                        formData.append("message", finalType === 'file' ? file.name : "");
-                                                        formData.append("messageType", finalType);
-                                                        formData.append("media", file);
-                                                        formData.append("tempId", tempId);
-                                                        if (replyTo?._id) {
-                                                            formData.append("replyTo", replyTo._id);
-                                                        }
-
-                                                        const res = await api.post(`/message/send/${selectedUser?._id}`, formData, {
-                                                            headers: { 'Content-Type': 'multipart/form-data' }
-                                                        });
-                                                        if (res.data.success) {
-                                                            const populatedNewMsg = {
-                                                                ...res.data.newMessage,
-                                                                replyTo: replyTo ? { ...replyTo } : null
-                                                            };
-                                                            dispatch(addMessage(populatedNewMsg));
-
-                                                            // Ensure user is in sidebar
-                                                            // Critical: Ensure user is in sidebar and at the top
-                                                            const exists = chatUsers.some(u => String(u._id) === String(selectedUser?._id));
-                                                            if (!exists && !selectedUser.isGroup) {
-                                                                dispatch(addChatUser(selectedUser));
+                                                        for (const file of files) {
+                                                            if (file.size > 10 * 1024 * 1024) {
+                                                                toast.error(`File "${file.name}" is too large (>10MB).`);
+                                                                continue;
                                                             }
 
-                                                            dispatch(updateLastMessage({ userId: selectedUser._id, message: populatedNewMsg }));
-                                                            dispatch(reorderUsers(selectedUser._id));
-                                                            setReplyTo(null);
+                                                            const tempId = Math.random().toString(36).substr(2, 9) + Date.now();
+                                                            const previewUrl = URL.createObjectURL(file);
+                                                            const isImg = file.type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp)$/i.test(file.name);
+                                                            const isVid = file.type.startsWith('video/') || /\.(mp4|mov|avi|mkv|webm)$/i.test(file.name);
+                                                            const finalType = isImg ? 'image' : (isVid ? 'video' : 'file');
+
+                                                            try {
+                                                                // Optimistic local update
+                                                                const tempMsg = {
+                                                                    _id: tempId,
+                                                                    tempId: tempId,
+                                                                    senderId: user._id,
+                                                                    receiverId: selectedUser._id,
+                                                                    message: finalType === 'file' ? file.name : "",
+                                                                    messageType: finalType,
+                                                                    mediaUrl: previewUrl,
+                                                                    isLoading: true,
+                                                                    createdAt: new Date().toISOString()
+                                                                };
+                                                                dispatch(addMessage(tempMsg));
+
+                                                                const formData = new FormData();
+                                                                formData.append("message", finalType === 'file' ? file.name : "");
+                                                                formData.append("messageType", finalType);
+                                                                formData.append("media", file);
+                                                                formData.append("tempId", tempId);
+                                                                if (replyTo?._id) {
+                                                                    formData.append("replyTo", replyTo._id);
+                                                                }
+
+                                                                const res = await api.post(`/message/send/${selectedUser?._id}`, formData, {
+                                                                    headers: { 'Content-Type': 'multipart/form-data' }
+                                                                });
+                                                                if (res.data.success) {
+                                                                    const populatedNewMsg = {
+                                                                        ...res.data.newMessage,
+                                                                        replyTo: replyTo ? { ...replyTo } : null
+                                                                    };
+                                                                    dispatch(addMessage(populatedNewMsg));
+
+                                                                    // Ensure user is in sidebar
+                                                                    // Critical: Ensure user is in sidebar and at the top
+                                                                    const exists = chatUsers.some(u => String(u._id) === String(selectedUser?._id));
+                                                                    if (!exists && !selectedUser.isGroup) {
+                                                                        dispatch(addChatUser(selectedUser));
+                                                                    }
+
+                                                                    dispatch(updateLastMessage({ userId: selectedUser._id, message: populatedNewMsg }));
+                                                                    dispatch(reorderUsers(selectedUser._id));
+                                                                    setReplyTo(null);
+                                                                }
+                                                            } catch (err) {
+                                                                console.log(err);
+                                                                const errorMessage = err.response?.data?.message || `Failed to send "${file.name}"`;
+                                                                toast.error(errorMessage);
+                                                                dispatch(removeTempMessage({ tempId }));
+                                                            }
                                                         }
-                                                    } catch (err) {
-                                                        console.log(err);
-                                                        const errorMessage = err.response?.data?.message || `Failed to send "${file.name}"`;
-                                                        toast.error(errorMessage);
-                                                        dispatch(removeTempMessage({ tempId }));
-                                                    }
-                                                }
-                                                e.target.value = null; // Clear input for re-selection
-                                            }}
-                                        />
+                                                        e.target.value = null; // Clear input for re-selection
+                                                    }}
+                                                />
 
 
-                                        {textMessage.trim() ? (
-                                            <button
-                                                type="submit"
-                                                disabled={isSending}
-                                                className='ml-1 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-full font-black text-[13px] tracking-wide shadow-md shadow-indigo-200 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed'
-                                            >
-                                                {isSending ? 'SENDING...' : 'SEND'}
-                                            </button>
-                                        ) : (
-                                            <div className="p-2 text-gray-300">
-                                                <Send size={22} strokeWidth={1.5} />
+                                                {textMessage.trim() ? (
+                                                    <button
+                                                        type="submit"
+                                                        disabled={isSending}
+                                                        className='ml-1 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-full font-black text-[13px] tracking-wide shadow-md shadow-indigo-200 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed'
+                                                    >
+                                                        {isSending ? 'SENDING...' : 'SEND'}
+                                                    </button>
+                                                ) : (
+                                                    <div className="p-2 text-gray-300">
+                                                        <Send size={22} strokeWidth={1.5} />
+                                                    </div>
+                                                )}
                                             </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </form>
+                                        </div>
+                                    </form>
+                                </>
+                            )}
                         </div>
                     </>
                 ) : (
@@ -1135,12 +1167,37 @@ const ChatPage = () => {
 
                     <button
                         onClick={() => {
+                            const isGroupMember = contextMenu.targetUser?.isGroup && (
+                                contextMenu.targetUser?.participants?.some(p => String(p._id || p) === String(user?._id)) ||
+                                contextMenu.targetUser?.groupAdmin?.some(a => String(a) === String(user?._id))
+                            );
+
+                            if (isGroupMember) {
+                                return Swal.fire({
+                                    title: "Group Locked",
+                                    text: "You must leave the group before you can delete it from your sidebar.",
+                                    icon: "info",
+                                    confirmButtonColor: "#4F46E5",
+                                    borderRadius: "24px"
+                                });
+                            }
+
                             deleteChatHandler(contextMenu.targetUser._id, true);
                             setContextMenu(prev => ({ ...prev, visible: false }));
                         }}
-                        className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-red-50 text-red-600 transition-colors group"
+                        className={`w-full flex items-center gap-3 px-4 py-2.5 transition-colors group ${
+                            contextMenu.targetUser?.isGroup && (
+                                contextMenu.targetUser?.participants?.some(p => String(p._id || p) === String(user?._id)) ||
+                                contextMenu.targetUser?.groupAdmin?.some(a => String(a) === String(user?._id))
+                            ) ? 'opacity-40 grayscale cursor-not-allowed' : 'hover:bg-red-50 text-red-600'
+                        }`}
                     >
-                        <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center group-hover:bg-white text-red-500">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                             contextMenu.targetUser?.isGroup && (
+                                contextMenu.targetUser?.participants?.some(p => String(p._id || p) === String(user?._id)) ||
+                                contextMenu.targetUser?.groupAdmin?.some(a => String(a) === String(user?._id))
+                            ) ? 'bg-gray-100 text-gray-400' : 'bg-red-50 text-red-500 group-hover:bg-white'
+                        }`}>
                             <Trash2 size={16} />
                         </div>
                         <span className="text-[14px] font-bold">Delete Chat</span>
@@ -1442,18 +1499,39 @@ const ChatPage = () => {
                                         borderRadius: '24px'
                                     });
                                     if (confirm.isConfirmed) {
-                                        try {
-                                            await api.post('/message/group/remove', {
-                                                conversationId: selectedUser.conversationId,
-                                                userId: user._id
-                                            });
-                                            dispatch(setSelectedUser(null));
-                                            dispatch(clearChat(selectedUser._id));
-                                            setIsGroupInfoOpen(false);
-                                            toast.success("You left the group");
-                                        } catch (err) {
-                                            toast.error("Failed to leave group");
-                                        }
+                                            try {
+                                                const myId = String(user?._id || user?.id || "");
+                                                if (isNotAMember) {
+                                                    setIsGroupInfoOpen(false);
+                                                    return;
+                                                }
+
+                                                // 1. Show loading state to prevent double clicks
+                                                Swal.fire({
+                                                    title: 'Leaving group...',
+                                                    allowOutsideClick: false,
+                                                    showConfirmButton: false,
+                                                    didOpen: () => Swal.showLoading()
+                                                });
+
+                                                const targetId = selectedUser.conversationId || selectedUser._id;
+                                                await api.post('/message/group/remove', {
+                                                    conversationId: targetId,
+                                                    userId: myId
+                                                });
+                                                
+                                                // 2. Clear state and close modal instantly
+                                                const updatedParticipants = selectedUser.participants?.filter(p => String(p?._id || p) !== myId) || [];
+                                                dispatch(updateChatUserMembership({ conversationId: selectedUser._id, participants: updatedParticipants }));
+                                                
+                                                Swal.close();
+                                                setTimeout(() => setIsGroupInfoOpen(false), 300); // Small delay to guarantee state sync
+                                                toast.success("You left the group");
+                                            } catch (err) {
+                                                Swal.close();
+                                                setIsGroupInfoOpen(false); // CLOSE ANYWAY to avoid stale modal
+                                                toast.info("Membership updated");
+                                            }
                                     }
                                 }}
                             >

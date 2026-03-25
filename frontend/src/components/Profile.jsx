@@ -35,13 +35,13 @@ const Profile = () => {
 
   const { userProfile, user, isFollowing: storeIsFollowing, isFollower: storeIsFollower, requestPending: storeRequestPending } = useSelector(store => store.auth);
 
-  const isLoggedInUserProfile = user?._id === userProfile?._id;
-  const isFollowing = user?.following?.includes(userProfile?._id) || storeIsFollowing;
-  const isFollower = userProfile?.following?.some(f => (f._id || f) === user?._id) || user?.followers?.some(f => (f._id || f) === userProfile?._id) || storeIsFollower;
-  const requestPending = userProfile?.followRequests?.some(f => (f._id || f) === user?._id) || storeRequestPending;
+  const isLoggedInUserProfile = String(user?._id) === String(userProfile?._id);
+  const isFollowing = user?.following?.some(u => String(u._id || u) === String(userProfile?._id)) || storeIsFollowing;
+  const isFollower = userProfile?.following?.some(u => String(u._id || u) === String(user?._id)) || user?.followers?.some(u => String(u._id || u) === String(userProfile?._id)) || storeIsFollower;
+  const requestPending = userProfile?.followRequests?.some(id => String(id) === String(user?._id)) || storeRequestPending;
   const isPrivateAndNotFollowing = userProfile?.isPrivate && !isFollowing && !isLoggedInUserProfile;
 
-  const isBlockedByMe = user?.blockedUsers?.some(id => String(id) === String(userProfile?._id));
+  const isBlockedByMe = user?.blockedUsers?.some(id => String(id._id || id) === String(userProfile?._id));
 
   let buttonState = 'Follow';
   if (isBlockedByMe) {
@@ -88,16 +88,19 @@ const Profile = () => {
         let updatedFollowers = [...(userProfile?.followers || [])];
         let updatedRequests = [...(userProfile?.followRequests || [])];
 
+        const targetIdStr = String(userProfile?._id);
+        const myIdStr = String(user?._id);
+
         if (res.data.status === 'unfollowed') {
-          updatedFollowing = updatedFollowing.filter(id => (id._id || id) !== userProfile._id);
-          updatedFollowers = updatedFollowers.filter(f => (f._id || f) !== user._id);
+          updatedFollowing = updatedFollowing.filter(u => String(u._id || u) !== targetIdStr);
+          updatedFollowers = updatedFollowers.filter(u => String(u._id || u) !== myIdStr);
         } else if (res.data.status === 'followed') {
-          updatedFollowing.push(userProfile._id);
-          updatedFollowers.push(user);
+          if (!updatedFollowing.some(u => String(u._id || u) === targetIdStr)) updatedFollowing.push(userProfile);
+          if (!updatedFollowers.some(u => String(u._id || u) === myIdStr)) updatedFollowers.push(user);
         } else if (res.data.status === 'canceled') {
-          updatedRequests = updatedRequests.filter(id => (id._id || id) !== user._id);
+          updatedRequests = updatedRequests.filter(u => String(u._id || u) !== myIdStr);
         } else if (res.data.status === 'requested') {
-          updatedRequests.push(user._id);
+          if (!updatedRequests.some(u => String(u._id || u) === myIdStr)) updatedRequests.push(myIdStr);
         }
 
         // Update relationship flags in Redux

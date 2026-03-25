@@ -154,13 +154,17 @@ export const login = async (req, res) => {
         const populatedPosts = await Promise.all(
             user.posts.map(async (postId) => {
                 const post = await Post.findById(postId);
-                if (post.author.equals(user._id)) {
+                if (post && post.author.equals(user._id)) {
                     return post;
                 }
                 return null;
             })
         );
-        const userWithLinked = await User.findById(user._id).populate('linkedAccounts', 'username profilePicture email');
+
+        const userWithPopulated = await User.findById(user._id)
+            .populate('linkedAccounts', 'username profilePicture email')
+            .populate('followers', 'username fullName profilePicture bio')
+            .populate('following', 'username fullName profilePicture bio');
 
         const userData = {
             _id: user._id,
@@ -169,14 +173,14 @@ export const login = async (req, res) => {
             profilePicture: user.profilePicture,
             bio: user.bio,
             category: user.category,
-            followers: user.followers,
-            following: user.following,
-            posts: populatedPosts,
+            followers: userWithPopulated.followers || [],
+            following: userWithPopulated.following || [],
+            posts: populatedPosts.filter(p => p !== null),
             isPrivate: user.isPrivate,
             followRequests: user.followRequests,
             role: user.role,
             mutedUsers: user.mutedUsers || [],
-            linkedAccounts: userWithLinked.linkedAccounts || []
+            linkedAccounts: userWithPopulated.linkedAccounts || []
         }
 
         return res.cookie("token", token, { httpOnly: true, sameSite: 'strict', maxAge: 1 * 24 * 60 * 60 * 1000 }).json({
@@ -448,29 +452,35 @@ export const followOrUnfollow = async (req, res) => {
         if (!user || !targetUser) return res.status(404).json({ message: "User not found", success: false });
 
         // BLOCK CHECK:
-        if (user.blockedUsers.includes(jiskoFollowKrunga) || user.blockedBy.includes(jiskoFollowKrunga)) {
+        if (user.blockedUsers?.some(id => id && id.toString() === jiskoFollowKrunga) || 
+            user.blockedBy?.some(id => id && id.toString() === jiskoFollowKrunga)) {
             return res.status(403).json({ message: "Action not allowed due to a block", success: false });
         }
 
-        const isFollowing = user.following.includes(jiskoFollowKrunga);
-        const hasRequested = targetUser.followRequests.includes(followKrneWala);
+        const isFollowing = (user.following || []).some(id => id && id.toString() === jiskoFollowKrunga);
+        const hasRequested = (targetUser.followRequests || []).some(id => id && id.toString() === followKrneWala);
 
         if (isFollowing) {
-            // Unfollow
+            // Unfollow logic
             await Promise.all([
                 User.updateOne({ _id: followKrneWala }, { $pull: { following: jiskoFollowKrunga } }),
                 User.updateOne({ _id: jiskoFollowKrunga }, { $pull: { followers: followKrneWala } })
             ]);
+
+            // Fetch fresh target user to get accurate follower info
+            const updatedTarget = await User.findById(jiskoFollowKrunga).select('followers following');
+            if (!updatedTarget) return res.status(404).json({ message: "Target user no longer exists", success: false });
+
             return res.status(200).json({
                 message: "Unfollowed successfully",
                 success: true,
                 status: 'unfollowed',
                 isFollowing: false,
-                isFollower: targetUser.following.includes(followKrneWala),
+                isFollower: (updatedTarget.following || []).some(id => id && id.toString() === followKrneWala),
                 requestPending: false
             });
         } else if (hasRequested) {
-            // Cancel Request
+            // Cancel Request logic
             await Promise.all([
                 User.updateOne({ _id: jiskoFollowKrunga }, { $pull: { followRequests: followKrneWala } }),
                 Notification.deleteOne({ sender: followKrneWala, receiver: jiskoFollowKrunga, type: 'follow_request' })
@@ -480,13 +490,13 @@ export const followOrUnfollow = async (req, res) => {
                 success: true,
                 status: 'canceled',
                 isFollowing: false,
-                isFollower: targetUser.following.includes(followKrneWala),
+                isFollower: (targetUser.following || []).some(id => id && id.toString() === followKrneWala),
                 requestPending: false
             });
         } else {
             if (targetUser.isPrivate) {
                 // Send Follow Request
-                await User.updateOne({ _id: jiskoFollowKrunga }, { $push: { followRequests: followKrneWala } });
+                await User.updateOne({ _id: jiskoFollowKrunga }, { $addToSet: { followRequests: followKrneWala } });
 
                 const notification = await Notification.create({
                     sender: followKrneWala,
@@ -503,14 +513,14 @@ export const followOrUnfollow = async (req, res) => {
                     success: true,
                     status: 'requested',
                     isFollowing: false,
-                    isFollower: targetUser.following.includes(followKrneWala),
+                    isFollower: (targetUser.following || []).some(id => id && id.toString() === followKrneWala),
                     requestPending: true
                 });
             } else {
                 // Direct Follow (Public)
                 await Promise.all([
-                    User.updateOne({ _id: followKrneWala }, { $push: { following: jiskoFollowKrunga } }),
-                    User.updateOne({ _id: jiskoFollowKrunga }, { $push: { followers: followKrneWala } }),
+                    User.updateOne({ _id: followKrneWala }, { $addToSet: { following: jiskoFollowKrunga } }),
+                    User.updateOne({ _id: jiskoFollowKrunga }, { $addToSet: { followers: followKrneWala } }),
                 ]);
 
                 const notification = await Notification.create({
@@ -528,14 +538,14 @@ export const followOrUnfollow = async (req, res) => {
                     success: true,
                     status: 'followed',
                     isFollowing: true,
-                    isFollower: targetUser.following.includes(followKrneWala),
+                    isFollower: (targetUser.following || []).some(id => id && id.toString() === followKrneWala),
                     requestPending: false
                 });
             }
         }
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ success: false });
+        console.error("followOrUnfollow Error:", error);
+        res.status(500).json({ success: false, message: error.message || "Internal server error" });
     }
 }
 
@@ -603,7 +613,10 @@ export const getChatUsers = async (req, res) => {
     try {
         const userId = req.id;
         const conversations = await Conversation.find({
-            participants: userId
+            $or: [
+                { participants: userId },
+                { leftParticipants: userId }
+            ]
         }).sort({ updatedAt: -1 }).populate('participants', 'username profilePicture');
 
         const user = await User.findById(userId);

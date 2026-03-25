@@ -3,7 +3,7 @@
 /* Modern Feed Theme System */
 body {
     transition: background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1), color 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    font-family: 'Inter', 'Outfit', sans-serif;
+    font-family: 'Poppins', sans-serif;
     background-color: #F6F7FB;
     color: #1A1A1A;
 }
