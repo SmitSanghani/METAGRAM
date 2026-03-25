@@ -291,11 +291,10 @@ function App() {
         // Check if the chat exists in sidebar
         const chatExistsInSidebar = chatUsersRef.current?.some(u => String(u._id) === targetId);
         
-        // Only auto-add if NOT a group message (groups should be added via join/create)
-        // OR if you really want to auto-add groups, you need more group info.
+        // Auto-add 1v1 ONLY if not from me (others' messages should add them to list)
         if (!chatExistsInSidebar && !isFromMe && !newMessage.isGroup) {
            dispatch(addChatUser({
-             _id: senderId,
+             _id: targetId,
              username: newMessage.senderUsername,
              profilePicture: newMessage.senderProfilePicture,
              conversationId: newMessage.conversationId

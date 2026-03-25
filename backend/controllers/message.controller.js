@@ -163,7 +163,8 @@ export const sendMessage = async (req, res) => {
 
         // Individual notifications for sidebar update / toasts (All participants, including sender for multi-tab sync)
         conversation.participants.forEach(p => {
-            broadcastToUser(p.toString(), "new_message_notification", messageObj);
+            const participantId = p._id ? p._id.toString() : p.toString();
+            broadcastToUser(participantId, "new_message_notification", messageObj);
         });
 
         return res.status(201).json({ success: true, newMessage: messageObj });
