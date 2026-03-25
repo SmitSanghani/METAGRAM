@@ -1053,7 +1053,7 @@ const ChatPage = () => {
 
             {/* Group Creation Modal */}
             {isGroupModalOpen && (
-                <div className="fixed inset-0 z-[50] flex items-center justify-center bg-black/40 backdrop-blur-[8px] animate-in fade-in duration-300 px-4">
+                <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-[8px] animate-in fade-in duration-300 px-4">
                     <div className="bg-white rounded-[32px] w-full max-w-[440px] max-h-[85vh] flex flex-col overflow-hidden shadow-[0_25px_70px_-15px_rgba(0,0,0,0.3)] animate-in zoom-in-95 duration-300 border border-gray-100">
                         {/* Fixed Header */}
                         <div className="px-8 pt-10 pb-6 bg-white shrink-0 border-b border-gray-50 relative">
@@ -1182,7 +1182,7 @@ const ChatPage = () => {
 
             {/* Group Info Modal */}
             {isGroupInfoOpen && selectedUser?.isGroup && (
-                <div className="fixed inset-0 z-[50] flex items-center justify-center bg-black/40 backdrop-blur-[8px] animate-in fade-in duration-300 px-4">
+                <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-[8px] animate-in fade-in duration-300 px-4">
                     <div className="bg-white rounded-[32px] w-full max-w-[440px] max-h-[85vh] flex flex-col overflow-hidden shadow-[0_25px_70px_-15px_rgba(0,0,0,0.3)] animate-in zoom-in-95 duration-300 border border-gray-100">
                         {/* Header Section */}
                         <div className="px-8 pt-10 pb-8 flex flex-col items-center bg-white border-b border-gray-50 shrink-0 relative">
