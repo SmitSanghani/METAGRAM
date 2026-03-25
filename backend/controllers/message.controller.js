@@ -210,7 +210,30 @@ export const getMessages = async (req, res) => {
 
         if (!conversation) return res.status(200).json({ success: true, messages: [], conversationId: null });
 
-        // Populate replyTo content manually
+        // Mark as seen when fetching
+        if (conversation) {
+            if (conversation.isGroup) {
+                conversation.messages.forEach(msg => {
+                    if (String(msg.senderId) !== String(senderId)) {
+                        if (!msg.seenBy.includes(senderId)) {
+                            msg.seenBy.push(senderId);
+                        }
+                    }
+                });
+            } else {
+                const other = conversation.participants.find(p => p.toString() !== senderId.toString());
+                if (other) {
+                    conversation.messages.forEach(msg => {
+                        if (String(msg.senderId) === String(other) && !msg.seen) {
+                            msg.seen = true;
+                        }
+                    });
+                }
+            }
+            conversation.markModified('messages');
+            await conversation.save();
+        }
+
         const populatedMessages = conversation.messages.map(msg => {
             const msgObj = msg.toObject();
             if (msgObj.replyTo) {

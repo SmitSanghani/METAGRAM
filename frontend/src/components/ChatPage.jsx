@@ -37,6 +37,7 @@ const ChatPage = () => {
     const dispatch = useDispatch();
 
     const [isTyping, setIsTyping] = useState(false);
+    const [isSending, setIsSending] = useState(false);
     const [highlightedMessageId, setHighlightedMessageId] = useState(null);
     const [searchQuery, setSearchQuery] = useState("");
     const [searchResults, setSearchResults] = useState([]);
@@ -217,8 +218,13 @@ const ChatPage = () => {
     };
 
     const sendMessageHandler = async (e) => {
-        e.preventDefault();
+        if (e) e.preventDefault();
         if (!textMessage.trim() && !replyTo) return;
+        if (isSending) return;
+
+        const originalText = textMessage;
+        setTextMessage(""); // Clear UI immediately to prevent double-send
+        setIsSending(true);
 
         try {
             const tempId = Date.now().toString();
@@ -229,14 +235,14 @@ const ChatPage = () => {
                     conversationId: selectedUser.conversationId,
                     senderId: user._id,
                     receiverId: selectedUser.isGroup ? null : selectedUser._id,
-                    text: textMessage,
+                    text: originalText,
                     messageType: 'text',
                     tempId: tempId
                 });
             }
 
             const res = await api.post(`/message/send/${selectedUser?._id}`, {
-                message: textMessage,
+                message: originalText,
                 replyTo: replyTo?._id,
                 tempId: tempId
             }, {
@@ -253,23 +259,27 @@ const ChatPage = () => {
                 dispatch(updateLastMessage({ userId: selectedUser._id, message: populatedNewMsg }));
                 dispatch(reorderUsers(selectedUser._id));
 
-                // If this message initialized the conversation, update selectedUser with the ID
                 if (!selectedUser.conversationId && res.data.newMessage.conversationId) {
                     const updatedUser = { ...selectedUser, conversationId: res.data.newMessage.conversationId };
-                    dispatch(setSelectedUser(updatedUser)); // Update in redux
+                    dispatch(setSelectedUser(updatedUser)); 
                     if (socket) {
                         socket.emit("join_room", res.data.newMessage.conversationId);
                     }
                 }
 
-                setTextMessage("");
                 setReplyTo(null);
+            } else {
+                // If not successful, restore text for user to try again
+                if (originalText) setTextMessage(originalText);
             }
         } catch (error) {
+            if (originalText) setTextMessage(originalText);
             if (error.response?.status === 403) {
                 toast.error(error.response.data.message || "Message not sent");
             }
             console.error(error);
+        } finally {
+            setIsSending(false);
         }
     }
 
@@ -397,10 +407,16 @@ const ChatPage = () => {
     const handleTyping = (e) => {
         setTextMessage(e.target.value);
         if (socket && selectedUser) {
-            socket.emit("typing", { receiverId: selectedUser._id });
+            socket.emit("typing", { 
+                receiverId: selectedUser.isGroup ? null : selectedUser._id,
+                conversationId: selectedUser.conversationId 
+            });
             if (typingTimeout.current) clearTimeout(typingTimeout.current);
             typingTimeout.current = setTimeout(() => {
-                socket.emit("stop_typing", { receiverId: selectedUser._id });
+                socket.emit("stop_typing", { 
+                    receiverId: selectedUser.isGroup ? null : selectedUser._id,
+                    conversationId: selectedUser.conversationId 
+                });
             }, 2000);
         }
     };
@@ -481,12 +497,20 @@ const ChatPage = () => {
             dispatch(markStoryUnsent({ storyId }));
         };
 
-        const handleUserTyping = ({ senderId }) => {
-            if (String(senderId) === String(selectedUser._id)) setIsTyping(true);
+        const handleUserTyping = ({ senderId, conversationId }) => {
+            if (selectedUser?.isGroup) {
+                if (String(conversationId) === String(selectedUser.conversationId)) setIsTyping(true);
+            } else {
+                if (String(senderId) === String(selectedUser._id)) setIsTyping(true);
+            }
         };
 
-        const handleUserStoppedTyping = ({ senderId }) => {
-            if (String(senderId) === String(selectedUser._id)) setIsTyping(false);
+        const handleUserStoppedTyping = ({ senderId, conversationId }) => {
+            if (selectedUser?.isGroup) {
+                if (String(conversationId) === String(selectedUser.conversationId)) setIsTyping(false);
+            } else {
+                if (String(senderId) === String(selectedUser._id)) setIsTyping(false);
+            }
         };
 
         socket.on('receive_message', handleIncomingMessage);
@@ -898,14 +922,15 @@ const ChatPage = () => {
                                         type="text"
                                         value={textMessage}
                                         onChange={handleTyping}
+                                        disabled={isSending}
                                         onKeyDown={(e) => {
-                                            if (e.key === 'Enter' && textMessage.trim()) {
+                                            if (e.key === 'Enter' && textMessage.trim() && !isSending) {
                                                 e.preventDefault();
                                                 sendMessageHandler(e);
                                             }
                                         }}
                                         placeholder="Message..."
-                                        className='flex-1 bg-transparent py-2.5 outline-none text-[15px] font-medium placeholder:text-gray-400 text-gray-800'
+                                        className='flex-1 bg-transparent py-2.5 outline-none text-[15px] font-medium placeholder:text-gray-400 text-gray-800 disabled:opacity-50'
                                     />
                                     <div className="flex items-center gap-1">
                                         <input
@@ -988,8 +1013,12 @@ const ChatPage = () => {
 
 
                                         {textMessage.trim() ? (
-                                            <button type="submit" className='ml-1 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-full font-black text-[13px] tracking-wide shadow-md shadow-indigo-200 active:scale-95 transition-all'>
-                                                SEND
+                                            <button 
+                                                type="submit" 
+                                                disabled={isSending}
+                                                className='ml-1 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-full font-black text-[13px] tracking-wide shadow-md shadow-indigo-200 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed'
+                                            >
+                                                {isSending ? 'SENDING...' : 'SEND'}
                                             </button>
                                         ) : (
                                             <div className="p-2 text-gray-300">
