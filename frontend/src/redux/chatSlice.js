@@ -15,11 +15,11 @@ const chatSlice = createSlice({
             state.chatUsers = action.payload;
         },
         reorderUsers: (state, action) => {
-            const userId = String(action.payload);
-            const index = state.chatUsers.findIndex(u => String(u._id) === userId);
+            const sid = String(action.payload);
+            const index = state.chatUsers.findIndex(u => String(u._id) === sid || String(u.conversationId) === sid);
             if (index !== -1) {
                 const user = state.chatUsers[index];
-                const others = state.chatUsers.filter(u => String(u._id) !== userId);
+                const others = state.chatUsers.filter(u => String(u._id) !== String(user._id));
                 state.chatUsers = [user, ...others];
             }
         },

@@ -33,7 +33,7 @@ const RightSidebar = () => {
                 </div>
                 <button
                     onClick={() => setIsSwitchOpen(true)}
-                    className='text-[#3b82f6] hover:text-black text-[12px] font-bold transition-all'
+                    className='text-[#3b82f6] hover:text-black text-[12px] font-bold transition-all cursor-pointer'
                 >
                     Switch
                 </button>

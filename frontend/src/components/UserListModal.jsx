@@ -87,7 +87,7 @@ const UserListItem = ({ user: targetUser, currentAuthUser, onClose }) => {
             {currentAuthUser?._id !== targetUser._id && (
                 <button
                     onClick={handleFollowUnfollow}
-                    className={`text-[12px] font-bold px-4 py-1.5 rounded-[8px] transition-all active:scale-95 ${buttonState === 'Following' || buttonState === 'Requested'
+                    className={`text-[12px] font-bold px-4 py-1.5 rounded-[8px] transition-all active:scale-95 cursor-pointer ${buttonState === 'Following' || buttonState === 'Requested'
                         ? 'bg-gray-100 text-gray-900 hover:bg-gray-200'
                         : 'bg-[#4F46E5] text-white hover:bg-[#4338CA]'
                         }`}

@@ -161,11 +161,9 @@ export const sendMessage = async (req, res) => {
         // Broadcast to specific conversation room
         io.to(conversation._id.toString()).emit("receive_message", messageObj);
 
-        // Individual notifications for sidebar update / toasts
+        // Individual notifications for sidebar update / toasts (All participants, including sender for multi-tab sync)
         conversation.participants.forEach(p => {
-            if (p.toString() !== senderId.toString()) {
-                broadcastToUser(p.toString(), "new_message_notification", messageObj);
-            }
+            broadcastToUser(p.toString(), "new_message_notification", messageObj);
         });
 
         return res.status(201).json({ success: true, newMessage: messageObj });

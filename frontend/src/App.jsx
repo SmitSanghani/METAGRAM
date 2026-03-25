@@ -323,96 +323,122 @@ function App() {
       socketio.on('new_message_notification', (newMessage) => {
         const currentUserId = String(user?._id);
         const senderId = String(newMessage.senderId);
-        const targetId = newMessage.isGroup ? String(newMessage.conversationId) : senderId;
+        const isFromMe = senderId === currentUserId;
+        const targetId = newMessage.isGroup ? String(newMessage.conversationId) : (isFromMe ? String(newMessage.receiverId) : senderId);
         
-        if (senderId === currentUserId) return; // Prevent alerting for own messages
-
-        console.log(`[Socket] Received "new_message_notification" (${newMessage.isGroup ? 'Group' : 'Direct'}) - From: ${senderId}`);
+        console.log(`[Socket] Received "notification" (${newMessage.isGroup ? 'Group' : 'Direct'}) - From: ${senderId}`);
 
         // 1. Ensure the relevant chat exists in sidebar (Group or User)
-        // We only auto-add 1v1s for now to avoid broken group previews without group info
         const chatExistsInSidebar = chatUsersRef.current?.some(u => String(u._id) === targetId);
-        if (!chatExistsInSidebar && !newMessage.isGroup) {
-           dispatch(addChatUser({
-             _id: senderId,
-             username: newMessage.senderUsername,
-             profilePicture: newMessage.senderProfilePicture,
-             conversationId: newMessage.conversationId
-           }));
+        if (!chatExistsInSidebar) {
+           // For 1v1: auto-add based on sender details
+           if (!newMessage.isGroup) {
+              dispatch(addChatUser({
+                _id: isFromMe ? newMessage.receiverId : senderId,
+                username: isFromMe ? "" : newMessage.senderUsername,
+                profilePicture: isFromMe ? "" : newMessage.senderProfilePicture,
+                conversationId: newMessage.conversationId
+              }));
+           } 
+           // For Groups: wait for fetch or add with minimal info (better to add placeholder than miss it)
+           else {
+              dispatch(addChatUser({
+                _id: targetId,
+                username: newMessage.groupName || "Group Chat",
+                profilePicture: newMessage.groupProfilePicture,
+                isGroup: true,
+                conversationId: targetId
+              }));
+           }
         }
 
         const openChatUser = selectedUserRef.current;
         const isViewingThisChat = openChatUser && String(openChatUser._id) === targetId;
 
         if (isViewingThisChat) {
-          dispatch(addMessage(newMessage));
-          dispatch(clearUnreadCount(targetId));
-          api.get(`/message/seen/${targetId}`).catch(() => {});
-        } else {
-          // Play sound and show toast only if NOT looking at this chat
-          const isMuted = user?.mutedUsers?.includes(senderId);
-          if (audioRef.current && !isMuted) {
-            audioRef.current.currentTime = 0;
-            audioRef.current.play().catch(() => {});
+          // If viewing, add to messages and clear unread (Only if not from me)
+          if (!isFromMe) {
+            dispatch(addMessage(newMessage));
+            dispatch(clearUnreadCount(targetId));
+            api.get(`/message/seen/${targetId}`).catch(() => {});
           }
+        } else {
+          // Check if muted (either the sender or the group)
+          const isMuted = user?.mutedUsers?.includes(targetId) || user?.mutedUsers?.includes(senderId);
 
-          toast.custom((t) => (
-            <div 
-              onClick={() => { 
-                localStorage.setItem('lastChatUserId', targetId);
-                window.location.href = '/chat'; 
-                toast.dismiss(t); 
-              }}
-              className="bg-white border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.06)] rounded-[24px] p-5 flex gap-4 relative max-w-[360px] w-full cursor-pointer hover:bg-gray-50 transition-all pointer-events-auto"
-            >
-              <div className="relative shrink-0">
-                <Avatar className="w-14 h-14 border border-indigo-50 shadow-sm">
-                  <AvatarImage src={newMessage.senderProfilePicture} className="object-cover" />
-                  <AvatarFallback className="bg-indigo-100 text-indigo-600 font-bold uppercase">{newMessage.senderUsername?.charAt(0)}</AvatarFallback>
-                </Avatar>
-                {newMessage.isGroup && <div className="absolute -top-1 -right-1 bg-indigo-600 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full ring-2 ring-white">GROUP</div>}
-              </div>
-              
-              <div className="flex flex-col flex-1 min-w-0">
-                <div className="flex items-center justify-between mb-0.5">
-                  <span className="text-[12px] font-medium text-gray-400 capitalize">Just now</span>
-                  <button onClick={(e) => { e.stopPropagation(); toast.dismiss(t); }} className="text-gray-300 hover:text-gray-500 transition-colors p-1">
-                    <X size={16} />
-                  </button>
+          // Play sound and show toast only if: 
+          // 1. NOT looking at this chat
+          // 2. NOT from me
+          // 3. NOT muted
+          if (!isFromMe && !isMuted) {
+            if (audioRef.current) {
+              audioRef.current.currentTime = 0;
+              audioRef.current.play().catch(() => {});
+            }
+
+            toast.custom((t) => (
+              <div 
+                onClick={() => { 
+                  localStorage.setItem('lastChatUserId', targetId);
+                  window.location.href = '/chat'; 
+                  toast.dismiss(t); 
+                }}
+                className="bg-white border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.06)] rounded-[24px] p-5 flex gap-4 relative max-w-[360px] w-full cursor-pointer hover:bg-gray-50 transition-all pointer-events-auto"
+              >
+                <div className="relative shrink-0">
+                  <Avatar className="w-14 h-14 border border-indigo-50 shadow-sm">
+                    <AvatarImage src={newMessage.senderProfilePicture} className="object-cover" />
+                    <AvatarFallback className="bg-indigo-100 text-indigo-600 font-bold uppercase">{newMessage.senderUsername?.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                  {newMessage.isGroup && <div className="absolute -top-1 -right-1 bg-indigo-600 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full ring-2 ring-white">GROUP</div>}
                 </div>
                 
-                <span className="text-[14px] font-semibold text-gray-500 leading-none mb-1">{newMessage.senderUsername}{newMessage.isGroup ? " in Group" : ""}</span>
-                <p className="text-[16px] font-bold text-gray-900 leading-tight truncate mb-3">
-                  {newMessage.messageType === 'text' ? newMessage.message : `Sent a ${newMessage.messageType}`}
-                </p>
-                <div className="flex items-center gap-4">
-                  <button 
-                    onClick={(e) => { 
-                      e.stopPropagation(); 
-                      localStorage.setItem('lastChatUserId', targetId);
-                      window.location.href = '/chat'; 
-                      toast.dismiss(t); 
-                    }} 
-                    className="text-[13px] font-bold text-indigo-600"
-                  >
-                    Reply
-                  </button>
-                  <button onClick={(e) => { e.stopPropagation(); api.get(`/message/seen/${targetId}`).catch(() => {}); dispatch(clearUnreadCount(targetId)); toast.dismiss(t); }} className="text-[13px] font-bold text-gray-400">Mark as read</button>
+                <div className="flex flex-col flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-0.5">
+                    <span className="text-[12px] font-medium text-gray-400 capitalize">Just now</span>
+                    <button onClick={(e) => { e.stopPropagation(); toast.dismiss(t); }} className="text-gray-300 hover:text-gray-500 transition-colors p-1">
+                      <X size={16} />
+                    </button>
+                  </div>
+                  
+                  <span className="text-[14px] font-semibold text-gray-500 leading-none mb-1">{newMessage.senderUsername}{newMessage.isGroup ? " in Group" : ""}</span>
+                  <p className="text-[16px] font-bold text-gray-900 leading-tight truncate mb-3">
+                    {newMessage.messageType === 'text' ? newMessage.message : `Sent a ${newMessage.messageType}`}
+                  </p>
+                  <div className="flex items-center gap-4">
+                    <button 
+                      onClick={(e) => { 
+                        e.stopPropagation(); 
+                        localStorage.setItem('lastChatUserId', targetId);
+                        window.location.href = '/chat'; 
+                        toast.dismiss(t); 
+                      }} 
+                      className="text-[13px] font-bold text-indigo-600"
+                    >
+                      Reply
+                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); api.get(`/message/seen/${targetId}`).catch(() => {}); dispatch(clearUnreadCount(targetId)); toast.dismiss(t); }} className="text-[13px] font-bold text-gray-400">Mark as read</button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ), { id: `msg-${newMessage._id}`, duration: 5000, position: 'top-right' });
+            ), { id: `msg-${newMessage._id}`, duration: 5000, position: 'top-right' });
 
-          if (document.visibilityState !== 'visible' && Notification.permission === "granted") {
-            new Notification(`Group Message from ${newMessage.senderUsername}`, {
-              body: newMessage.message || `Sent a ${newMessage.messageType}`,
-              icon: "/logo.png"
-            });
+            if (document.visibilityState !== 'visible' && Notification.permission === "granted") {
+              const notifTitle = newMessage.isGroup ? `Message in ${newMessage.senderUsername}'s group` : `Message from ${newMessage.senderUsername}`;
+              new Notification(notifTitle, {
+                body: newMessage.message || `Sent a ${newMessage.messageType}`,
+                icon: "/logo.png"
+              });
+            }
           }
-          dispatch(incrementUnreadCount(targetId));
+          
+          // Increment unread count (if not from me)
+          if (!isFromMe) {
+            dispatch(incrementUnreadCount(targetId));
+          }
         }
 
-        // Always keep the Correct sidebar preview accurate (Group OR User)
+        // Always update last message preview and reorder the sidebar (VERY IMPORTANT for multi-tab sync)
         dispatch(updateLastMessage({ userId: targetId, message: newMessage }));
         dispatch(reorderUsers(targetId));
       });

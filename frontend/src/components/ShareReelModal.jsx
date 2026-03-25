@@ -1,21 +1,68 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
-import { Search, Send, X, CheckCircle2 } from 'lucide-react';
-import { useSelector } from 'react-redux';
+import { Search, Send, X, CheckCircle2, Loader2 } from 'lucide-react';
+import { useSelector, useDispatch } from 'react-redux';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import api from '@/api';
 import { toast } from 'sonner';
+import useGetChatUsers from '@/hooks/useGetChatUsers';
 
 const ShareReelModal = ({ open, setOpen, reel }) => {
-    const { suggestedUsers } = useSelector(store => store.auth);
+    useGetChatUsers();
+    const { suggestedUsers, user } = useSelector(store => store.auth);
+    const { chatUsers } = useSelector(store => store.chat);
+
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedUsers, setSelectedUsers] = useState([]);
+    const [searchResults, setSearchResults] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [isSearching, setIsSearching] = useState(false);
 
-    const filteredUsers = suggestedUsers?.filter(u =>
-        u.username.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    // Live search Debounce
+    useEffect(() => {
+        const fetchSearch = async () => {
+            if (searchTerm.trim().length > 0) {
+                setIsSearching(true);
+                try {
+                    const res = await api.get(`/user/search?query=${searchTerm}`);
+                    if (res.data.success) {
+                        setSearchResults(res.data.users);
+                    }
+                } catch (error) {
+                    console.error("Search error:", error);
+                } finally {
+                    setIsSearching(false);
+                }
+            } else {
+                setSearchResults([]);
+            }
+        };
+
+        const timeoutId = setTimeout(fetchSearch, 300);
+        return () => clearTimeout(timeoutId);
+    }, [searchTerm]);
+
+    // Initial list: Followers + Following + Chat users + Suggested users
+    const combinedInitialUsers = [
+        ...(user?.followers || []),
+        ...(user?.following || []),
+        ...(chatUsers || []),
+        ...(suggestedUsers || [])
+    ].reduce((acc, current) => {
+        const currentId = current?._id || current;
+        if (!currentId) return acc;
+
+        const existing = acc.find(item => (item?._id || item) === currentId);
+        if (!existing && typeof current === 'object') {
+            return acc.concat([current]);
+        }
+        return acc;
+    }, []);
+
+    const filteredUsers = searchTerm.trim().length > 0
+        ? searchResults
+        : (searchTerm.trim() ? combinedInitialUsers.filter(u => u.username.toLowerCase().includes(searchTerm.toLowerCase())) : combinedInitialUsers);
 
     const toggleUser = (userId) => {
         if (selectedUsers.includes(userId)) {
@@ -39,6 +86,7 @@ const ShareReelModal = ({ open, setOpen, reel }) => {
             toast.success("Shared successfully!");
             setOpen(false);
             setSelectedUsers([]);
+            setSearchTerm("");
         } catch (error) {
             console.error(error);
             toast.error("Failed to share");
@@ -69,8 +117,12 @@ const ShareReelModal = ({ open, setOpen, reel }) => {
                         />
                     </div>
 
-                    <div className="max-h-[350px] overflow-y-auto custom-scrollbar flex flex-col gap-1">
-                        {filteredUsers?.length > 0 ? (
+                    <div className="max-h-[300px] overflow-y-auto custom-scrollbar flex flex-col gap-1">
+                        {isSearching ? (
+                            <div className="py-20 flex items-center justify-center">
+                                <Loader2 className="animate-spin text-indigo-600" size={32} />
+                            </div>
+                        ) : filteredUsers?.length > 0 ? (
                             filteredUsers.map(user => (
                                 <div
                                     key={user._id}
@@ -84,7 +136,6 @@ const ShareReelModal = ({ open, setOpen, reel }) => {
                                         </Avatar>
                                         <div className="flex flex-col">
                                             <span className="text-[14px] font-black text-gray-900">{user.username}</span>
-                                            <span className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">Suggested for you</span>
                                         </div>
                                     </div>
                                     <div className={`w-6 h-6 rounded-full flex items-center justify-center transition-all ${selectedUsers.includes(user._id) ? 'bg-indigo-600 text-white scale-110' : 'border-2 border-gray-200'}`}>

@@ -126,18 +126,31 @@ const NotificationDropdown = ({ onClose }) => {
     };
 
     return (
-        <div className="absolute top-0 left-full h-screen w-[340px] bg-[#FAFAFA] border-r border-[#F0F0F0] shadow-2xl z-[110] flex flex-col">
-            <div className="p-6 border-b border-indigo-500 flex items-center justify-between bg-gradient-to-r from-[#4F46E5] to-[#7C3AED] text-white">
-                <h2 className="text-xl font-bold tracking-tight">Notifications</h2>
-                <div className="flex gap-4 items-center">
-                    <button onClick={handleRead} className="text-xs text-[#EEF2FF] hover:text-white font-semibold transition-colors cursor-pointer">Mark Read</button>
-                    <button onClick={onClose} className="p-1 rounded-full hover:bg-white/20 transition cursor-pointer">
-                        <X size={20} className="text-white" />
+        <div className="absolute top-0 left-full h-screen w-[360px] bg-white border-r border-gray-100 shadow-[20px_0_40px_-15px_rgba(0,0,0,0.1)] z-[110] flex flex-col animate-in slide-in-from-left duration-300">
+            {/* Header */}
+            <div className="pt-10 pb-6 px-6 border-b border-gray-50 flex flex-col gap-4">
+                <div className="flex items-center justify-between">
+                    <h2 className="text-2xl font-black tracking-tighter text-gray-900">Notifications</h2>
+                    <button 
+                        onClick={onClose} 
+                        className="p-2 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-900 transition-all cursor-pointer"
+                    >
+                        <X size={20} />
+                    </button>
+                </div>
+                
+                <div className="flex items-center justify-between">
+                    <span className="text-[13px] font-bold text-gray-400 uppercase tracking-widest">Recent Activity</span>
+                    <button 
+                        onClick={handleRead} 
+                        className="text-[12px] font-bold text-indigo-600 hover:text-indigo-700 transition-colors cursor-pointer"
+                    >
+                        Mark all as read
                     </button>
                 </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto w-full custom-scrollbar">
+            <div className="flex-1 overflow-y-auto w-full custom-scrollbar bg-white">
                 {notifications.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-[#9CA3AF] px-6 text-center">
                         <div className='w-16 h-16 bg-[#EEF2FF] rounded-full flex items-center justify-center mb-4 border-[2px] border-[#4F46E5]/20'>
