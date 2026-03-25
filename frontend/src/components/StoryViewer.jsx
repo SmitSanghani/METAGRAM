@@ -49,6 +49,8 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
     const storyDurationRef = useRef(storyDuration);
     const touchStartX = useRef(null);
     const touchEndX = useRef(null);
+    const videoRef = useRef(null);
+    const inputRef = useRef(null);
 
     // Keep refs in sync for the interval
     useEffect(() => {
@@ -86,10 +88,20 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
     }, [currentIndex, isPaused, showActivity, storyDuration]);
 
     useEffect(() => {
-        // Reset progress on index change
-        setProgress(0);
+        // Reset story duration on index change (progress reset handled in navigation)
         setStoryDuration(DEFAULT_STORY_DURATION);
     }, [currentIndex]);
+
+    // Handle video play/pause sync
+    useEffect(() => {
+        if (videoRef.current) {
+            if (isPaused || showActivity) {
+                videoRef.current.pause();
+            } else {
+                videoRef.current.play().catch(() => {});
+            }
+        }
+    }, [isPaused, showActivity]);
 
     // Mark as viewed on backend when index changes
     useEffect(() => {
@@ -150,6 +162,10 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
                 storyId: currentStory._id
             });
 
+            if (inputRef.current) {
+                inputRef.current.blur();
+            }
+
             if (res.data.success) {
                 toast.success("Reply sent to DM");
                 // Socket is handled in App.jsx mostly, but if we need a custom event:
@@ -182,6 +198,7 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
 
     const handleNext = () => {
         if (currentIndex < stories.length - 1) {
+            setProgress(0);
             setCurrentIndex((prev) => prev + 1);
         } else {
             onClose();
@@ -190,6 +207,7 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
 
     const handlePrev = () => {
         if (currentIndex > 0) {
+            setProgress(0);
             setCurrentIndex((prev) => prev - 1);
         } else {
             setProgress(0);
@@ -256,9 +274,9 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
             {/* Viewer Container */}
             <div
                 className="relative w-full max-w-[420px] h-full max-h-[85vh] sm:rounded-2xl overflow-hidden bg-black flex flex-col shadow-2xl"
-                onMouseDown={() => setIsPaused(true)}
-                onMouseUp={() => setIsPaused(false)}
-                onMouseLeave={() => setIsPaused(false)}
+                onMouseDown={() => !document.activeElement?.closest('input') && setIsPaused(true)}
+                onMouseUp={() => !document.activeElement?.closest('input') && setIsPaused(false)}
+                onMouseLeave={() => !document.activeElement?.closest('input') && setIsPaused(false)}
                 onTouchStart={onTouchStart}
                 onTouchMove={onTouchMove}
                 onTouchEnd={onTouchEnd}
@@ -342,6 +360,7 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
                     >
                         {currentStory.mediaType === 'video' ? (
                             <video
+                                ref={videoRef}
                                 src={currentStory.mediaUrl}
                                 autoPlay
                                 playsInline
@@ -366,15 +385,24 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
                 {/* Bottom Bar for Non-Owners (Like & Reply) */}
                 {!isOwner && (
                     <div className="absolute bottom-0 inset-x-0 p-4 pb-10 z-30 flex items-center gap-4 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
-                        <div className="flex-1 relative flex items-center rounded-full border border-white/30 bg-black/40 backdrop-blur-lg px-5 py-3 transition-all focus-within:bg-black/60 focus-within:border-white/50" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex-1 relative flex items-center rounded-full border border-white/30 bg-black/40 backdrop-blur-lg px-5 py-3 transition-all focus-within:bg-black/60 focus-within:border-white/50" 
+                             onClick={(e) => e.stopPropagation()}
+                             onMouseDown={(e) => e.stopPropagation()}
+                        >
                             <form onSubmit={handleStoryReply} className="w-full flex">
                                 <input
+                                    ref={inputRef}
                                     type="text"
                                     placeholder="Send message..."
                                     className="bg-transparent text-white text-[15px] outline-none w-full placeholder:text-white/50"
                                     value={comment}
-                                    onChange={(e) => setComment(e.target.value)}
-                                    onFocus={() => setIsPaused(true)}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        setComment(val);
+                                        // Only pause if there is text being typed
+                                        if (val.length > 0) setIsPaused(true);
+                                        else setIsPaused(false);
+                                    }}
                                     onBlur={() => setIsPaused(false)}
                                 />
                                 {comment.trim() && (
@@ -449,17 +477,22 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
                                 {uniqueViewers.map((viewer, i) => (
                                     <div
                                         key={i}
-                                        className="flex items-center gap-3 mb-4 cursor-pointer"
+                                        className="flex items-center justify-between mb-4 cursor-pointer group/viewer"
                                         onClick={() => {
                                             onClose();
                                             navigate(`/profile/${viewer?._id}`);
                                         }}
                                     >
-                                        <Avatar className="w-10 h-10 border border-gray-200 dark:border-zinc-800">
-                                            <AvatarImage src={viewer?.profilePicture} />
-                                            <AvatarFallback>{viewer?.username?.charAt(0)?.toUpperCase()}</AvatarFallback>
-                                        </Avatar>
-                                        <span className="font-medium text-sm dark:text-white hover:underline">{viewer?.username}</span>
+                                        <div className="flex items-center gap-3">
+                                            <Avatar className="w-10 h-10 border border-gray-200 dark:border-zinc-800 transition-transform group-hover/viewer:scale-105">
+                                                <AvatarImage src={viewer?.profilePicture} />
+                                                <AvatarFallback>{viewer?.username?.charAt(0)?.toUpperCase()}</AvatarFallback>
+                                            </Avatar>
+                                            <span className="font-medium text-sm dark:text-white group-hover/viewer:underline">{viewer?.username}</span>
+                                        </div>
+                                        {localLikes.map(id => String(id)).includes(String(viewer._id)) && (
+                                            <Heart size={16} className="fill-red-500 text-red-500 animate-in zoom-in-50 duration-300" />
+                                        )}
                                     </div>
                                 ))}
                                 {uniqueViewers.length === 0 && (
