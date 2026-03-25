@@ -184,6 +184,11 @@ export const getMessages = async (req, res) => {
         const senderId = req.id;
         const targetId = req.params.id; // User ID or Conversation ID
 
+        // Early return if no valid targetId
+        if (!targetId || targetId === 'undefined' || targetId === '[object Object]') {
+            return res.status(400).json({ success: false, message: "Invalid target ID" });
+        }
+
         let conversation = await Conversation.findById(targetId).populate([
             { path: 'participants', select: 'username profilePicture' },
             { path: 'messages.senderId', select: 'username profilePicture' },
@@ -215,6 +220,7 @@ export const getMessages = async (req, res) => {
             if (conversation.isGroup) {
                 conversation.messages.forEach(msg => {
                     if (String(msg.senderId) !== String(senderId)) {
+                        if (!msg.seenBy) msg.seenBy = [];
                         if (!msg.seenBy.includes(senderId)) {
                             msg.seenBy.push(senderId);
                         }
@@ -449,7 +455,11 @@ export const getUnreadCounts = async (req, res) => {
 export const deleteConversation = async (req, res) => {
     try {
         const senderId = req.id;
-        const targetId = req.params.id; // Could be a userId or conversationId
+        const targetId = req.params.id;
+
+        if (!targetId || targetId === 'undefined' || targetId === '[object Object]') {
+            return res.status(400).json({ success: false, message: "Invalid target ID" });
+        }
 
         const conversation = await Conversation.findOneAndDelete({
             $or: [

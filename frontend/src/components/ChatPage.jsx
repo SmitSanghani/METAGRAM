@@ -97,7 +97,7 @@ const ChatPage = () => {
 
     // Fetch messages when a user is selected
     useEffect(() => {
-        if (!selectedUser?._id) return;
+        if (!selectedUser?._id || selectedUser?._id === '[object Object]') return;
 
         console.log(`[ChatPage] Loading chat with ${selectedUser.username} (${selectedUser._id})`);
 
@@ -306,8 +306,9 @@ const ChatPage = () => {
     }
 
     const deleteChatHandler = async (targetUserId) => {
-        const userToDelete = targetUserId || selectedUser?._id;
-        const username = targetUserId ? chatUsers.find(u => u._id === targetUserId)?.username : selectedUser?.username;
+        // If targetUserId is an event object (e.g. from onClick), use selectedUser?._id
+        const userToDelete = (targetUserId && typeof targetUserId === 'string' && targetUserId !== '[object Object]') ? targetUserId : selectedUser?._id;
+        const username = (targetUserId && typeof targetUserId === 'string') ? chatUsers.find(u => u._id === targetUserId)?.username : selectedUser?.username;
 
         if (!userToDelete) return;
 
@@ -772,7 +773,7 @@ const ChatPage = () => {
                                     <Button variant="ghost" size="icon" onClick={() => setIsGroupInfoOpen(true)} className="rounded-full w-10 h-10 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all"><Users size={20} /></Button>
                                 )}
                                 <Button variant="ghost" size="icon" onClick={() => searchInputRef.current?.focus()} className="rounded-full w-10 h-10 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all"><MessageCircle size={20} /></Button>
-                                <Button variant="ghost" size="icon" onClick={deleteChatHandler} className="rounded-full w-10 h-10 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"><Trash2 size={20} /></Button>
+                                <Button variant="ghost" size="icon" onClick={() => deleteChatHandler()} className="rounded-full w-10 h-10 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"><Trash2 size={20} /></Button>
                                 <Button variant="ghost" size="icon" onClick={() => dispatch(setSelectedUser(null))} className="rounded-full w-10 h-10 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"><X size={20} /></Button>
                             </div>
                         </div>
