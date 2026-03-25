@@ -612,6 +612,16 @@ export const getChatUsers = async (req, res) => {
 
         conversations.forEach(conv => {
             let item = null;
+            const currentUserIdStr = String(userId);
+            const hiddenTime = conv.hiddenAt?.get(currentUserIdStr);
+            const latestMsg = conv.messages[conv.messages.length - 1];
+            
+            // Logic: Hide if HiddenAt exists AND (no messages OR latest message is older than HiddenAt)
+            if (hiddenTime) {
+                const isStillHidden = !latestMsg || new Date(latestMsg.createdAt) <= new Date(hiddenTime);
+                if (isStillHidden) return; // Skip this one, it's hidden from sidebar
+            }
+
             if (conv.isGroup) {
                 item = {
                     _id: conv._id.toString(), // Conversation ID acts as the "user" identity in frontend select
@@ -651,9 +661,10 @@ export const getChatUsers = async (req, res) => {
             .filter(item => {
                 if (item.isGroup) return true;
                 // Block filter for 1v1
-                return !user.blockedUsers.some(id => String(id) === String(item._id)) && 
-                       !user.blockedBy.some(id => String(id) === String(item._id));
-            });
+                return !user.blockedUsers.some(id => String(id) === String(item._id)) &&
+                    !user.blockedBy.some(id => String(id) === String(item._id));
+            })
+            .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
 
         return res.status(200).json({
             success: true,
@@ -728,7 +739,7 @@ export const searchUsers = async (req, res) => {
     try {
         const query = req.query.query;
         const followersOnly = req.query.followersOnly === 'true';
-        
+
         const currentUser = await User.findById(req.id);
         const filter = {
             _id: { $ne: req.id, $nin: [...currentUser.blockedUsers, ...currentUser.blockedBy] },
@@ -982,18 +993,18 @@ export const deleteAccount = async (req, res) => {
 
         // 3. Cleanup relationships (Followers, Following, Linked Accounts, etc.)
         await User.updateMany(
-            {}, 
-            { 
-                $pull: { 
-                    followers: userId, 
-                    following: userId, 
-                    blockedUsers: userId, 
-                    blockedBy: userId, 
-                    recentSearches: userId, 
+            {},
+            {
+                $pull: {
+                    followers: userId,
+                    following: userId,
+                    blockedUsers: userId,
+                    blockedBy: userId,
+                    recentSearches: userId,
                     mutedUsers: userId,
                     linkedAccounts: userId,
                     followRequests: userId
-                } 
+                }
             }
         );
 

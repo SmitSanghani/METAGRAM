@@ -9,7 +9,7 @@ import api from '@/api';
 import { toast } from 'sonner';
 import { toggleMuteUserAction } from '../redux/authSlice';
 import Swal from 'sweetalert2';
-import { setMessages, addMessage, updateMessageStatus, updateReactions, markUnsent, markStoryUnsent, incrementUnreadCount, clearUnreadCount, updateLastMessage, removeTempMessage, setSelectedUser, setChatUsers, reorderUsers, updateChatUserConversation, addChatUser, clearChat } from '../redux/chatSlice';
+import { setMessages, addMessage, updateMessageStatus, updateReactions, markUnsent, markStoryUnsent, incrementUnreadCount, clearUnreadCount, updateLastMessage, removeTempMessage, setSelectedUser, setChatUsers, reorderUsers, updateChatUserConversation, addChatUser, clearChat, clearChatLocally } from '../redux/chatSlice';
 import ScrollToBottom from 'react-scroll-to-bottom';
 import MessageBubble from './MessageBubble';
 import useGetChatUsers from '@/hooks/useGetChatUsers';
@@ -57,6 +57,12 @@ const ChatPage = () => {
     // Clear unread count when chat selected
     const handleSelectUser = (targetUser) => {
         if (!targetUser || targetUser._id === selectedUser?._id) return;
+
+        // Ensure user is in sidebar immediately with full search result details
+        const exists = chatUsers.some(u => String(u._id) === String(targetUser._id));
+        if (!exists && !targetUser.isGroup) {
+            dispatch(addChatUser(targetUser));
+        }
 
         // Leave previous conversation room if any
         if (socket && selectedUser?.conversationId) {
@@ -256,12 +262,19 @@ const ChatPage = () => {
                 };
 
                 dispatch(addMessage(populatedNewMsg));
+
+                // Ensure user is in sidebar immediately with full search result details
+                const exists = chatUsers.some(u => String(u._id) === String(selectedUser?._id));
+                if (!exists && !selectedUser.isGroup) {
+                    dispatch(addChatUser(selectedUser));
+                }
+
                 dispatch(updateLastMessage({ userId: selectedUser._id, message: populatedNewMsg }));
                 dispatch(reorderUsers(selectedUser._id));
 
                 if (!selectedUser.conversationId && res.data.newMessage.conversationId) {
                     const updatedUser = { ...selectedUser, conversationId: res.data.newMessage.conversationId };
-                    dispatch(setSelectedUser(updatedUser)); 
+                    dispatch(setSelectedUser(updatedUser));
                     if (socket) {
                         socket.emit("join_room", res.data.newMessage.conversationId);
                     }
@@ -305,21 +318,23 @@ const ChatPage = () => {
         }
     }
 
-    const deleteChatHandler = async (targetUserId) => {
-        // If targetUserId is an event object (e.g. from onClick), use selectedUser?._id
-        const userToDelete = (targetUserId && typeof targetUserId === 'string' && targetUserId !== '[object Object]') ? targetUserId : selectedUser?._id;
+    const deleteChatHandler = async (targetIdInput, fromSidebar = false) => {
+        // Normalize the ID
+        const targetUserId = (targetIdInput && typeof targetIdInput === 'string' && targetIdInput !== '[object Object]') ? targetIdInput : selectedUser?._id;
         const username = (targetUserId && typeof targetUserId === 'string') ? chatUsers.find(u => u._id === targetUserId)?.username : selectedUser?.username;
-
-        if (!userToDelete) return;
+        
+        if (!targetUserId) return;
 
         const result = await Swal.fire({
-            title: 'Clear Chat history?',
-            text: `Are you sure you want to clear your chat history with ${username}? This will only delete the conversation for you, and not the other user.`,
+            title: fromSidebar ? 'Delete Chat?' : 'Clear Chat history?',
+            text: fromSidebar 
+                ? `Are you sure you want to remove ${username} from your sidebar? Conversation will stay for them.`
+                : `Are you sure you want to clear your chat history with ${username}? This will only delete the conversation for you, and not the other user.`,
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#ef4444',
             cancelButtonColor: '#94a3b8',
-            confirmButtonText: 'Yes, clear it!',
+            confirmButtonText: fromSidebar ? 'Yes, delete it!' : 'Yes, clear it!',
             background: '#ffffff',
             borderRadius: '24px',
             customClass: {
@@ -332,19 +347,24 @@ const ChatPage = () => {
         if (!result.isConfirmed) return;
 
         try {
-            const res = await api.delete(`/message/delete-chat/${userToDelete}`);
+            const res = await api.delete(`/message/delete-chat/${targetUserId}${fromSidebar ? '?sidebar=true' : ''}`);
             if (res.data.success) {
-                toast.success("Chat history cleared");
-                dispatch(clearChat(userToDelete));
+                toast.success(fromSidebar ? "Chat deleted" : "Chat history cleared");
                 
-                // Optional: Do NOT set selectedUser(null) if you want it to stay open but empty
-                // if (selectedUser?._id === userToDelete) {
-                //     dispatch(setSelectedUser(null));
-                // }
+                if (fromSidebar) {
+                    // Remove from sidebar
+                    dispatch(clearChat(targetUserId));
+                    if (selectedUser?._id === targetUserId) {
+                        dispatch(setSelectedUser(null));
+                    }
+                } else {
+                    // Just clear messages locally (stay in sidebar)
+                    dispatch(clearChatLocally(targetUserId));
+                }
             }
         } catch (error) {
             console.error(error);
-            toast.error(error.response?.data?.message || "Failed to delete chat");
+            toast.error("Failed to process request");
         }
     };
 
@@ -410,15 +430,15 @@ const ChatPage = () => {
     const handleTyping = (e) => {
         setTextMessage(e.target.value);
         if (socket && selectedUser) {
-            socket.emit("typing", { 
+            socket.emit("typing", {
                 receiverId: selectedUser.isGroup ? null : selectedUser._id,
-                conversationId: selectedUser.conversationId 
+                conversationId: selectedUser.conversationId
             });
             if (typingTimeout.current) clearTimeout(typingTimeout.current);
             typingTimeout.current = setTimeout(() => {
-                socket.emit("stop_typing", { 
+                socket.emit("stop_typing", {
                     receiverId: selectedUser.isGroup ? null : selectedUser._id,
-                    conversationId: selectedUser.conversationId 
+                    conversationId: selectedUser.conversationId
                 });
             }, 2000);
         }
@@ -445,7 +465,7 @@ const ChatPage = () => {
 
             if (isGroupMatch || isMeAndSelectedUser) {
                 dispatch(addMessage(newMessage)); // addMessage deduplicates by _id automatically
-                
+
                 // Update sidebar even in active chat
                 const targetId = String(selectedUser?._id);
                 dispatch(updateLastMessage({ userId: targetId, message: newMessage }));
@@ -468,14 +488,14 @@ const ChatPage = () => {
 
                 // Determine which sidebar entry to update
                 const targetId = newMessage.isGroup ? String(newMessage.conversationId) : (isFromMe ? receiverId : senderId);
-                
+
                 // Ensure user/group is in sidebar
                 const exists = chatUsers.some(u => String(u._id) === targetId);
                 if (!exists && !newMessage.isGroup) {
                     dispatch(addChatUser({
-                        _id: isFromMe ? receiverId : senderId,
-                        username: newMessage.senderUsername,
-                        profilePicture: newMessage.senderProfilePicture,
+                        _id: targetId,
+                        username: isFromMe ? (newMessage.receiverUsername || selectedUser?.username || "New Chat") : newMessage.senderUsername,
+                        profilePicture: isFromMe ? (newMessage.receiverProfilePicture || selectedUser?.profilePicture) : newMessage.senderProfilePicture,
                         conversationId: newMessage.conversationId
                     }));
                 }
@@ -591,8 +611,8 @@ const ChatPage = () => {
                         <input
                             ref={searchInputRef}
                             type="text"
-                            placeholder="Search people..." 
-                            value={searchQuery} 
+                            placeholder="Search people..."
+                            value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className='w-full bg-gray-100/80 border-none rounded-xl py-2.5 pl-10 pr-10 text-[14px] font-medium outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white transition-all'
                         />
@@ -611,8 +631,12 @@ const ChatPage = () => {
                         {searchQuery ? (isSearching ? 'Searching...' : 'Search Results') : 'Messages'}
                     </div>
                     <div className='flex flex-col gap-1'>
-                        {/* Map filtered chat users */}
-                        {chatUsers?.filter(u => u.username?.toLowerCase().includes(searchQuery.toLowerCase())).map((suggestedUser) => {
+                        {/* Map filtered chat users, sorted by latest message activity */}
+                        {[...chatUsers].filter(u => u.username?.toLowerCase().includes(searchQuery.toLowerCase())).sort((a, b) => {
+                            const timeA = lastMessages[String(a?._id)]?.createdAt || a.updatedAt || 0;
+                            const timeB = lastMessages[String(b?._id)]?.createdAt || b.updatedAt || 0;
+                            return new Date(timeB) - new Date(timeA);
+                        }).map((suggestedUser) => {
                             if (!suggestedUser || String(suggestedUser._id) === String(user?._id)) return null;
                             const isOnline = onlineUsers.includes(String(suggestedUser?._id));
                             const isSelected = selectedUser?._id === suggestedUser?._id;
@@ -674,7 +698,7 @@ const ChatPage = () => {
                                                         const senderDisplayName = isMe ? "You" : (lastMsg.senderUsername || lastMsg.senderId?.username || suggestedUser.username);
                                                         const isReactionPreview = lastMsg.messageType === 'reaction_info';
                                                         const prefix = isReactionPreview ? "" : `${senderDisplayName}: `;
-                                                        
+
                                                         let body = lastMsg.message;
                                                         if (lastMsg.messageType === 'reel') body = "Sent a reel";
                                                         else if (lastMsg.messageType === 'image') body = "Sent a photo";
@@ -775,7 +799,7 @@ const ChatPage = () => {
                                     <Button variant="ghost" size="icon" onClick={() => setIsGroupInfoOpen(true)} className="rounded-full w-10 h-10 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all"><Users size={20} /></Button>
                                 )}
                                 <Button variant="ghost" size="icon" onClick={() => searchInputRef.current?.focus()} className="rounded-full w-10 h-10 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all"><MessageCircle size={20} /></Button>
-                                <Button variant="ghost" size="icon" onClick={() => deleteChatHandler()} className="rounded-full w-10 h-10 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"><Trash2 size={20} /></Button>
+                                <Button variant="ghost" size="icon" onClick={() => deleteChatHandler(selectedUser._id, false)} className="rounded-full w-10 h-10 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"><Trash2 size={20} /></Button>
                                 <Button variant="ghost" size="icon" onClick={() => dispatch(setSelectedUser(null))} className="rounded-full w-10 h-10 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"><X size={20} /></Button>
                             </div>
                         </div>
@@ -991,14 +1015,14 @@ const ChatPage = () => {
                                                                 replyTo: replyTo ? { ...replyTo } : null
                                                             };
                                                             dispatch(addMessage(populatedNewMsg));
-                                                            
+
                                                             // Ensure user is in sidebar
                                                             // Critical: Ensure user is in sidebar and at the top
                                                             const exists = chatUsers.some(u => String(u._id) === String(selectedUser?._id));
                                                             if (!exists && !selectedUser.isGroup) {
                                                                 dispatch(addChatUser(selectedUser));
                                                             }
-                                                            
+
                                                             dispatch(updateLastMessage({ userId: selectedUser._id, message: populatedNewMsg }));
                                                             dispatch(reorderUsers(selectedUser._id));
                                                             setReplyTo(null);
@@ -1016,8 +1040,8 @@ const ChatPage = () => {
 
 
                                         {textMessage.trim() ? (
-                                            <button 
-                                                type="submit" 
+                                            <button
+                                                type="submit"
                                                 disabled={isSending}
                                                 className='ml-1 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-full font-black text-[13px] tracking-wide shadow-md shadow-indigo-200 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed'
                                             >
@@ -1078,7 +1102,7 @@ const ChatPage = () => {
 
                     <button
                         onClick={() => {
-                            deleteChatHandler(contextMenu.targetUser._id);
+                            deleteChatHandler(contextMenu.targetUser._id, true);
                             setContextMenu(prev => ({ ...prev, visible: false }));
                         }}
                         className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-red-50 text-red-600 transition-colors group"
@@ -1086,7 +1110,7 @@ const ChatPage = () => {
                         <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center group-hover:bg-white text-red-500">
                             <Trash2 size={16} />
                         </div>
-                        <span className="text-[14px] font-bold">Delete Chat History</span>
+                        <span className="text-[14px] font-bold">Delete Chat</span>
                     </button>
                 </div>
             )}
@@ -1097,7 +1121,7 @@ const ChatPage = () => {
                     <div className="bg-white rounded-[32px] w-full max-w-[440px] max-h-[85vh] flex flex-col overflow-hidden shadow-[0_25px_70px_-15px_rgba(0,0,0,0.3)] animate-in zoom-in-95 duration-300 border border-gray-100">
                         {/* Fixed Header */}
                         <div className="px-8 pt-10 pb-6 bg-white shrink-0 border-b border-gray-50 relative">
-                            <button 
+                            <button
                                 onClick={() => { setIsGroupModalOpen(false); setIsAddingMembers(false); setGroupSearchQuery(""); }}
                                 className="absolute top-6 right-6 p-2 rounded-full hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-600"
                             >
@@ -1108,16 +1132,16 @@ const ChatPage = () => {
                             </h2>
                             <p className="text-[13px] font-medium text-gray-400 mt-1">{isAddingMembers ? "Expand your conversation" : "Select members to start"}</p>
                         </div>
-                        
+
                         {/* Scrollable Content */}
                         <div className="flex-1 overflow-y-auto custom-scrollbar p-8 space-y-6">
                             {!isAddingMembers && (
                                 <div className="space-y-2.5">
                                     <label className="text-[11px] font-black uppercase text-gray-500 tracking-widest px-1">Group Title</label>
-                                    <input 
-                                        type="text" 
+                                    <input
+                                        type="text"
                                         id="group-name-input"
-                                        placeholder="Name your group..." 
+                                        placeholder="Name your group..."
                                         className="w-full bg-gray-50 border-gray-100 border rounded-2xl py-4 px-5 text-[15px] font-bold outline-none ring-4 ring-transparent focus:ring-indigo-500/10 focus:bg-white focus:border-indigo-500/30 transition-all"
                                     />
                                 </div>
@@ -1127,10 +1151,10 @@ const ChatPage = () => {
                                 <label className="text-[11px] font-black uppercase text-gray-500 tracking-widest px-1">Select Participants</label>
                                 <div className="relative group">
                                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-500 transition-colors" size={17} />
-                                    <input 
-                                        type="text" 
-                                        value={groupSearchQuery} 
-                                        placeholder="Find followers..." 
+                                    <input
+                                        type="text"
+                                        value={groupSearchQuery}
+                                        placeholder="Find followers..."
                                         onChange={(e) => setGroupSearchQuery(e.target.value)}
                                         className="w-full bg-gray-50 border-gray-100 border rounded-2xl py-3.5 pl-12 pr-5 text-[14px] font-bold outline-none ring-4 ring-transparent focus:ring-indigo-500/10 focus:bg-white focus:border-indigo-500/30 transition-all"
                                     />
@@ -1140,8 +1164,8 @@ const ChatPage = () => {
                                     {groupSearchResults.length > 0 ? groupSearchResults
                                         .filter(u => !selectedUser?.participants?.some(p => String(p._id || p) === String(u._id)))
                                         .map((u) => (
-                                            <div 
-                                                key={u._id} 
+                                            <div
+                                                key={u._id}
                                                 onClick={() => {
                                                     const el = document.getElementById(`check-${u._id}`);
                                                     if (el) el.checked = !el.checked;
@@ -1159,8 +1183,8 @@ const ChatPage = () => {
                                                     </div>
                                                 </div>
                                                 <div className="relative flex items-center">
-                                                    <input 
-                                                        type="checkbox" 
+                                                    <input
+                                                        type="checkbox"
                                                         id={`check-${u._id}`}
                                                         value={u._id}
                                                         className="w-6 h-6 rounded-lg border-2 border-gray-200 text-indigo-600 focus:ring-indigo-500/20 cursor-pointer accent-indigo-600 shadow-sm transition-all"
@@ -1168,24 +1192,24 @@ const ChatPage = () => {
                                                     />
                                                 </div>
                                             </div>
-                                )) : (
-                                    groupSearchQuery && !isGroupSearching ? (
-                                        <div className="py-8 text-center text-gray-400 font-medium text-[14px]">No followers found</div>
-                                    ) : null
-                                )}
+                                        )) : (
+                                        groupSearchQuery && !isGroupSearching ? (
+                                            <div className="py-8 text-center text-gray-400 font-medium text-[14px]">No followers found</div>
+                                        ) : null
+                                    )}
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    {/* Fixed Footer */}
-                    <div className="px-8 pb-8 pt-2 bg-white shrink-0">
-                            <Button 
+                        {/* Fixed Footer */}
+                        <div className="px-8 pb-8 pt-2 bg-white shrink-0">
+                            <Button
                                 className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-[20px] h-14 font-black text-[15px] shadow-lg shadow-indigo-100 active:scale-[0.98] transition-all"
                                 onClick={async () => {
                                     const groupNameInput = document.getElementById('group-name-input');
                                     const groupName = isAddingMembers ? null : groupNameInput?.value;
                                     const selectedIds = Array.from(document.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
-                                    
+
                                     if (!isAddingMembers && !groupName) return toast.error("Please name your group");
                                     if (selectedIds.length === 0) return toast.error("Select at least one member");
 
@@ -1226,7 +1250,7 @@ const ChatPage = () => {
                     <div className="bg-white rounded-[32px] w-full max-w-[440px] max-h-[85vh] flex flex-col overflow-hidden shadow-[0_25px_70px_-15px_rgba(0,0,0,0.3)] animate-in zoom-in-95 duration-300 border border-gray-100">
                         {/* Header Section */}
                         <div className="px-8 pt-10 pb-8 flex flex-col items-center bg-white border-b border-gray-50 shrink-0 relative">
-                            <button 
+                            <button
                                 onClick={() => setIsGroupInfoOpen(false)}
                                 className="absolute top-6 right-6 p-2 rounded-full hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-600"
                             >
@@ -1244,7 +1268,7 @@ const ChatPage = () => {
                             <div className="flex items-center gap-2 group/edit">
                                 <h3 className="text-[24px] font-black text-[#111] tracking-tight">{selectedUser.username}</h3>
                                 {selectedUser.groupAdmin.some(adminId => String(adminId) === String(user?._id)) && (
-                                    <button 
+                                    <button
                                         className="p-1.5 rounded-full hover:bg-gray-100 text-gray-400 opacity-0 group-hover/edit:opacity-100 transition-all"
                                         onClick={async () => {
                                             const { value: newName } = await Swal.fire({
@@ -1285,7 +1309,7 @@ const ChatPage = () => {
                             <div className="flex items-center px-4 mb-4 justify-between sticky -top-4 bg-white z-[30] py-4 -mx-6 px-10 border-b border-gray-50/50">
                                 <label className="text-[11px] font-black uppercase text-gray-400 tracking-widest">Group Members</label>
                                 {selectedUser.groupAdmin.some(adminId => String(adminId) === String(user?._id)) && (
-                                    <button 
+                                    <button
                                         className="text-[12px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-1.5 hover:bg-indigo-50 px-3 py-1.5 rounded-full transition-all"
                                         onClick={() => {
                                             setIsAddingMembers(true);
@@ -1297,12 +1321,12 @@ const ChatPage = () => {
                                     </button>
                                 )}
                             </div>
-                            
+
                             <div className="space-y-1">
                                 {selectedUser.participants.map(p => {
                                     const isMe = String(p._id || p) === String(user?._id);
                                     const isAdmin = selectedUser.groupAdmin.some(adminId => String(adminId) === String(p._id || p));
-                                    const amIAdmin = selectedUser.groupAdmin.some(adminId => String(adminId) === String(user?._id));  
+                                    const amIAdmin = selectedUser.groupAdmin.some(adminId => String(adminId) === String(user?._id));
                                     return (
                                         <div key={p._id} className="flex items-center justify-between p-3.5 rounded-2xl hover:bg-gray-50 group transition-all">
                                             <div className="flex items-center gap-4">
@@ -1315,7 +1339,7 @@ const ChatPage = () => {
                                                 </div>
                                                 <div className="flex flex-col">
                                                     <span className="text-[15px] font-black text-[#262626] flex items-center gap-2">
-                                                        {p.username} 
+                                                        {p.username}
                                                         {isMe && <span className="text-[9px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full font-black uppercase tracking-tighter">You</span>}
                                                     </span>
                                                     {isAdmin && (
@@ -1325,9 +1349,9 @@ const ChatPage = () => {
                                                     )}
                                                 </div>
                                             </div>
-                                            
+
                                             {amIAdmin && !isMe && (
-                                                <button 
+                                                <button
                                                     onClick={async () => {
                                                         const confirm = await Swal.fire({
                                                             title: 'Remove Member?',
@@ -1339,11 +1363,11 @@ const ChatPage = () => {
                                                             cancelButtonColor: '#94a3b8',
                                                             borderRadius: '24px'
                                                         });
-                                                        
+
                                                         if (confirm.isConfirmed) {
                                                             try {
-                                                                const res = await api.post('/message/group/remove', { 
-                                                                    conversationId: selectedUser.conversationId, 
+                                                                const res = await api.post('/message/group/remove', {
+                                                                    conversationId: selectedUser.conversationId,
                                                                     userId: p._id || p
                                                                 });
                                                                 if (res.data.success) {
@@ -1370,8 +1394,8 @@ const ChatPage = () => {
                         {/* Footer Section */}
                         <div className="p-8 border-t border-gray-50 flex gap-4 bg-white shrink-0">
                             <Button variant="outline" className="flex-1 rounded-2xl h-13 font-black text-[14px] bg-gray-50 border-transparent hover:bg-gray-100 text-gray-600 transition-all border-none shadow-none" onClick={() => setIsGroupInfoOpen(false)}>CLOSE</Button>
-                            <Button 
-                                variant="destructive" 
+                            <Button
+                                variant="destructive"
                                 className="flex-1 rounded-2xl h-13 font-black text-[14px] bg-red-50 text-red-600 hover:bg-red-100 transition-all border-none shadow-none"
                                 onClick={async () => {
                                     const confirm = await Swal.fire({
@@ -1386,9 +1410,9 @@ const ChatPage = () => {
                                     });
                                     if (confirm.isConfirmed) {
                                         try {
-                                            await api.post('/message/group/remove', { 
-                                                conversationId: selectedUser.conversationId, 
-                                                userId: user._id 
+                                            await api.post('/message/group/remove', {
+                                                conversationId: selectedUser.conversationId,
+                                                userId: user._id
                                             });
                                             dispatch(setSelectedUser(null));
                                             dispatch(clearChat(selectedUser._id));

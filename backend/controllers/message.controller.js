@@ -160,6 +160,12 @@ export const sendMessage = async (req, res) => {
             messageObj.groupName = conversation.groupName;
             messageObj.groupProfilePicture = conversation.groupProfilePicture;
             messageObj.groupAdmin = conversation.groupAdmin;
+        } else {
+            const receiver = conversation.participants.find(p => p._id.toString() !== senderId.toString());
+            if (receiver) {
+                messageObj.receiverUsername = receiver.username;
+                messageObj.receiverProfilePicture = receiver.profilePicture;
+            }
         }
         if (replyToPopulated) messageObj.replyTo = replyToPopulated;
 
@@ -467,6 +473,7 @@ export const deleteConversation = async (req, res) => {
     try {
         const senderId = req.id;
         const targetId = req.params.id;
+        const deleteFromSidebar = req.query.sidebar === 'true';
 
         if (!targetId || targetId === 'undefined' || targetId === '[object Object]') {
             return res.status(400).json({ success: false, message: "Invalid target ID" });
@@ -480,17 +487,25 @@ export const deleteConversation = async (req, res) => {
         });
 
         if (!conversation) {
-            return res.status(404).json({ success: false, message: "Conversation not found" });
+            return res.status(404).json({ success: false, message: 'Conversation not found' });
         }
 
-        // "Delete for Me": Store the timestamp when the user cleared this chat
+        const now = new Date();
         if (!conversation.clearedAt) conversation.clearedAt = new Map();
-        conversation.clearedAt.set(senderId.toString(), new Date());
+        conversation.clearedAt.set(senderId.toString(), now);
 
-        // For individual messages, we could also hide them, but using a single 'clearedAt' point is cleaner
+        // If sidebar delete, also hide it 
+        if (deleteFromSidebar) {
+            if (!conversation.hiddenAt) conversation.hiddenAt = new Map();
+            conversation.hiddenAt.set(senderId.toString(), now);
+        }
+
         await conversation.save();
 
-        res.status(200).json({ success: true, message: "Chat history cleared for you" });
+        return res.status(200).json({
+            success: true,
+            message: deleteFromSidebar ? 'Conversation deleted' : 'Chat history cleared'
+        });
     } catch (error) {
         console.error(error);
         res.status(500).json({ success: false, message: "Internal server error" });

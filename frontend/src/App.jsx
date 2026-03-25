@@ -404,7 +404,7 @@ function App() {
                   window.location.href = '/chat'; 
                   toast.dismiss(t); 
                 }}
-                className="bg-white border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.06)] rounded-[24px] p-5 flex gap-4 relative max-w-[360px] w-full cursor-pointer hover:bg-gray-50 transition-all pointer-events-auto"
+                className="bg-white border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.06)] rounded-[24px] p-5 flex gap-4 relative max-w-[450px] w-full cursor-pointer hover:bg-gray-50 transition-all pointer-events-auto"
               >
                 <div className="relative shrink-0">
                   <Avatar className="w-14 h-14 border border-indigo-50 shadow-sm">
@@ -518,7 +518,7 @@ function App() {
                    window.location.href = '/chat'; 
                    toast.dismiss(t); 
                  }}
-                 className="bg-white border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.06)] rounded-[24px] p-5 flex gap-4 relative max-w-[360px] w-full cursor-pointer hover:bg-gray-50 transition-all pointer-events-auto"
+                 className="bg-white border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.06)] rounded-[24px] p-5 flex gap-4 relative max-w-[450px] w-full cursor-pointer hover:bg-gray-50 transition-all pointer-events-auto"
                >
                  <div className="relative shrink-0">
                    <Avatar className="w-14 h-14 border border-pink-50 shadow-sm">

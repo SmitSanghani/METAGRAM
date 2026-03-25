@@ -23,6 +23,11 @@ const conversationschema = new mongoose.Schema({
         of: Date,
         default: {}
     },
+    hiddenAt: {
+        type: Map,
+        of: Date,
+        default: {}
+    },
     isGroup: { type: Boolean, default: false },
     groupName: { type: String },
     groupProfilePicture: { type: String },
