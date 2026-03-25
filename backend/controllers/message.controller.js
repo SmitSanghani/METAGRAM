@@ -159,6 +159,7 @@ export const sendMessage = async (req, res) => {
         if (conversation.isGroup) {
             messageObj.groupName = conversation.groupName;
             messageObj.groupProfilePicture = conversation.groupProfilePicture;
+            messageObj.groupAdmin = conversation.groupAdmin;
         }
         if (replyToPopulated) messageObj.replyTo = replyToPopulated;
 
@@ -226,7 +227,7 @@ export const getMessages = async (req, res) => {
             return msgObj;
         });
 
-        res.status(200).json({ success: true, messages: populatedMessages, conversationId: conversation._id.toString(), isGroup: conversation.isGroup, groupName: conversation.groupName });
+        res.status(200).json({ success: true, messages: populatedMessages, conversationId: conversation._id.toString(), isGroup: conversation.isGroup, groupName: conversation.groupName, groupAdmin: conversation.groupAdmin });
     } catch (error) {
         console.error(error);
         res.status(500).json({ success: false, message: "Internal server error" });
@@ -354,14 +355,18 @@ export const addReaction = async (req, res) => {
         const updatedMessage = conversation.messages.id(messageId);
         const reactions = updatedMessage.reactions;
 
+        const reactor = await User.findById(userId).select("username profilePicture");
         const reactionPayload = {
             message_id: messageId,
             messageId,
             user_id: userId,
+            reactorUsername: reactor.username,
+            reactorProfilePicture: reactor.profilePicture,
             reaction: emoji,
             reactions,
             action, // "added", "updated", or "removed"
-            conversationId: conversation._id.toString()
+            conversationId: conversation._id.toString(),
+            isGroup: conversation.isGroup
         };
 
         // 1. Broadcast to the conversation room

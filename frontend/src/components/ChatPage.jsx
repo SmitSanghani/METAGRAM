@@ -620,7 +620,9 @@ const ChatPage = () => {
                                         <div className='flex flex-col flex-1 overflow-hidden ml-1'>
                                             <div className="flex justify-between items-center w-full">
                                                 <div className="flex items-center gap-1.5 overflow-hidden">
-                                                    <span className={`text-[15px] truncate font-black ${isSelected ? 'text-[#111]' : 'text-[#262626]'}`}>{suggestedUser?.username}</span>
+                                                    <span className={`text-[15px] truncate font-black ${isSelected ? 'text-[#111]' : 'text-[#262626]'}`}>
+                                                        {suggestedUser.isGroup && String(suggestedUser.groupAdmin?.[0] || suggestedUser.groupAdmin) === String(user?._id) ? user.username : suggestedUser?.username}
+                                                    </span>
                                                     {unreadCount > 0 && !isSelected && (
                                                         <div className="w-2 h-2 bg-blue-500 rounded-full shrink-0"></div>
                                                     )}
@@ -640,8 +642,12 @@ const ChatPage = () => {
                                                 <span className={`text-[13px] truncate flex-1 font-medium ${unreadCount > 0 ? 'text-black font-black' : (isSelected ? 'text-indigo-600' : 'text-[#8e8e8e]')}`}>
                                                     {lastMsg ? (() => {
                                                         if (lastMsg.isDeleted) return "Message unsent";
-                                                        const isMe = String(lastMsg.senderId) === String(user?._id);
-                                                        const prefix = isMe ? "You: " : `${suggestedUser.username}: `;
+                                                        const senderIdStr = String(lastMsg.senderId?._id || lastMsg.senderId);
+                                                        const isMe = senderIdStr === String(user?._id);
+                                                        const senderDisplayName = isMe ? "You" : (lastMsg.senderUsername || lastMsg.senderId?.username || suggestedUser.username);
+                                                        const isReactionPreview = lastMsg.messageType === 'reaction_info';
+                                                        const prefix = isReactionPreview ? "" : `${senderDisplayName}: `;
+                                                        
                                                         let body = lastMsg.message;
                                                         if (lastMsg.messageType === 'reel') body = "Sent a reel";
                                                         else if (lastMsg.messageType === 'image') body = "Sent a photo";
@@ -727,7 +733,9 @@ const ChatPage = () => {
                                     className='flex flex-col cursor-pointer hover:opacity-70 transition-opacity z-10'
                                     onClick={() => !selectedUser.isGroup && navigate(`/profile/${selectedUser?._id}`)}
                                 >
-                                    <span className='font-black text-[18px] text-[#111] leading-none mb-1.5'>{selectedUser?.username}</span>
+                                    <span className='font-black text-[18px] text-[#111] leading-none mb-1.5'>
+                                        {selectedUser.isGroup && String(selectedUser.groupAdmin?.[0] || selectedUser.groupAdmin) === String(user?._id) ? user.username : selectedUser.username}
+                                    </span>
                                     <div className="flex items-center gap-1.5">
                                         <span className={`text-[11px] font-black uppercase tracking-wider ${onlineUsers.includes(selectedUser?._id) || selectedUser.isGroup ? 'text-green-500' : 'text-gray-400'}`}>
                                             {selectedUser.isGroup ? `${selectedUser.participants.length} members` : (onlineUsers.includes(selectedUser?._id) ? 'Active now' : 'Offline')}

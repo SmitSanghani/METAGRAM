@@ -364,10 +364,11 @@ function App() {
            else {
               dispatch(addChatUser({
                 _id: targetId,
-                username: newMessage.groupName || "Group Chat",
-                profilePicture: newMessage.groupProfilePicture,
-                isGroup: true,
-                conversationId: targetId
+                 username: newMessage.groupName || "Group Chat",
+                 profilePicture: newMessage.groupProfilePicture,
+                 isGroup: true,
+                 groupAdmin: newMessage.groupAdmin,
+                 conversationId: targetId
               }));
            }
         }
@@ -468,7 +469,7 @@ function App() {
         dispatch(updateMessageStatus({ targetUserId: receiverId, status: { seen: true } }));
       });
 
-      socketio.on('message_reaction_added', ({ messageId, user_id, reaction, reactions, action }) => {
+      socketio.on('message_reaction_added', ({ messageId, user_id, reaction, reactions, action, isGroup, conversationId, reactorUsername, reactorProfilePicture }) => {
         // user_id is the person who reacted
         dispatch(updateReactions({ messageId, reactions }));
         
@@ -479,7 +480,7 @@ function App() {
         const personInSidebar = chatUsersRef.current?.find(u => String(u._id) === senderId);
         
         // Only show notification/preview if the reaction is NOT from the current user AND it wasn't a removal
-        if (personInSidebar && senderId !== String(user?._id) && action !== 'removed') {
+        if (senderId !== String(user?._id) && action !== 'removed') {
              // Find target message to see what was reacted to
              const targetMsg = messagesRef.current?.find(m => String(m._id) === String(messageId));
              let typeLabel = "message";
@@ -490,15 +491,19 @@ function App() {
                  else if (targetMsg.messageType === 'video') typeLabel = "video";
              }
 
+             const previewText = isGroup ? `${reactorUsername}: Reacted ${emoji} to your ${typeLabel}` : `Reacted ${emoji} to your ${typeLabel}`;
+             
              const previewMsg = {
                  _id: `react-${messageId}-${Date.now()}`,
                  senderId: senderId,
-                 message: `Reacted ${emoji} to your ${typeLabel}`,
+                 message: previewText,
                  messageType: 'reaction_info',
                  createdAt: new Date().toISOString()
              };
-             dispatch(updateLastMessage({ userId: senderId, message: previewMsg }));
-             dispatch(reorderUsers(senderId));
+             
+             const targetSidebarId = isGroup ? conversationId : senderId;
+             dispatch(updateLastMessage({ userId: targetSidebarId, message: previewMsg }));
+             dispatch(reorderUsers(targetSidebarId));
              
              // ✅ Always show toast for reaction — even while in that chat
              const isMuted = user?.mutedUsers?.includes(senderId);
@@ -517,8 +522,8 @@ function App() {
                >
                  <div className="relative shrink-0">
                    <Avatar className="w-14 h-14 border border-pink-50 shadow-sm">
-                     <AvatarImage src={personInSidebar.profilePicture} className="object-cover" />
-                     <AvatarFallback className="bg-pink-100 text-pink-600 font-bold uppercase">{personInSidebar.username?.charAt(0)}</AvatarFallback>
+                     <AvatarImage src={reactorProfilePicture} className="object-cover" />
+                     <AvatarFallback className="bg-pink-100 text-pink-600 font-bold uppercase">{reactorUsername?.charAt(0)}</AvatarFallback>
                    </Avatar>
                    <div className="absolute -bottom-1 -right-1 w-7 h-7 bg-white rounded-full flex items-center justify-center shadow-md border border-pink-50 text-[16px]">
                      {emoji}
@@ -536,9 +541,9 @@ function App() {
                      </button>
                    </div>
                    
-                   <span className="text-[14px] font-semibold text-gray-500 leading-none mb-1">{personInSidebar.username}</span>
+                   <span className="text-[14px] font-semibold text-gray-500 leading-none mb-1">{reactorUsername}</span>
                    <p className="text-[16px] font-bold text-gray-900 leading-tight truncate mb-3">
-                     Reacted {emoji} to your {typeLabel}
+                     {isGroup ? `Reacted ${emoji} to your ${typeLabel} in Group` : `Reacted ${emoji} to your ${typeLabel}`}
                    </p>
                    
                    <div className="flex items-center gap-4">
