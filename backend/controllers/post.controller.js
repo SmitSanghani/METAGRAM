@@ -577,3 +577,39 @@ export const getExplore = async (req, res) => {
         return res.status(500).json({ message: "Server error", success: false });
     }
 };
+
+// Get Post By ID :
+export const getPostById = async (req, res) => {
+    try {
+        const postId = req.params.id;
+        const post = await Post.findById(postId)
+            .populate({
+                path: "author",
+                select: 'username profilePicture'
+            })
+            .populate({
+                path: "comments",
+                sort: { createdAt: -1 },
+                populate: {
+                    path: "author",
+                    select: 'username profilePicture'
+                }
+            })
+            .populate("likes", "username profilePicture");
+
+        if (!post) {
+            return res.status(404).json({
+                message: "Post Not Found",
+                success: false
+            });
+        }
+
+        return res.status(200).json({
+            post,
+            success: true
+        });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: "Internal server error", success: false });
+    }
+};

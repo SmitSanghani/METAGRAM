@@ -147,6 +147,24 @@ body.share-modal-open .sm\:ml-\[280px\] {
     margin-left: 280px !important;
 }
 
+.red-scrollbar::-webkit-scrollbar {
+    height: 4px;
+}
+
+.red-scrollbar::-webkit-scrollbar-track {
+    background: #F3F4F6;
+    border-radius: 10px;
+}
+
+.red-scrollbar::-webkit-scrollbar-thumb {
+    background: #EF4444;
+    border-radius: 10px;
+}
+
+.red-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #DC2626;
+}
+
 @media (max-width: 640px) {
     .ml-\[240px\] {
         margin-left: 0 !important;

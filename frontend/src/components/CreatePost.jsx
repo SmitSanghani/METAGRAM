@@ -28,12 +28,15 @@ const CreatePost = ({ open, setOpen }) => {
     const fileChangeHandler = async (e) => {
         const selectedFiles = Array.from(e.target.files || []);
         if (selectedFiles.length > 0) {
-            setFiles(selectedFiles);
+            const newFiles = [...files, ...selectedFiles];
+            setFiles(newFiles);
             const previews = await Promise.all(
                 selectedFiles.map(file => readFileAsDataURL(file))
             );
-            setImagePreviews(previews);
-            setCurrentIndex(0);
+            setImagePreviews(prev => [...prev, ...previews]);
+            // If it was empty before, start at 0. Otherwise stay where you are?
+            // Usually, focusing on the new one is better
+            setCurrentIndex(imagePreviews.length);
         }
     }
 
@@ -199,20 +202,20 @@ const CreatePost = ({ open, setOpen }) => {
                         )
                     }
 
-                    {imagePreviews.length > 1 && (
-                        <div className="flex gap-3 overflow-x-auto no-scrollbar py-2 px-1 min-h-[80px] items-center">
+                    {imagePreviews.length > 0 && (
+                        <div className="flex gap-3 overflow-x-auto red-scrollbar py-2 px-1 min-h-[84px] items-center flex-nowrap">
                             {imagePreviews.map((preview, index) => (
                                 <div
                                     key={index}
                                     onClick={() => onSelectThumbnail(index)}
-                                    className={`relative flex-none w-14 h-14 rounded-lg overflow-hidden cursor-pointer border-2 transition-all duration-200 ${currentIndex === index ? 'border-[#0095F6] ring-2 ring-[#0095F6]/20 scale-105' : 'border-transparent opacity-50 hover:opacity-100 hover:scale-105'}`}
+                                    className={`relative flex-none w-14 h-14 rounded-lg overflow-hidden cursor-pointer border-2 transition-all duration-200 ${currentIndex === index ? 'border-[#0095F6] ring-2 ring-[#0095F6]/20 scale-105' : 'border-transparent opacity-60 hover:opacity-100 hover:scale-105'}`}
                                 >
                                     <img src={preview} alt="" className="w-full h-full object-cover" />
                                 </div>
                             ))}
                             <button
                                 onClick={() => imageRef.current.click()}
-                                className="flex-none w-14 h-14 rounded-lg border-2 border-dashed border-gray-200 flex items-center justify-center text-gray-400 hover:border-[#0095F6] hover:text-[#0095F6] hover:bg-blue-50/50 transition-all duration-200 group"
+                                className="flex-none w-14 h-14 rounded-lg border-2 border-dashed border-gray-200 flex items-center justify-center text-gray-400 hover:border-[#0095F6] hover:text-[#0095F6] hover:bg-blue-50/50 transition-all duration-200 group active:scale-90"
                                 title="Add more images"
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="group-hover:scale-110 transition-transform"><path d="M5 12h14" /><path d="M12 5v14" /></svg>

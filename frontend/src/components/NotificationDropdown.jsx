@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { useNavigate } from 'react-router-dom';
@@ -7,9 +7,11 @@ import { formatDistanceToNow } from 'date-fns';
 import { X, Heart, Trash2, Reply } from 'lucide-react';
 import { markAllAsRead, markSingleAsRead, removeNotification, removeNotificationById, updateNotificationStatus } from '@/redux/notificationSlice';
 import { setSelectedUser, clearUnreadCount } from '@/redux/chatSlice';
+import { setSelectedPost } from '@/redux/postSlice';
 import api from '@/api';
 import { toast } from 'sonner';
 import { setAuthUser, setUserProfile } from '@/redux/authSlice';
+import CommentDialog from './CommentDialog';
 
 const NotificationDropdown = ({ onClose }) => {
     const notificationState = useSelector(store => store.notification);
@@ -17,6 +19,7 @@ const NotificationDropdown = ({ onClose }) => {
     const { user, userProfile } = useSelector(store => store.auth);
     const dispatch = useDispatch();
     const navigate = useNavigate();
+    const [openCommentDialog, setOpenCommentDialog] = useState(false);
 
     const handleRead = async () => {
         try {
@@ -30,7 +33,6 @@ const NotificationDropdown = ({ onClose }) => {
     const handleDeleteNotification = (e, notificationId) => {
         e.stopPropagation();
         dispatch(removeNotificationById(notificationId));
-        // Note: Could also delete from database here if an API endpoint is available
     };
 
     const handleAccept = async (senderId) => {
@@ -41,16 +43,12 @@ const NotificationDropdown = ({ onClose }) => {
                     dispatch(updateNotificationStatus({ senderId, type: 'follow_request', status: 'deleted' }));
                 } else {
                     dispatch(updateNotificationStatus({ senderId, type: 'follow_request', status: 'accepted' }));
-
-                    // Update followers in auth state globally
                     if (user) {
                         dispatch(setAuthUser({
                             ...user,
                             followers: [...(user.followers || []), senderId]
                         }));
                     }
-
-                    // If currently viewing their own profile, update it locally too
                     if (userProfile && userProfile?._id === user?._id) {
                         dispatch(setUserProfile({
                             ...userProfile,
@@ -72,7 +70,6 @@ const NotificationDropdown = ({ onClose }) => {
     };
 
     const handleMarkAsRead = async (n) => {
-        // Mark as read if not already read
         if (!n.read) {
             try {
                 await api.post(`/notification/${n._id}/read`, {});
@@ -91,26 +88,49 @@ const NotificationDropdown = ({ onClose }) => {
         }
     };
 
-    // Reply → go to chat with that sender
+    const fetchAndOpenPost = async (postId) => {
+        try {
+            const res = await api.get(`/post/${postId}`);
+            if (res.data.success) {
+                dispatch(setSelectedPost(res.data.post));
+                setOpenCommentDialog(true);
+            }
+        } catch (error) {
+            console.error(error);
+            toast.error("Failed to load post details");
+        }
+    };
+
+    const handlePostThumbnailClick = (e, postId) => {
+        e.stopPropagation();
+        fetchAndOpenPost(postId);
+    };
+
+    const handleNotificationClick = (n) => {
+        handleMarkAsRead(n);
+        if (n.post && (n.type === 'like' || n.type === 'comment' || n.type === 'reply' || n.type === 'comment_like')) {
+            fetchAndOpenPost(n.post._id || n.post);
+        } else if (n.reel?._id) {
+            navigate(`/reels`); // Changed to /reels as per instruction snippet
+            onClose();
+        }
+    };
+
     const handleReply = async (e, n) => {
         e.stopPropagation();
         if (!n.sender?._id) return;
-        // mark single notification as read
         if (!n.read) {
             try { await api.post(`/notification/${n._id}/read`, {}); dispatch(markSingleAsRead(n._id)); } catch (_) {}
         }
-        // Mark chat messages as seen & clear unread count locally
         try { 
             await api.get(`/message/seen/${n.sender._id}`); 
             dispatch(clearUnreadCount(n.sender._id));
         } catch (_) {}
-        // Navigate to chat and select the user
         dispatch(setSelectedUser(n.sender));
         navigate('/chat');
         onClose();
     };
 
-    // Mark as read → marks notification + marks chat messages as seen (so other side shows "seen")
     const handleMarkMessageAsRead = async (e, n) => {
         e.stopPropagation();
         if (!n.read) {
@@ -127,7 +147,6 @@ const NotificationDropdown = ({ onClose }) => {
 
     return (
         <div className="absolute top-0 left-full h-screen w-[360px] bg-white border-r border-gray-100 shadow-[20px_0_40px_-15px_rgba(0,0,0,0.1)] z-[110] flex flex-col animate-in slide-in-from-left duration-300">
-            {/* Header */}
             <div className="pt-10 pb-6 px-6 border-b border-gray-50 flex flex-col gap-4">
                 <div className="flex items-center justify-between">
                     <h2 className="text-2xl font-black tracking-tighter text-gray-900">Notifications</h2>
@@ -163,19 +182,19 @@ const NotificationDropdown = ({ onClose }) => {
                     notifications.map((n) => (
                         <div
                             key={n._id}
-                            onClick={() => handleMarkAsRead(n)}
-                            className={`flex items-center gap-3 p-4 border-b border-[#F0F0F0] hover:bg-white cursor-pointer transition group ${!n.read ? 'bg-[#EEF2FF]/60 border-l-4 border-l-[#4F46E5]' : 'border-l-4 border-l-transparent'}`}
+                            onClick={() => handleNotificationClick(n)}
+                            className={`flex items-center gap-3 p-4 border-b border-[#F0F0F0] hover:bg-gray-50 cursor-pointer transition group ${!n.read ? 'bg-[#EEF2FF]/60 border-l-4 border-l-[#4F46E5]' : 'border-l-4 border-l-transparent'}`}
                         >
                             <Avatar 
                                 onClick={(e) => handleUserClick(e, n.sender?._id)}
-                                className="w-12 h-12 shadow-sm border border-[#F0F0F0] hover:opacity-80 transition-opacity"
+                                className="w-12 h-12 shadow-sm border border-[#F0F0F0] hover:opacity-80 transition-opacity shrink-0"
                             >
                                 <AvatarImage src={n.sender?.profilePicture} className="object-cover" />
                                 <AvatarFallback className={cn("font-black text-base uppercase", getAvatarColor(n.sender?.username))}>
                                     {n.sender?.username?.charAt(0)?.toUpperCase()}
                                 </AvatarFallback>
                             </Avatar>
-                            <div className="flex-1 text-[13px] leading-tight">
+                            <div className="flex-1 text-[13px] leading-tight overflow-hidden">
                                 <span 
                                     onClick={(e) => handleUserClick(e, n.sender?._id)}
                                     className="font-bold mr-1 text-[#333] hover:underline cursor-pointer"
@@ -213,7 +232,6 @@ const NotificationDropdown = ({ onClose }) => {
                                     {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}
                                 </div>
 
-                                {/* Mark as read action for message-type notifications */}
                                 {(n.type === 'message' || n.type === 'comment' || n.type === 'story_comment' || n.type === 'like' || n.type === 'story_like') && !n.read && (
                                     <div className="flex items-center gap-2 mt-2.5">
                                         <button
@@ -227,10 +245,20 @@ const NotificationDropdown = ({ onClose }) => {
                             </div>
                             {/* Content Thumbnail */}
                             {n.post?.image && (
-                                <img src={n.post.image} alt="post" className="w-12 h-12 object-cover rounded-md shadow-sm border border-[#F0F0F0] shrink-0" />
+                                <img 
+                                    onClick={(e) => handlePostThumbnailClick(e, n.post._id || n.post)}
+                                    src={n.post.image} 
+                                    alt="post" 
+                                    className="w-12 h-12 object-cover rounded-md shadow-sm border border-[#F0F0F0] shrink-0 hover:scale-110 active:scale-95 transition-all" 
+                                />
                             )}
                             {n.reel?.thumbnail && (
-                                <img src={n.reel.thumbnail} alt="reel" className="w-12 h-12 object-cover rounded-md shadow-sm border border-[#F0F0F0] shrink-0" />
+                                <img 
+                                    onClick={(e) => { e.stopPropagation(); navigate(`/reels/${n.reel._id}`); onClose(); }}
+                                    src={n.reel.thumbnail} 
+                                    alt="reel" 
+                                    className="w-12 h-12 object-cover rounded-md shadow-sm border border-[#F0F0F0] shrink-0 hover:scale-110 active:scale-95 transition-all" 
+                                />
                             )}
                             {n.story?.mediaUrl && (
                                 <div className="w-12 h-12 rounded-md overflow-hidden border border-[#F0F0F0] shadow-sm relative shrink-0">
@@ -255,6 +283,14 @@ const NotificationDropdown = ({ onClose }) => {
                     ))
                 )}
             </div>
+
+            {/* Side-by-side Comments Dialog (Same as Feed) */}
+            {openCommentDialog && (
+                <CommentDialog 
+                    open={openCommentDialog} 
+                    setOpen={setOpenCommentDialog} 
+                />
+            )}
         </div>
     );
 };
