@@ -78,6 +78,42 @@ const authSlice = createSlice({
                 }
             }
         },
+        updateUserProfilePostStats: (state, action) => {
+            const { postId, userId, type, comment } = action.payload;
+            if (state.userProfile) {
+                // Update in posts array
+                const postIndex = state.userProfile.posts?.findIndex(p => p._id === postId);
+                if (postIndex !== undefined && postIndex !== -1) {
+                    const post = state.userProfile.posts[postIndex];
+                    if (type === 'like') {
+                        if (!post.likes.some(id => (id._id || id) === userId)) post.likes.push(userId);
+                    } else if (type === 'dislike') {
+                        post.likes = post.likes.filter(id => (id._id || id) !== userId);
+                    }
+                    if (comment) {
+                        if (!post.comments) post.comments = [];
+                        const exists = post.comments.find(c => c._id === comment._id);
+                        if (!exists) post.comments.push(comment);
+                    }
+                }
+
+                // Update in bookmarks array (saved posts)
+                const bookmarkIndex = state.userProfile.bookmarks?.findIndex(p => p._id === postId);
+                if (bookmarkIndex !== undefined && bookmarkIndex !== -1) {
+                    const post = state.userProfile.bookmarks[bookmarkIndex];
+                    if (type === 'like') {
+                        if (!post.likes.some(id => (id._id || id) === userId)) post.likes.push(userId);
+                    } else if (type === 'dislike') {
+                        post.likes = post.likes.filter(id => (id._id || id) !== userId);
+                    }
+                    if (comment) {
+                        if (!post.comments) post.comments = [];
+                        const exists = post.comments.find(c => c._id === comment._id);
+                        if (!exists) post.comments.push(comment);
+                    }
+                }
+            }
+        },
         removeUserProfileReelComment: (state, action) => {
             const { reelId, commentId } = action.payload;
             if (state.userProfile) {
@@ -137,6 +173,14 @@ const authSlice = createSlice({
                 state.userProfile.reels = [action.payload, ...state.userProfile.reels];
             }
         },
+        addUserProfilePost: (state, action) => {
+             // If we're viewing a profile, and it's either our own or the author's profile
+             const postAuthorId = action.payload.author?._id || action.payload.author;
+             if (state.userProfile && state.userProfile._id === postAuthorId) {
+                if (!state.userProfile.posts) state.userProfile.posts = [];
+                state.userProfile.posts = [action.payload, ...state.userProfile.posts];
+             }
+        },
         removeUserProfileReel: (state, action) => {
             const reelId = action.payload;
             if (state.userProfile) {
@@ -147,6 +191,6 @@ const authSlice = createSlice({
     }
 });
 
-export const { setTheme, setAuthUser, setToken, setSuggestedUsers, setUserProfile, updateSuggestedUser, setFollowRelationship, updateUserProfileReelStats, removeUserProfileReelComment, editUserProfileReelComment, updateUserProfileReelCommentLikes, toggleMuteUserAction, addUserProfileReel, removeUserProfileReel } = authSlice.actions;
+export const { setTheme, setAuthUser, setToken, setSuggestedUsers, setUserProfile, updateSuggestedUser, setFollowRelationship, updateUserProfileReelStats, updateUserProfilePostStats, removeUserProfileReelComment, editUserProfileReelComment, updateUserProfileReelCommentLikes, toggleMuteUserAction, addUserProfileReel, addUserProfilePost, removeUserProfileReel } = authSlice.actions;
 export default authSlice.reducer;
 

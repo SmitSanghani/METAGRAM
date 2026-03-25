@@ -36,7 +36,7 @@ import { setOnlineUsers, incrementUnreadCount, setBulkUnreadCounts, updateLastMe
 import { addNotification, setNotifications } from "./redux/notificationSlice";
 import { updateReelLikes, addReelComment, deleteReelComment, editReelComment, updateReelViews, updateReelCommentLikes } from "./redux/reelSlice";
 import { setPosts, updatePostCommentLikes, deletePostComment, addPostComment, updatePostLikes } from "./redux/postSlice";
-import { setAuthUser, updateUserProfileReelStats, removeUserProfileReelComment, editUserProfileReelComment, updateUserProfileReelCommentLikes } from "./redux/authSlice";
+import { setAuthUser, setSuggestedUsers, setUserProfile, updateUserProfileReelStats, updateUserProfilePostStats } from './redux/authSlice';
 import { useLocation } from "react-router-dom";
 import api from '@/api';
 
@@ -268,10 +268,12 @@ function App() {
 
       socketio.on('postLiked', ({ postId, userId }) => {
         dispatch(updatePostLikes({ postId, userId, type: 'like' }));
+        dispatch(updateUserProfilePostStats({ postId, userId, type: 'like' }));
       });
 
       socketio.on('postDisliked', ({ postId, userId }) => {
         dispatch(updatePostLikes({ postId, userId, type: 'dislike' }));
+        dispatch(updateUserProfilePostStats({ postId, userId, type: 'dislike' }));
       });
 
       socketio.on('newPostComment', (comment) => {
@@ -284,9 +286,16 @@ function App() {
         const senderId = newMessage.senderId?._id ? String(newMessage.senderId._id) : String(newMessage.senderId);
         const receiverId = newMessage.receiverId ? String(newMessage.receiverId) : null;
         const isFromMe = senderId === currentUserId;
+        const isToMe = receiverId === currentUserId;
         const targetId = newMessage.isGroup ? String(newMessage.conversationId) : (isFromMe ? receiverId : senderId);
 
-        console.log(`[Socket] Received "receive_message" (${newMessage.isGroup ? 'Group' : 'Room'}) - Content: ${newMessage.message} - Sender: ${senderId}`);
+        console.log(`[Socket] Received "receive_message" (${newMessage.isGroup ? 'Group' : 'Room'}) - Content: ${newMessage.message}`);
+
+        // Isolation Check: For 1v1, only process if I'm involved
+        if (!newMessage.isGroup && !isFromMe && !isToMe) {
+          console.log("[Socket] Ignoring message for other conversation");
+          return;
+        }
 
         // Check if the chat exists in sidebar
         const chatExistsInSidebar = chatUsersRef.current?.some(u => String(u._id) === targetId);
@@ -312,7 +321,12 @@ function App() {
         const openChatUser = selectedUserRef.current;
         const isCurrentlyViewingThisChat = openChatUser && String(openChatUser._id) === targetId;
 
-        if (isCurrentlyViewingThisChat && !isFromMe) {
+        // EXTRA CHECK: Verify this message belongs to the OPENED conversation
+        const isCorrectConversation = newMessage.isGroup 
+          ? (openChatUser?.isGroup && String(newMessage.conversationId) === String(openChatUser.conversationId))
+          : (isCurrentlyViewingThisChat && (isFromMe || isToMe));
+
+        if (isCurrentlyViewingThisChat && isCorrectConversation && !isFromMe) {
           dispatch(addMessage(newMessage));
         }
       });
@@ -322,10 +336,17 @@ function App() {
       socketio.on('new_message_notification', (newMessage) => {
         const currentUserId = String(user?._id);
         const senderId = newMessage.senderId?._id ? String(newMessage.senderId._id) : String(newMessage.senderId);
+        const receiverId = newMessage.receiverId ? String(newMessage.receiverId) : null;
         const isFromMe = senderId === currentUserId;
+        const isToMe = receiverId === currentUserId;
         const targetId = newMessage.isGroup ? String(newMessage.conversationId) : (isFromMe ? String(newMessage.receiverId) : senderId);
         
         console.log(`[Socket] Received "notification" (${newMessage.isGroup ? 'Group' : 'Direct'}) - From: ${senderId}`);
+
+        // Isolation Check: Ignore notifications for conversations I'm not part of
+        if (!newMessage.isGroup && !isFromMe && !isToMe) {
+          return;
+        }
 
         // 1. Ensure the relevant chat exists in sidebar (Group or User)
         const chatExistsInSidebar = chatUsersRef.current?.some(u => String(u._id) === targetId);
@@ -604,8 +625,9 @@ function App() {
         }
       });
 
-      socketio.on('newPostComment', ({ postId, comment }) => {
+      socketio.on('postCommentAdded', ({ postId, comment }) => {
         dispatch(addPostComment({ postId, comment }));
+        dispatch(updateUserProfilePostStats({ postId, comment }));
       });
 
       return () => {

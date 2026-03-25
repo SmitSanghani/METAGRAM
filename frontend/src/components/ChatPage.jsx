@@ -418,11 +418,13 @@ const ChatPage = () => {
             // 1. Group Logic: Match by conversationId
             const isGroupMatch = selectedUser?.isGroup && String(newMessage.conversationId) === String(selectedUser.conversationId);
 
-            // 2. 1v1 Logic: Match by sender/receiver IDs
-            const messageInvolvesSender = !selectedUser?.isGroup && senderId === String(selectedUser?._id);
-            const messageInvolvesReceiver = !selectedUser?.isGroup && receiverId === String(selectedUser?._id);
+            // 2. 1v1 Logic: EXACT Match (One side is ME, other side is SELECTED USER)
+            const isMeAndSelectedUser = !selectedUser?.isGroup && (
+                (senderId === currentUserId && receiverId === String(selectedUser?._id)) ||
+                (senderId === String(selectedUser?._id) && receiverId === currentUserId)
+            );
 
-            if (isGroupMatch || messageInvolvesSender || messageInvolvesReceiver) {
+            if (isGroupMatch || isMeAndSelectedUser) {
                 dispatch(addMessage(newMessage)); // addMessage deduplicates by _id automatically
                 
                 // Update sidebar even in active chat
@@ -430,19 +432,29 @@ const ChatPage = () => {
                 dispatch(updateLastMessage({ userId: targetId, message: newMessage }));
                 dispatch(reorderUsers(targetId));
 
-                if (messageInvolvesSender || (isGroupMatch && senderId !== currentUserId)) {
-                    // Other user sent this — clear unread count for this "user" (Identity is _id)
+                // Always clear unread when active
+                if (senderId !== currentUserId) {
                     dispatch(clearUnreadCount(targetId));
                 }
             } else {
                 // Message for a chat NOT currently open
-                const targetId = newMessage.isGroup ? String(newMessage.conversationId) : String(newMessage.senderId);
+                const isFromMe = senderId === currentUserId;
+                const isToMe = receiverId === currentUserId;
+
+                // Guard: Ignore if not involved in this 1v1
+                if (!newMessage.isGroup && !isFromMe && !isToMe) {
+                    console.log("[ChatPage] Ignoring irrelevant message for other conversation");
+                    return;
+                }
+
+                // Determine which sidebar entry to update
+                const targetId = newMessage.isGroup ? String(newMessage.conversationId) : (isFromMe ? receiverId : senderId);
                 
                 // Ensure user/group is in sidebar
                 const exists = chatUsers.some(u => String(u._id) === targetId);
                 if (!exists && !newMessage.isGroup) {
                     dispatch(addChatUser({
-                        _id: newMessage.senderId,
+                        _id: isFromMe ? receiverId : senderId,
                         username: newMessage.senderUsername,
                         profilePicture: newMessage.senderProfilePicture,
                         conversationId: newMessage.conversationId
@@ -451,7 +463,9 @@ const ChatPage = () => {
 
                 dispatch(updateLastMessage({ userId: targetId, message: newMessage }));
                 dispatch(reorderUsers(targetId));
-                dispatch(incrementUnreadCount(targetId));
+                if (!isFromMe) {
+                    dispatch(incrementUnreadCount(targetId));
+                }
             }
         };
 

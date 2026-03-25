@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import api from '@/api';
 import { useDispatch, useSelector } from 'react-redux';
 import { setPosts } from '@/redux/postSlice';
+import { addUserProfilePost } from '@/redux/authSlice';
 
 const CreatePost = ({ open, setOpen }) => {
 
@@ -54,6 +55,7 @@ const CreatePost = ({ open, setOpen }) => {
             });
             if (res.data.success) {
                 dispatch(setPosts([res.data.post, ...posts]));
+                dispatch(addUserProfilePost(res.data.post)); // Also add to profile array
                 toast.success(res.data.message);
                 setOpen(false);
                 setCaption("");
