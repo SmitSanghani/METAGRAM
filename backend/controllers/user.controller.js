@@ -608,10 +608,13 @@ export const getChatUsers = async (req, res) => {
 
         const user = await User.findById(userId);
 
-        const chatItems = conversations.map(conv => {
+        const chatItemsMap = new Map();
+
+        conversations.forEach(conv => {
+            let item = null;
             if (conv.isGroup) {
-                return {
-                    _id: conv._id, // Conversation ID acts as the "user" identity in frontend select
+                item = {
+                    _id: conv._id.toString(), // Conversation ID acts as the "user" identity in frontend select
                     username: conv.groupName,
                     profilePicture: conv.groupProfilePicture,
                     isGroup: true,
@@ -621,22 +624,36 @@ export const getChatUsers = async (req, res) => {
                     updatedAt: conv.updatedAt
                 };
             } else {
-                const other = conv.participants.find(p => p._id.toString() !== userId.toString());
-                if (!other) return null;
-                return {
-                    ...other.toObject(),
-                    conversationId: conv._id,
-                    isGroup: false,
-                    updatedAt: conv.updatedAt
-                };
+                const other = conv.participants.find(p => {
+                    const pid = (p._id || p).toString();
+                    return pid !== userId.toString();
+                });
+                if (other) {
+                    item = {
+                        ...other.toObject(),
+                        conversationId: conv._id,
+                        isGroup: false,
+                        updatedAt: conv.updatedAt
+                    };
+                }
             }
-        }).filter(item => {
-            if (!item) return false;
-            if (item.isGroup) return true;
-            // Block filter for 1v1
-            return !user.blockedUsers.some(id => String(id) === String(item._id)) && 
-                   !user.blockedBy.some(id => String(id) === String(item._id));
+
+            if (item) {
+                const key = String(item._id);
+                // Keep the most recently updated conversation for this user/group
+                if (!chatItemsMap.has(key) || new Date(item.updatedAt) > new Date(chatItemsMap.get(key).updatedAt)) {
+                    chatItemsMap.set(key, item);
+                }
+            }
         });
+
+        const chatItems = Array.from(chatItemsMap.values())
+            .filter(item => {
+                if (item.isGroup) return true;
+                // Block filter for 1v1
+                return !user.blockedUsers.some(id => String(id) === String(item._id)) && 
+                       !user.blockedBy.some(id => String(id) === String(item._id));
+            });
 
         return res.status(200).json({
             success: true,
