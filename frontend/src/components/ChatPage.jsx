@@ -1338,7 +1338,7 @@ const ChatPage = () => {
             {openPostModal && selectedPostForModal && (
                 <PostModal
                     open={openPostModal}
-                    onClose={() => setOpenPostModal(false)}
+                    setOpen={setOpenPostModal}
                     post={selectedPostForModal}
                 />
             )}

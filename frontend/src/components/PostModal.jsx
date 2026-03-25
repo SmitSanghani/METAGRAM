@@ -13,15 +13,18 @@ import SaveButton from './SaveButton';
 import SharePostModal from './SharePostModal';
 import CommentDialog from './CommentDialog';
 
-const PostModal = ({ open, setOpen, post, onOpenComment }) => {
+const PostModal = ({ open, setOpen, post: initialPost, onOpenComment }) => {
     const { user, userProfile } = useSelector(store => store.auth);
-    const { posts } = useSelector(store => store.post);
+    const { posts, selectedPost } = useSelector(store => store.post);
     const dispatch = useDispatch();
     const [showShare, setShowShare] = React.useState(false);
     const [showComments, setShowComments] = React.useState(false);
     const [showMoreOptions, setShowMoreOptions] = React.useState(false);
     const [currentMediaIndex, setCurrentMediaIndex] = React.useState(0);
     const scrollRef = React.useRef(null);
+
+    // Prioritize the live post from store if IDs match
+    const post = (selectedPost?._id === initialPost?._id) ? selectedPost : initialPost;
 
     React.useEffect(() => {
         if (open) {
