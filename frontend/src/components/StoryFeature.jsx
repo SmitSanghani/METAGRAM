@@ -16,6 +16,52 @@ const StoryFeature = () => {
     const { user } = useSelector(store => store.auth);
     const { socket } = useSelector(store => store.socketio);
 
+    const fetchStories = async () => {
+        try {
+            const res = await api.get('/story/all');
+            if (res.data.success) {
+                const stories = res.data.groupedStories;
+                const currentUserId = user?._id?.toString();
+
+                // Enhanced sorting:
+                // 1. Current user always at index 0
+                // 2. Users with unseen stories
+                // 3. Users with all seen stories
+                // 4. Within groups 2 & 3, sort by newest story createdAt
+                const sortedStories = [...stories].sort((a, b) => {
+                    const aId = (a.userId?._id || a.userId)?.toString();
+                    const bId = (b.userId?._id || b.userId)?.toString();
+
+                    if (currentUserId) {
+                        if (aId === currentUserId) return -1;
+                        if (bId === currentUserId) return 1;
+                    }
+
+                    const aUnseen = a.stories.some(s => {
+                        const viewers = s.viewers?.map(v => (v._id || v).toString()) || [];
+                        return currentUserId && !viewers.includes(currentUserId);
+                    });
+                    const bUnseen = b.stories.some(s => {
+                        const viewers = s.viewers?.map(v => (v._id || v).toString()) || [];
+                        return currentUserId && !viewers.includes(currentUserId);
+                    });
+
+                    if (aUnseen && !bUnseen) return -1;
+                    if (!aUnseen && bUnseen) return 1;
+
+                    // If both have same visibility state, sort by the newest story in the group
+                    const aMaxTime = Math.max(...a.stories.map(s => new Date(s.createdAt).getTime()));
+                    const bMaxTime = Math.max(...b.stories.map(s => new Date(s.createdAt).getTime()));
+                    return bMaxTime - aMaxTime;
+                });
+
+                setGroupedStories(sortedStories);
+            }
+        } catch (error) {
+            console.error("Error fetching stories:", error);
+        }
+    };
+
     useEffect(() => {
         fetchStories();
 
@@ -30,51 +76,22 @@ const StoryFeature = () => {
                 socket.off('story_deleted', fetchStories);
             }
         };
-    }, [socket]);
+    }, [socket, user?._id]); // Added user?._id to ensure refresh on login/logout
 
-    const fetchStories = async () => {
-        try {
-            const res = await api.get('/story/all');
-            if (res.data.success) {
-                const stories = res.data.groupedStories;
-                const currentUserId = user?._id;
+    const myStoryGroup = React.useMemo(() => {
+        if (!user?._id) return null;
+        return groupedStories.find(g => (g.userId?._id || g.userId)?.toString() === user._id.toString());
+    }, [groupedStories, user?._id]);
 
-                // Enhanced sorting:
-                // 1. Current user always at index 0
-                // 2. Users with unseen stories
-                // 3. Users with all seen stories
-                // 4. Within groups 2 & 3, sort by newest story createdAt
-                const sortedStories = stories.sort((a, b) => {
-                    const aId = a.userId._id.toString();
-                    const bId = b.userId._id.toString();
-
-                    if (aId === currentUserId) return -1;
-                    if (bId === currentUserId) return 1;
-
-                    const aUnseen = a.stories.some(s => !s.viewers.map(v => (v._id || v).toString()).includes(currentUserId));
-                    const bUnseen = b.stories.some(s => !s.viewers.map(v => (v._id || v).toString()).includes(currentUserId));
-
-                    if (aUnseen && !bUnseen) return -1;
-                    if (!aUnseen && bUnseen) return 1;
-
-                    // If both have same visibility state, sort by the newest story in the group
-                    const aMaxTime = Math.max(...a.stories.map(s => new Date(s.createdAt).getTime()));
-                    const bMaxTime = Math.max(...b.stories.map(s => new Date(s.createdAt).getTime()));
-                    return bMaxTime - aMaxTime;
-                });
-
-                setGroupedStories([...sortedStories]);
-            }
-        } catch (error) {
-            console.error("Error fetching stories:", error);
-        }
-    };
-
-    const myStoryGroup = groupedStories.find(g => g.userId._id === user?._id);
-    const otherStoryGroups = groupedStories.filter(g => g.userId._id !== user?._id);
+    const otherStoryGroups = React.useMemo(() => {
+        const uId = user?._id?.toString();
+        if (!uId) return groupedStories;
+        return groupedStories.filter(g => (g.userId?._id || g.userId)?.toString() !== uId);
+    }, [groupedStories, user?._id]);
 
     const openStoryViewer = (userId) => {
-        const index = groupedStories.findIndex(g => g.userId._id === userId);
+        const targetId = userId?.toString();
+        const index = groupedStories.findIndex(g => (g.userId?._id || g.userId)?.toString() === targetId);
         if (index !== -1) setActiveGroupIndex(index);
     };
 
@@ -119,9 +136,9 @@ const StoryFeature = () => {
                 {/* Other Users' Stories */}
                 {otherStoryGroups.map((group) => (
                     <SwiperSlide
-                        key={group.userId._id}
+                        key={group.userId?._id || group.userId}
                         className="w-[72px] !w-auto flex flex-col items-center gap-1.5 cursor-pointer mt-1 hover:opacity-90 transition-opacity"
-                        onClick={() => openStoryViewer(group.userId._id)}
+                        onClick={() => openStoryViewer(group.userId?._id || group.userId)}
                     >
                         <StoryAvatar
                             user={group.userId}

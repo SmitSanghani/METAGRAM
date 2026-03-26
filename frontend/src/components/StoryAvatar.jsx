@@ -5,7 +5,11 @@ import { cn, getAvatarColor } from '@/lib/utils';
 
 const StoryAvatar = ({ user, currentUser, stories = [], size = 66, isYourStory = false, strokeWidth }) => {
     // Process story stats
-    const unseenStories = stories.filter(s => !s.viewers.map(v => (v._id || v).toString()).includes(currentUser?._id));
+    const currId = currentUser?._id?.toString();
+    const unseenStories = stories.filter(s => {
+        const viewers = s.viewers?.map(v => (v._id || v).toString()) || [];
+        return currId && !viewers.includes(currId);
+    });
     const isUnseen = unseenStories.length > 0;
     const isCF = stories.some(s => s.audience === 'closeFriends');
     const hasStories = stories.length > 0;

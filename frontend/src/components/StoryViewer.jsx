@@ -218,8 +218,9 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
 
     if (!currentStory) return null;
 
-    const isOwner = currentStory.userId?._id === user?._id;
-    const uniqueViewers = currentStory.viewers?.filter((v, i, a) => a.findIndex(t => t._id === v._id) === i && v._id !== currentStory.userId?._id) || [];
+    const currentUserId = user?._id?.toString();
+    const isOwner = currentStory.userId?._id?.toString() === currentUserId;
+    const uniqueViewers = currentStory.viewers?.filter((v, i, a) => a.findIndex(t => t._id?.toString() === v._id?.toString()) === i && v._id?.toString() !== currentStory.userId?._id?.toString()) || [];
 
     const handleDeleteStory = async () => {
         try {

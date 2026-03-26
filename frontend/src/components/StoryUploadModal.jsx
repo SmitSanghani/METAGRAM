@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Image as ImageIcon, Video, UserPlus, Check, Globe, Users, Search, Plus, Trash2 } from 'lucide-react';
+import { X, Image as ImageIcon, Video, UserPlus, Check, Globe, Users, Search, Plus, Trash2, Loader2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import api from '@/api';
@@ -108,28 +108,42 @@ const StoryUploadModal = ({ isOpen, onClose, user, onUploadSuccess }) => {
         const newItems = [];
         for (const file of filesToAdd) {
             const type = file.type.startsWith('video/') ? 'video' : 'image';
+            const blobUrl = URL.createObjectURL(file);
 
             if (type === 'video') {
-                // Check duration
-                const video = document.createElement('video');
-                video.preload = 'metadata';
-                const duration = await new Promise((resolve) => {
-                    video.onloadedmetadata = () => {
-                        window.URL.revokeObjectURL(video.src);
-                        resolve(video.duration);
-                    };
-                    video.src = URL.createObjectURL(file);
-                });
+                try {
+                    const video = document.createElement('video');
+                    video.preload = 'metadata';
+                    
+                    const duration = await new Promise((resolve, reject) => {
+                        const timeout = setTimeout(() => reject(new Error("Timeout")), 5000);
+                        video.onloadedmetadata = () => {
+                            clearTimeout(timeout);
+                            resolve(video.duration);
+                        };
+                        video.onerror = () => {
+                            clearTimeout(timeout);
+                            reject(new Error("Failed to load video"));
+                        };
+                        video.src = blobUrl;
+                    });
 
-                if (duration > 61) { // 1 min allowance
-                    toast.error(`${file.name} is too long. Max 1 minute allowed.`);
+                    if (duration > 61) {
+                        toast.error(`${file.name} is too long. Max 1 minute allowed.`);
+                        URL.revokeObjectURL(blobUrl);
+                        continue;
+                    }
+                } catch (err) {
+                    console.error("Video processing error:", err);
+                    toast.error(`Could not process ${file.name}`);
+                    URL.revokeObjectURL(blobUrl);
                     continue;
                 }
             }
 
             newItems.push({
                 file,
-                previewUrl: URL.createObjectURL(file),
+                previewUrl: blobUrl,
                 type
             });
         }
@@ -138,7 +152,7 @@ const StoryUploadModal = ({ isOpen, onClose, user, onUploadSuccess }) => {
 
         const updatedFiles = [...files, ...newItems];
         setFiles(updatedFiles);
-        setActiveIndex(files.length);
+        setActiveIndex(files.length); // Focus on the first newly added item
         setStep(1);
         e.target.value = '';
     };
@@ -211,13 +225,27 @@ const StoryUploadModal = ({ isOpen, onClose, user, onUploadSuccess }) => {
                             onClick={() => step === 1 ? setStep(2) : handleUpload()}
                             disabled={isUploading}
                         >
-                            {isUploading ? "..." : step === 1 ? "Next" : "Share"}
+                            {step === 1 ? "Next" : "Share"}
                         </Button>
                     ) : <div className="w-8"></div>}
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 overflow-y-auto bg-white dark:bg-zinc-950 no-scrollbar">
+                <div className="flex-1 overflow-y-auto bg-white dark:bg-zinc-950 no-scrollbar relative min-h-[300px]">
+                    {/* Uploading Overlay */}
+                    <AnimatePresence>
+                        {isUploading && (
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="absolute inset-0 z-50 bg-white/90 dark:bg-zinc-950/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center"
+                            >
+                                <Loader2 className="w-10 h-10 text-[#0095F6] animate-spin mb-4" />
+                                <h4 className="text-[18px] font-bold dark:text-white">Uploading story...</h4>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                     {files.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-32 px-6 text-center">
                             <div className="w-24 h-24 bg-gray-50 dark:bg-zinc-900 rounded-full flex items-center justify-center mb-6">
