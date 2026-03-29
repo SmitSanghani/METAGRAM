@@ -3,7 +3,7 @@ import cloudinary from "../utils/cloudinary.js";
 import { Conversation } from "../models/conversation.model.js";
 import { Message } from "../models/message.model.js";
 import { User } from "../models/user.model.js";
-import { broadcastToUser, io, removeFromRoom } from "../socket/socket.js";
+import { broadcastToUser, io, removeFromRoom, broadcastToRoomParticipants } from "../socket/socket.js";
 
 // For Chatting 
 export const sendMessage = async (req, res) => {
@@ -169,13 +169,12 @@ export const sendMessage = async (req, res) => {
         }
         if (replyToPopulated) messageObj.replyTo = replyToPopulated;
 
-        // Broadcast to specific conversation room
-        io.to(conversation._id.toString()).emit("receive_message", messageObj);
+        // Secure Broadcast: Deliver only to current participants (prevents room-leaks for removed members)
+        broadcastToRoomParticipants(conversation.participants, "receive_message", messageObj);
 
-        // Individual notifications for sidebar update / toasts (All participants, including sender for multi-tab sync)
+        // Sidebar update / toasts for all participants
         conversation.participants.forEach(p => {
-            const participantId = p._id ? p._id.toString() : p.toString();
-            broadcastToUser(participantId, "new_message_notification", messageObj);
+            broadcastToUser(p._id ? p._id.toString() : p.toString(), "new_message_notification", messageObj);
         });
 
         return res.status(201).json({ success: true, newMessage: messageObj });
@@ -306,7 +305,8 @@ export const markAsSeen = async (req, res) => {
 
             // Broadcast real-time update
             if (isGroup) {
-                io.to(conversation._id.toString()).emit("message_seen_update", { conversationId: conversation._id, userId });
+                // Securely notify only active members
+                broadcastToRoomParticipants(conversation.participants, "message_seen_update", { conversationId: conversation._id, userId });
             } else if (targetReceiverId) {
                 broadcastToUser(targetReceiverId, "message_seen_update", { receiverId: userId });
             }
@@ -397,8 +397,8 @@ export const addReaction = async (req, res) => {
             isGroup: conversation.isGroup
         };
 
-        // 1. Broadcast to the conversation room
-        io.to(conversation._id.toString()).emit("message_reaction_added", reactionPayload);
+        // 1. Broadcast to all active participants securely
+        broadcastToRoomParticipants(conversation.participants, "message_reaction_added", reactionPayload);
 
         // 2. Also notify both participants directly
         broadcastToUser(updatedMessage.senderId, "message_reaction_added", reactionPayload);
@@ -595,8 +595,8 @@ export const addGroupMembers = async (req, res) => {
             msgObj.isGroup = true;
             msgObj.groupName = conversation.groupName;
 
-            // Broadcast the new system message
-            io.to(conversation._id.toString()).emit("receive_message", msgObj);
+            // Broadcast the new system message only to current members
+            broadcastToRoomParticipants(conversation.participants, "receive_message", msgObj);
         } else {
             await conversation.save();
             await conversation.populate('participants', 'username profilePicture');
@@ -733,8 +733,8 @@ export const removeGroupMember = async (req, res) => {
         msgObj.isGroup = true;
         msgObj.groupName = conversation.groupName;
 
-        // Broadcast the system message
-        io.to(conversation._id.toString()).emit("receive_message", msgObj);
+        // Broadcast the system message only to remaining members
+        broadcastToRoomParticipants(conversation.participants, "receive_message", msgObj);
 
         const updatedGroup = {
             _id: conversation._id,
@@ -805,8 +805,8 @@ export const updateChatTheme = async (req, res) => {
 
         const actualConvId = conversation._id.toString();
 
-        // Broadcast to all participants in the conversation
-        io.to(actualConvId).emit("update_theme", { conversationId: actualConvId, theme });
+        // Broadcast to all active participants in the conversation
+        broadcastToRoomParticipants(conversation.participants, "update_theme", { conversationId: actualConvId, theme });
 
         res.status(200).json({ success: true, theme, conversationId: actualConvId });
     } catch (error) {

@@ -2,6 +2,8 @@ import { Server } from "socket.io";
 import express from "express";
 import http from "http";
 
+import { Conversation } from "../models/conversation.model.js";
+
 const app = express();
 const server = http.createServer(app);
 
@@ -42,10 +44,21 @@ io.on('connection', (socket) => {
         io.emit('getOnlineUsers', Object.keys(userSocketMap));
     });
 
-    // Join a specific conversation room
-    socket.on("join_room", (conversationId) => {
-        if (conversationId) {
-            socket.join(String(conversationId));
+    // Join a specific conversation room - SECURED with membership check
+    socket.on("join_room", async (conversationId) => {
+        if (!conversationId || !socket.userId) return;
+        try {
+            const sid = String(conversationId);
+            // Verify membership before allowing join
+            const isMember = await Conversation.exists({ _id: sid, participants: socket.userId });
+            if (isMember) {
+                socket.join(sid);
+                console.log(`[SOCKET] User ${socket.userId} joined room ${sid}`);
+            } else {
+                console.warn(`[SOCKET] User ${socket.userId} attempted unauthorized join to room ${sid}`);
+            }
+        } catch (err) {
+            console.error(`[SOCKET] Error in join_room for room ${conversationId}:`, err);
         }
     });
 
@@ -145,6 +158,15 @@ export const removeFromRoom = (userId, roomId) => {
             }
         });
     }
+};
+
+// Securely broadcast to all current participants of a conversation (avoids room leaks)
+export const broadcastToRoomParticipants = (participants, event, data) => {
+    if (!participants || !Array.isArray(participants)) return;
+    participants.forEach(p => {
+        const id = p._id ? p._id.toString() : p.toString();
+        broadcastToUser(id, event, data);
+    });
 };
 
 export { app, io, server };

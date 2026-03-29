@@ -488,8 +488,10 @@ const ChatPage = () => {
             const receiverId = newMessage.receiverId ? String(newMessage.receiverId) : null;
             const currentUserId = String(user?._id);
 
-            // 1. Group Logic: Match by conversationId
-            const isGroupMatch = selectedUser?.isGroup && String(newMessage.conversationId) === String(selectedUser.conversationId);
+            // 1. Group Logic: Match by conversationId (Only if we are still a member)
+            const isGroupMatch = selectedUser?.isGroup && 
+                                String(newMessage.conversationId) === String(selectedUser.conversationId) && 
+                                !isNotAMember;
 
             // 2. 1v1 Logic: EXACT Match (One side is ME, other side is SELECTED USER)
             const isMeAndSelectedUser = !selectedUser?.isGroup && (

@@ -310,6 +310,18 @@ function App() {
           return;
         }
 
+        // SECONDARY ISOLATION CHECK: For Groups, verify membership status to stop ghost messages
+        if (newMessage.isGroup) {
+          const groupChat = chatUsersRef.current?.find(u => String(u._id) === targetId);
+          if (groupChat) {
+             const isStillMember = groupChat.participants?.some(p => String(p?._id || p) === currentUserId);
+             if (!isStillMember) {
+                console.log("[Socket] Ignoring message for group I am no longer a member of");
+                return;
+             }
+          }
+        }
+
         // Check if the chat exists in sidebar
         const chatExistsInSidebar = chatUsersRef.current?.some(u => String(u._id) === targetId);
 
