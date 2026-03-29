@@ -10,7 +10,7 @@ import StoryUploadModal from './StoryUploadModal';
 
 const StoryFeature = () => {
     const [groupedStories, setGroupedStories] = useState([]);
-    const [activeGroupIndex, setActiveGroupIndex] = useState(null);
+    const [activeUserId, setActiveUserId] = useState(null);
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 
     const { user } = useSelector(store => store.auth);
@@ -90,10 +90,12 @@ const StoryFeature = () => {
     }, [groupedStories, user?._id]);
 
     const openStoryViewer = (userId) => {
-        const targetId = userId?.toString();
-        const index = groupedStories.findIndex(g => (g.userId?._id || g.userId)?.toString() === targetId);
-        if (index !== -1) setActiveGroupIndex(index);
+        setActiveUserId(userId?.toString());
     };
+
+    const activeGroup = activeUserId 
+        ? groupedStories.find(g => (g.userId?._id || g.userId)?.toString() === activeUserId) 
+        : null;
 
     return (
         <div className="w-full max-w-full mb-1">
@@ -154,14 +156,15 @@ const StoryFeature = () => {
             </Swiper>
 
             {/* Viewer Modal */}
-            {activeGroupIndex !== null && groupedStories[activeGroupIndex] && (
+            {activeUserId && activeGroup && (
                 <StoryViewer
-                    stories={groupedStories[activeGroupIndex].stories}
-                    onClose={() => setActiveGroupIndex(null)}
+                    key={activeUserId}
+                    stories={activeGroup.stories}
+                    onClose={() => setActiveUserId(null)}
                     onStoryDeleted={fetchStories}
-                    onStoryViewed={fetchStories} // Refresh to update borders
+                    onStoryViewed={fetchStories} 
                     onAddStory={() => {
-                        setActiveGroupIndex(null);
+                        setActiveUserId(null);
                         setIsUploadModalOpen(true);
                     }}
                 />

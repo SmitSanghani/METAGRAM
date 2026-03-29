@@ -115,7 +115,7 @@ export const getAllStories = async (req, res) => {
         })
             .populate({ path: "userId", select: "username profilePicture closeFriends" })
             .populate({ path: "viewers", select: "username profilePicture" })
-            .sort({ createdAt: -1 });
+            .sort({ createdAt: 1 });
 
         // Filter stories based on Close Friends logic
         const filteredStories = stories.filter(story => {

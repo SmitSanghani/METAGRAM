@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronLeft, ChevronRight, Eye, Trash2, Heart, Send, Star, Plus, Volume2, VolumeX } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Eye, Trash2, Heart, Send, Star, Plus, Volume2, VolumeX, Loader2 } from 'lucide-react';
 import api from '@/api';
 import { useSelector } from 'react-redux';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
@@ -40,6 +40,7 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
     const [localLikes, setLocalLikes] = useState([]);
     const [localComments, setLocalComments] = useState([]);
     const [isMuted, setIsMuted] = useState(true);
+    const [isBuffering, setIsBuffering] = useState(true);
 
     const { user } = useSelector(store => store.auth);
     const navigate = useNavigate();
@@ -109,14 +110,15 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
     // Mark as viewed on backend when index changes
     useEffect(() => {
         const currentStory = stories[currentIndex];
-        if (currentStory && !viewedSet.current.has(currentStory?._id)) {
-            viewedSet.current.add(currentStory?._id);
-            api.post(`/story/${currentStory?._id}/view`, {})
+        const sid = currentStory?._id?.toString();
+        if (sid && !viewedSet.current.has(sid)) {
+            viewedSet.current.add(sid);
+            api.post(`/story/${sid}/view`, {})
                 .then(() => {
-                    if (onStoryViewed) onStoryViewed(currentStory?._id);
+                    if (onStoryViewed) onStoryViewed(sid);
                 }).catch(console.error);
         }
-    }, [currentIndex, stories, onStoryViewed]);
+    }, [currentIndex, stories[currentIndex]?._id, onStoryViewed]);
 
     // Update local state when current story changes
     useEffect(() => {
@@ -364,12 +366,16 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
                         className="w-full h-full flex items-center justify-center pointer-events-none"
                     >
                         {currentStory.mediaType === 'video' ? (
-                            <div className="relative w-full h-full">
+                            <div className="relative w-full h-full flex items-center justify-center">
+                                {isBuffering && (
+                                    <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/20">
+                                        <Loader2 className="w-10 h-10 text-white/50 animate-spin" />
+                                    </div>
+                                )}
                                 <video
                                     ref={(el) => {
                                         if (el) {
                                             videoRef.current = el;
-                                            // More robust play on mount
                                             if (!isPaused && !showActivity) {
                                                 const playPromise = el.play();
                                                 if (playPromise !== undefined) {
@@ -385,16 +391,14 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
                                     muted={isMuted}
                                     preload="auto"
                                     onLoadedMetadata={(e) => {
+                                        setIsBuffering(false);
                                         if (e.target.duration && e.target.duration > 0 && e.target.duration !== Infinity) {
                                             setStoryDuration(e.target.duration * 1000);
                                         }
                                     }}
-                                    onCanPlay={() => {
-                                        // Some browsers need this additional trigger
-                                        if (videoRef.current && !isPaused && !showActivity) {
-                                            videoRef.current.play().catch(() => {});
-                                        }
-                                    }}
+                                    onCanPlay={() => setIsBuffering(false)}
+                                    onWaiting={() => setIsBuffering(true)}
+                                    onPlaying={() => setIsBuffering(false)}
                                     onEnded={handleNext}
                                     className="w-full h-full object-cover rounded-none sm:rounded-2xl"
                                 />
@@ -406,11 +410,14 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
                                 </button>
                             </div>
                         ) : (
-                            <img
-                                src={currentStory.mediaUrl}
-                                alt="story"
-                                className="w-full h-full object-cover"
-                            />
+                            <div className="relative w-full h-full flex items-center justify-center">
+                                <img
+                                    src={currentStory.mediaUrl}
+                                    alt="story"
+                                    className="w-full h-full object-cover"
+                                    onLoad={() => setIsBuffering(false)}
+                                />
+                            </div>
                         )}
                     </motion.div>
                 </AnimatePresence>
