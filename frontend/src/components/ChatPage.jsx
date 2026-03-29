@@ -9,7 +9,7 @@ import api from '@/api';
 import { toast } from 'sonner';
 import { toggleMuteUserAction } from '../redux/authSlice';
 import Swal from 'sweetalert2';
-import { setMessages, addMessage, updateMessageStatus, updateReactions, markUnsent, markStoryUnsent, incrementUnreadCount, clearUnreadCount, updateLastMessage, removeTempMessage, setSelectedUser, setChatUsers, reorderUsers, updateChatUserConversation, addChatUser, clearChat, clearChatLocally } from '../redux/chatSlice';
+import { setMessages, addMessage, updateMessageStatus, updateReactions, markUnsent, markStoryUnsent, incrementUnreadCount, clearUnreadCount, updateLastMessage, removeTempMessage, setSelectedUser, setChatUsers, reorderUsers, updateChatUserConversation, addChatUser, clearChat, clearChatLocally, setSelectedChatTheme } from '../redux/chatSlice';
 import ScrollToBottom from 'react-scroll-to-bottom';
 import MessageBubble from './MessageBubble';
 import useGetChatUsers from '@/hooks/useGetChatUsers';
@@ -17,6 +17,9 @@ import { setSelectedPost } from '@/redux/postSlice';
 import StoryViewer from './StoryViewer';
 import PostModal from './PostModal';
 import CommentDialog from './CommentDialog';
+import { THEMES } from '@/utils/themes';
+import ThemeSelectorModal from './ThemeSelectorModal';
+import { Palette } from 'lucide-react';
 
 const NOTIFICATION_SOUND_URL = "/notification.mp3"; // Reference local file
 
@@ -25,7 +28,8 @@ const ChatPage = () => {
     useGetChatUsers();
     const [textMessage, setTextMessage] = useState("");
     const { user } = useSelector(store => store.auth);
-    const { onlineUsers = [], messages = [], unreadCounts = {}, lastMessages = {}, selectedUser, chatUsers = [] } = useSelector(store => store.chat || {});
+    const { onlineUsers = [], messages = [], unreadCounts = {}, lastMessages = {}, selectedUser, chatUsers = [], selectedChatTheme } = useSelector(store => store.chat || {});
+    const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
     const { socket } = useSelector(store => store.socketio);
     const [replyTo, setReplyTo] = useState(null);
     const [storyToView, setStoryToView] = useState(null);
@@ -119,6 +123,7 @@ const ChatPage = () => {
                 const res = await api.get(`/message/all/${targetId}`);
                 if (!isCancelled && res.data.success) {
                     dispatch(setMessages(res.data.messages || []));
+                    dispatch(setSelectedChatTheme(res.data.theme));
                     markAsSeen();
 
                     const conversationId = res.data.conversationId;
@@ -239,12 +244,12 @@ const ChatPage = () => {
 
         const originalText = textMessage;
         const tempId = `temp-${Date.now()}`;
-        
+
         // 1. Optimistic UI: Add message to state immediately
         const optimisticMsg = {
             _id: tempId,
             tempId: tempId,
-            senderId: user._id, 
+            senderId: user._id,
             receiverId: selectedUser.isGroup ? null : selectedUser._id,
             message: originalText,
             messageType: 'text',
@@ -565,12 +570,21 @@ const ChatPage = () => {
             }
         };
 
+        const handleThemeUpdate = ({ conversationId, theme }) => {
+            if ((selectedUser?.conversationId && String(conversationId) === String(selectedUser.conversationId)) ||
+                (!selectedUser?.conversationId && selectedUser?._id)) {
+                // Double check if we should apply this theme
+                dispatch(setSelectedChatTheme(theme));
+            }
+        };
+
         socket.on('receive_message', handleIncomingMessage);
         socket.on('message_reaction_added', handleReactionAdded);
         socket.on('message_deleted', handleDeletedMessage);
         socket.on('story_deleted_from_chat', handleStoryDeleted);
         socket.on('user_typing', handleUserTyping);
         socket.on('user_stopped_typing', handleUserStoppedTyping);
+        socket.on('update_theme', handleThemeUpdate);
 
         return () => {
             socket.off('receive_message', handleIncomingMessage);
@@ -579,8 +593,31 @@ const ChatPage = () => {
             socket.off('story_deleted_from_chat', handleStoryDeleted);
             socket.off('user_typing', handleUserTyping);
             socket.off('user_stopped_typing', handleUserStoppedTyping);
+            socket.off('update_theme', handleThemeUpdate);
         };
     }, [dispatch, socket, selectedUser, user?._id]);
+
+    const handleThemeSelect = async (theme) => {
+        if (!selectedUser?._id) return;
+        try {
+            const res = await api.post('/message/theme', {
+                conversationId: selectedUser.conversationId,
+                recipientId: selectedUser.isGroup ? null : selectedUser._id,
+                theme: theme
+            });
+            if (res.data.success) {
+                dispatch(setSelectedChatTheme(theme));
+                // If the backend returned a conversationId (it was null before), update the user in state
+                if (!selectedUser.conversationId && res.data.conversationId) {
+                    dispatch(setSelectedUser({ ...selectedUser, conversationId: res.data.conversationId }));
+                }
+                toast.success("Theme updated");
+            }
+        } catch (error) {
+            console.error("Error setting theme", error);
+            toast.error("Failed to update theme");
+        }
+    };
 
     // Grouping logic for messages
     const groupedMessages = messages?.reduce((groups, msg) => {
@@ -827,10 +864,15 @@ const ChatPage = () => {
                                 {selectedUser.isGroup && !isNotAMember && (
                                     <Button variant="ghost" size="icon" onClick={() => setIsGroupInfoOpen(true)} className="rounded-full w-10 h-10 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all"><Users size={20} /></Button>
                                 )}
+                                {(!selectedUser.isGroup || selectedUser.groupAdmin?.some(a => String(a?._id || a) === String(user?._id))) && (
+                                    <Button variant="ghost" size="icon" onClick={() => setIsThemeModalOpen(true)} className="rounded-full w-10 h-10 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all">
+                                        <Palette size={20} />
+                                    </Button>
+                                )}
                                 <Button variant="ghost" size="icon" onClick={() => searchInputRef.current?.focus()} className="rounded-full w-10 h-10 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all"><MessageCircle size={20} /></Button>
-                                <Button 
-                                    variant="ghost" 
-                                    size="icon" 
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
                                     onClick={() => {
                                         if (selectedUser.isGroup && !isNotAMember) {
                                             Swal.fire({
@@ -843,7 +885,7 @@ const ChatPage = () => {
                                             return;
                                         }
                                         deleteChatHandler(selectedUser._id, false);
-                                    }} 
+                                    }}
                                     className={`rounded-full w-10 h-10 transition-all ${selectedUser.isGroup && !isNotAMember ? 'opacity-30 grayscale cursor-not-allowed' : 'text-gray-400 hover:text-red-500 hover:bg-red-50'}`}
                                 >
                                     <Trash2 size={20} />
@@ -852,61 +894,83 @@ const ChatPage = () => {
                             </div>
                         </div>
 
-                        <ScrollToBottom className='flex-1 p-0 flex flex-col bg-[#fafafa] overflow-hidden' scrollViewClassName="custom-scrollbar px-10 py-8" followButtonClassName='hidden'>
-                            <div className="flex flex-col gap-1 min-h-full pb-6">
-                                {isLoadingMessages ? (
-                                    <div className="flex-1 flex flex-col items-center justify-center py-20 animate-in fade-in duration-500">
-                                        <div className="w-12 h-12 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
-                                        <p className="text-[13px] font-black text-indigo-900/40 uppercase tracking-widest">Securing your chat...</p>
-                                    </div>
-                                ) : (
-                                    Object.keys(groupedMessages || {}).map(date => {
-                                    const label = formatDateLabel(date);
-                                    if (!label) return null;
-                                    return (
-                                        <React.Fragment key={date}>
-                                            <div className="flex justify-center my-8">
-                                                <span className="text-[10px] font-black text-[#8e8e8e] uppercase tracking-[0.2em] bg-white border border-gray-100 px-5 py-2 rounded-full shadow-sm">
-                                                    {label}
-                                                </span>
-                                            </div>
-                                            {groupedMessages[date].map((msg) => (
-                                                <MessageBubble
-                                                    key={msg._id}
-                                                    msg={msg}
-                                                    isSender={String(msg.senderId?._id || msg.senderId) === String(user?._id)}
-                                                    currentUser={user}
-                                                    otherUser={selectedUser}
-                                                    onReply={setReplyTo}
-                                                    onDelete={unsendMessageHandler}
-                                                    onReact={reactMessageHandler}
-                                                    onScrollTo={scrollToMessage}
-                                                    onStoryClick={(story) => setStoryToView(story)}
-                                                    onPostClick={(post) => {
-                                                        dispatch(setSelectedPost(post));
-                                                        setSelectedPostForModal(post);
-                                                        setOpenPostModal(true);
-                                                    }}
-                                                    isHighlighted={highlightedMessageId === msg._id}
-                                                />
-                                            ))}
-                                        </React.Fragment>
-                                    );
-                                    })
-                                )}
-                                {isTyping && (
-                                    <div className='flex mb-6 justify-start animate-in slide-in-from-bottom-4 duration-500'>
-                                        <div className='flex items-center gap-2 px-6 py-4 rounded-[24px] bg-white border border-[#efefef] shadow-[0_4px_12px_rgba(0,0,0,0.03)]'>
-                                            <div className="flex gap-1.5">
-                                                <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-                                                <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                                                <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce"></div>
+                        <div className="flex-1 flex flex-col relative overflow-hidden">
+                            {/* Theme Background Layer */}
+                            <div
+                                className="absolute inset-0 z-0 transition-all duration-700 ease-in-out bg-[#fafafa]"
+                                style={{
+                                    backgroundImage: THEMES.find(t => t.id === selectedChatTheme?.id)?.backgroundImage ? `url(${THEMES.find(t => t.id === selectedChatTheme?.id)?.backgroundImage})` : 'none',
+                                    backgroundSize: 'cover',
+                                    backgroundPosition: 'center',
+                                    backgroundRepeat: 'no-repeat',
+                                }}
+                            />
+
+                            {/* Dark Overlay for contrast when background is present */}
+                            {THEMES.find(t => t.id === selectedChatTheme?.id)?.backgroundImage && (
+                                <div className="absolute inset-0 bg-black/15 z-[1] pointer-events-none" />
+                            )}
+
+                            <ScrollToBottom
+                                className='flex-1 p-0 flex flex-col overflow-hidden relative z-10 h-full bg-transparent'
+                                scrollViewClassName="custom-scrollbar px-10 py-8 relative z-10 h-full !bg-transparent"
+                                followButtonClassName='hidden'
+                            >
+                                <div className="flex flex-col gap-1 min-h-full pb-6 relative z-10">
+                                    {isLoadingMessages ? (
+                                        <div className="flex-1 flex flex-col items-center justify-center py-20 animate-in fade-in duration-500">
+                                            <div className="w-12 h-12 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
+                                            <p className="text-[13px] font-black text-indigo-900/40 uppercase tracking-widest">Securing your chat...</p>
+                                        </div>
+                                    ) : (
+                                        Object.keys(groupedMessages || {}).map(date => {
+                                            const label = formatDateLabel(date);
+                                            if (!label) return null;
+                                            return (
+                                                <React.Fragment key={date}>
+                                                    <div className="flex justify-center my-8">
+                                                        <span className="text-[10px] font-black text-[#8e8e8e] uppercase tracking-[0.2em] bg-white border border-gray-100 px-5 py-2 rounded-full shadow-sm">
+                                                            {label}
+                                                        </span>
+                                                    </div>
+                                                    {groupedMessages[date].map((msg) => (
+                                                        <MessageBubble
+                                                            key={msg._id}
+                                                            msg={msg}
+                                                            isSender={String(msg.senderId?._id || msg.senderId) === String(user?._id)}
+                                                            currentUser={user}
+                                                            otherUser={selectedUser}
+                                                            onReply={setReplyTo}
+                                                            onDelete={unsendMessageHandler}
+                                                            onReact={reactMessageHandler}
+                                                            onScrollTo={scrollToMessage}
+                                                            onStoryClick={(story) => setStoryToView(story)}
+                                                            onPostClick={(post) => {
+                                                                dispatch(setSelectedPost(post));
+                                                                setSelectedPostForModal(post);
+                                                                setOpenPostModal(true);
+                                                            }}
+                                                            isHighlighted={highlightedMessageId === msg._id}
+                                                        />
+                                                    ))}
+                                                </React.Fragment>
+                                            );
+                                        })
+                                    )}
+                                    {isTyping && (
+                                        <div className='flex mb-6 justify-start animate-in slide-in-from-bottom-4 duration-500'>
+                                            <div className='flex items-center gap-2 px-6 py-4 rounded-[24px] bg-white border border-[#efefef] shadow-[0_4px_12px_rgba(0,0,0,0.03)]'>
+                                                <div className="flex gap-1.5">
+                                                    <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                                                    <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                                                    <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce"></div>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                )}
-                            </div>
-                        </ScrollToBottom>
+                                    )}
+                                </div>
+                            </ScrollToBottom>
+                        </div>
 
                         {isHeaderStoryOpen && headerStories.length > 0 && (
                             <StoryViewer
@@ -1185,19 +1249,17 @@ const ChatPage = () => {
                             deleteChatHandler(contextMenu.targetUser._id, true);
                             setContextMenu(prev => ({ ...prev, visible: false }));
                         }}
-                        className={`w-full flex items-center gap-3 px-4 py-2.5 transition-colors group ${
-                            contextMenu.targetUser?.isGroup && (
+                        className={`w-full flex items-center gap-3 px-4 py-2.5 transition-colors group ${contextMenu.targetUser?.isGroup && (
                                 contextMenu.targetUser?.participants?.some(p => String(p._id || p) === String(user?._id)) ||
                                 contextMenu.targetUser?.groupAdmin?.some(a => String(a) === String(user?._id))
                             ) ? 'opacity-40 grayscale cursor-not-allowed' : 'hover:bg-red-50 text-red-600'
-                        }`}
+                            }`}
                     >
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
-                             contextMenu.targetUser?.isGroup && (
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${contextMenu.targetUser?.isGroup && (
                                 contextMenu.targetUser?.participants?.some(p => String(p._id || p) === String(user?._id)) ||
                                 contextMenu.targetUser?.groupAdmin?.some(a => String(a) === String(user?._id))
                             ) ? 'bg-gray-100 text-gray-400' : 'bg-red-50 text-red-500 group-hover:bg-white'
-                        }`}>
+                            }`}>
                             <Trash2 size={16} />
                         </div>
                         <span className="text-[14px] font-bold">Delete Chat</span>
@@ -1499,39 +1561,39 @@ const ChatPage = () => {
                                         borderRadius: '24px'
                                     });
                                     if (confirm.isConfirmed) {
-                                            try {
-                                                const myId = String(user?._id || user?.id || "");
-                                                if (isNotAMember) {
-                                                    setIsGroupInfoOpen(false);
-                                                    return;
-                                                }
-
-                                                // 1. Show loading state to prevent double clicks
-                                                Swal.fire({
-                                                    title: 'Leaving group...',
-                                                    allowOutsideClick: false,
-                                                    showConfirmButton: false,
-                                                    didOpen: () => Swal.showLoading()
-                                                });
-
-                                                const targetId = selectedUser.conversationId || selectedUser._id;
-                                                await api.post('/message/group/remove', {
-                                                    conversationId: targetId,
-                                                    userId: myId
-                                                });
-                                                
-                                                // 2. Clear state and close modal instantly
-                                                const updatedParticipants = selectedUser.participants?.filter(p => String(p?._id || p) !== myId) || [];
-                                                dispatch(updateChatUserMembership({ conversationId: selectedUser._id, participants: updatedParticipants }));
-                                                
-                                                Swal.close();
-                                                setTimeout(() => setIsGroupInfoOpen(false), 300); // Small delay to guarantee state sync
-                                                toast.success("You left the group");
-                                            } catch (err) {
-                                                Swal.close();
-                                                setIsGroupInfoOpen(false); // CLOSE ANYWAY to avoid stale modal
-                                                toast.info("Membership updated");
+                                        try {
+                                            const myId = String(user?._id || user?.id || "");
+                                            if (isNotAMember) {
+                                                setIsGroupInfoOpen(false);
+                                                return;
                                             }
+
+                                            // 1. Show loading state to prevent double clicks
+                                            Swal.fire({
+                                                title: 'Leaving group...',
+                                                allowOutsideClick: false,
+                                                showConfirmButton: false,
+                                                didOpen: () => Swal.showLoading()
+                                            });
+
+                                            const targetId = selectedUser.conversationId || selectedUser._id;
+                                            await api.post('/message/group/remove', {
+                                                conversationId: targetId,
+                                                userId: myId
+                                            });
+
+                                            // 2. Clear state and close modal instantly
+                                            const updatedParticipants = selectedUser.participants?.filter(p => String(p?._id || p) !== myId) || [];
+                                            dispatch(updateChatUserMembership({ conversationId: selectedUser._id, participants: updatedParticipants }));
+
+                                            Swal.close();
+                                            setTimeout(() => setIsGroupInfoOpen(false), 300); // Small delay to guarantee state sync
+                                            toast.success("You left the group");
+                                        } catch (err) {
+                                            Swal.close();
+                                            setIsGroupInfoOpen(false); // CLOSE ANYWAY to avoid stale modal
+                                            toast.info("Membership updated");
+                                        }
                                     }
                                 }}
                             >
@@ -1555,6 +1617,12 @@ const ChatPage = () => {
             {openCommentDialog && (
                 <CommentDialog open={openCommentDialog} setOpen={setOpenCommentDialog} />
             )}
+            <ThemeSelectorModal
+                isOpen={isThemeModalOpen}
+                onClose={() => setIsThemeModalOpen(false)}
+                onSelect={handleThemeSelect}
+                currentTheme={selectedChatTheme}
+            />
         </div>
     );
 };

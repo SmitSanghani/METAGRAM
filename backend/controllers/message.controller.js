@@ -257,7 +257,7 @@ export const getMessages = async (req, res) => {
             return msgObj;
         });
 
-        res.status(200).json({ success: true, messages: populatedMessages, conversationId: conversation._id.toString(), isGroup: conversation.isGroup, groupName: conversation.groupName, groupAdmin: conversation.groupAdmin });
+        res.status(200).json({ success: true, messages: populatedMessages, conversationId: conversation._id.toString(), isGroup: conversation.isGroup, groupName: conversation.groupName, groupAdmin: conversation.groupAdmin, theme: conversation.theme });
     } catch (error) {
         console.error(error);
         res.status(500).json({ success: false, message: "Internal server error" });
@@ -760,5 +760,54 @@ export const removeGroupMember = async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ success: false });
+    }
+};
+
+export const updateChatTheme = async (req, res) => {
+    try {
+        const { conversationId, recipientId, theme } = req.body;
+        const userId = req.id;
+
+        let conversation = null;
+        if (conversationId) {
+            conversation = await Conversation.findById(conversationId);
+        } else if (recipientId) {
+            // Find existing conversation OR create one so we can set the theme
+            conversation = await Conversation.findOne({
+                isGroup: false,
+                participants: { $all: [userId, recipientId], $size: 2 }
+            });
+            if (!conversation) {
+                conversation = await Conversation.create({
+                    participants: [userId, recipientId],
+                    isGroup: false
+                });
+            }
+        }
+
+        if (!conversation) return res.status(404).json({ success: false, message: "Conversation not found" });
+
+        // Check if user is a participant
+        if (!conversation.participants.some(p => p.toString() === userId.toString())) {
+            return res.status(403).json({ success: false, message: "Unauthorized" });
+        }
+
+        // If it's a group, only admins can set the theme as per user requirement
+        if (conversation.isGroup && !conversation.groupAdmin.some(a => a.toString() === userId.toString())) {
+            return res.status(403).json({ success: false, message: "Only group admins can change the theme" });
+        }
+
+        conversation.theme = theme;
+        await conversation.save();
+
+        const actualConvId = conversation._id.toString();
+
+        // Broadcast to all participants in the conversation
+        io.to(actualConvId).emit("update_theme", { conversationId: actualConvId, theme });
+
+        res.status(200).json({ success: true, theme, conversationId: actualConvId });
+    } catch (error) {
+        console.error("updateChatTheme Error:", error);
+        res.status(500).json({ success: false, message: "Internal server error" });
     }
 };

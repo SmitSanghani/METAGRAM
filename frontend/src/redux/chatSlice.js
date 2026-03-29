@@ -9,8 +9,12 @@ const chatSlice = createSlice({
         lastMessages: {}, // { userId: msgObject }
         selectedUser: null,
         chatUsers: [],
+        selectedChatTheme: { id: 'default', name: 'Default', backgroundImage: null },
     },
     reducers: {
+        setSelectedChatTheme: (state, action) => {
+            state.selectedChatTheme = action.payload || { name: 'Default', backgroundImage: null };
+        },
         setChatUsers: (state, action) => {
             state.chatUsers = action.payload;
         },
@@ -166,6 +170,7 @@ const chatSlice = createSlice({
 });
 
 export const {
+    setSelectedChatTheme,
     setChatUsers,
     setOnlineUsers,
     setSelectedUser,

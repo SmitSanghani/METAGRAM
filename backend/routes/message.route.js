@@ -4,7 +4,8 @@ import upload from '../middlewares/multer.js';
 import { 
     addReaction, deleteMessage, getMessages, markAsSeen, 
     sendMessage, getUnreadCounts, deleteConversation,
-    createGroup, addGroupMembers, removeGroupMember, updateGroup
+    createGroup, addGroupMembers, removeGroupMember, updateGroup,
+    updateChatTheme
 } from '../controllers/message.controller.js';
 
 const router = express.Router();
@@ -16,6 +17,7 @@ router.route("/delete/:id").delete(isAuthenticated, deleteMessage);
 router.route("/react/:id").post(isAuthenticated, addReaction);
 router.route("/unread-counts").get(isAuthenticated, getUnreadCounts);
 router.route("/delete-chat/:id").delete(isAuthenticated, deleteConversation);
+router.route("/theme").post(isAuthenticated, updateChatTheme);
 
 // Group Chat Routes
 router.route("/group/create").post(isAuthenticated, createGroup);

@@ -4,6 +4,8 @@ import { Reply, Trash2, Heart, Smile, X, Loader2, Play, FileText, Download } fro
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import { THEMES } from '@/utils/themes';
 
 const MessageBubble = ({ msg, isSender, onReply, onDelete, onReact, onScrollTo, onStoryClick, onPostClick, isHighlighted, currentUser, otherUser }) => {
     const navigate = useNavigate();
@@ -82,33 +84,40 @@ const MessageBubble = ({ msg, isSender, onReply, onDelete, onReact, onScrollTo, 
     const senderProfile = msg.senderProfilePicture || senderData?.profilePicture;
     const senderName = msg.senderUsername || senderData?.username;
 
+    const { selectedChatTheme } = useSelector(store => store.chat || {});
+    const themeConfig = THEMES.find(t => t.id === selectedChatTheme?.id) || THEMES[0];
+
     return (
         <div id={`msg-${msg._id}`} className={`group flex flex-col ${msg.reactions?.length > 0 ? 'mb-8' : 'mb-4'} ${isSender ? 'items-end' : 'items-start'} transition-all duration-500`}>
-            {otherUser?.isGroup && !isSender && (
-                <span className="text-[10px] font-black text-gray-400 mb-1 ml-10 uppercase tracking-tight">
-                    {senderName}
-                </span>
-            )}
             <div className={`flex items-end gap-1.5 max-w-[85%] ${isSender ? 'flex-row-reverse' : 'flex-row'}`}>
-                <Avatar className="w-8 h-8 shrink-0 border border-white shadow-sm mb-0.5">
+                <Avatar className={`w-8 h-8 shrink-0 border shadow-sm mb-0.5 ${themeConfig.isDark ? 'border-white/20' : 'border-white'}`}>
                     <AvatarImage src={senderProfile} className="object-cover" />
-                    <AvatarFallback className="bg-indigo-50 text-indigo-500 text-sm font-black uppercase">
+                    <AvatarFallback className={`${themeConfig.isDark ? 'bg-white/10 text-white' : 'bg-indigo-50 text-indigo-500'} text-sm font-black uppercase`}>
                         {senderName?.charAt(0) || '?'}
                     </AvatarFallback>
                 </Avatar>
 
                 {/* Message Content Container */}
                 <div className="relative flex flex-col">
+                    {/* Sender Name in Group Chat - Positioned inside or top-left of the cluster */}
+                    {otherUser?.isGroup && !isSender && (
+                        <span className={`text-[10px] font-black mb-1 ml-1 uppercase tracking-tight ${themeConfig.isDark ? 'text-white/40' : 'text-gray-400'}`}>
+                            {senderName}
+                        </span>
+                    )}
+
                     {/* Reply Preview inside bubble - Now Clickable */}
                     {msg.replyTo && (
                         <div
                             onClick={() => onScrollTo(msg.replyTo._id)}
-                            className={`mb-[-15px] pb-5 pt-2.5 px-3.5 rounded-t-[20px] text-[12px] opacity-70 flex items-center gap-2 border-x border-t cursor-pointer hover:opacity-100 transition-all ${isSender ? 'bg-indigo-700/40 border-white/5 text-white/80' : 'bg-gray-100/80 border-gray-200 text-gray-500'}`}
+                            className={`mb-[-15px] pb-5 pt-2.5 px-3.5 rounded-t-[20px] text-[12px] flex items-center gap-2 border-x border-t cursor-pointer hover:opacity-100 transition-all ${isSender 
+                                ? 'bg-black/10 border-white/10 text-white/80' 
+                                : `border-[#efefef] ${themeConfig.isDark ? 'bg-white/5 border-white/5 text-white/50' : 'bg-gray-100/80 text-gray-500'}`}`}
                         >
                             <div className="w-1 self-stretch bg-current opacity-20 rounded-full"></div>
                             <div className="truncate max-w-[200px]">
                                 <span className="font-black block text-[9px] uppercase tracking-wider mb-0.5">
-                                    Replying to {msg.replyTo.senderId?.toString() === currentUser?._id?.toString() ? "yourself" : (msg.replyTo.senderUsername || "them")}
+                                    Replying to {String(msg.replyTo.senderId) === String(currentUser?._id) ? "yourself" : (msg.replyTo.senderUsername || "them")}
                                 </span>
                                 <span className="italic">
                                     {msg.replyTo.message || (msg.replyTo.messageType === 'image' ? 'photo' : 'video')}
@@ -131,9 +140,9 @@ const MessageBubble = ({ msg, isSender, onReply, onDelete, onReact, onScrollTo, 
                             boxShadow: isHighlighted ? "0 0 25px rgba(79,70,229,0.5)" : "none"
                         } : {}}
                         transition={{ duration: 0.8, ease: "easeInOut" }}
-                        className={`relative z-10 px-4 py-2.5 rounded-[20px] text-[14.5px] leading-[1.4] shadow-sm cursor-grab active:cursor-grabbing transition-colors ${isSender
-                            ? 'bg-gradient-to-br from-[#4F46E5] to-[#6366F1] text-white rounded-br-sm'
-                            : 'bg-white border border-[#efefef] text-[#262626] rounded-bl-sm font-medium shadow-[0_1px_2px_rgba(0,0,0,0.05)]'
+                        className={`relative z-10 px-4 py-2.5 rounded-[20px] text-[14.5px] leading-[1.4] shadow-sm cursor-grab active:cursor-grabbing transition-all duration-300 ${isSender
+                            ? `${themeConfig.bubbleColor} ${themeConfig.textColor} rounded-br-sm backdrop-blur-sm`
+                            : `${themeConfig.receivedColor} ${themeConfig.receivedTextColor} rounded-bl-sm font-medium shadow-[0_1px_2px_rgba(0,0,0,0.05)] backdrop-blur-sm border border-[#efefef]/10`
                             } ${isHighlighted ? 'ring-2 ring-indigo-400 ring-offset-2' : ''}`}
                     >
                         {msg.messageType === 'image' ? (
@@ -170,33 +179,32 @@ const MessageBubble = ({ msg, isSender, onReply, onDelete, onReact, onScrollTo, 
                             </div>
                         ) : msg.messageType === 'story_reply' || msg.messageType === 'story_reaction' ? (
                             <div
-                                className="flex flex-col gap-2 min-w-[160px] max-w-[220px] cursor-pointer"
+                                className="flex flex-col gap-2 min-w-[140px] max-w-[200px] cursor-pointer"
                                 onClick={() => {
                                     if (msg.storyId) {
-                                        // Inject userId: the story belongs to the receiver of the reaction (opposite of sender)
                                         const storyOwner = isSender ? otherUser : currentUser;
                                         onStoryClick({ ...msg.storyId, userId: storyOwner });
                                     }
                                 }}
                             >
-                                <div className="relative aspect-[9/16] w-[120px] rounded-xl overflow-hidden bg-black/10 border border-white/20 shadow-inner group/story">
+                                <div className="relative aspect-[9/16] w-[100px] rounded-lg overflow-hidden bg-black/10 border border-white/20 shadow-inner group/story -mx-1 -mt-1">
                                     {msg.storyId?.mediaType === 'video' ? (
-                                        <video src={msg.storyId?.mediaUrl} className="w-full h-full object-cover opacity-80" />
+                                        <video src={msg.storyId?.mediaUrl} className="w-full h-full object-cover opacity-90" />
                                     ) : (
-                                        <img src={msg.storyId?.mediaUrl} className="w-full h-full object-cover opacity-80" />
+                                        <img src={msg.storyId?.mediaUrl} className="w-full h-full object-cover opacity-90" />
                                     )}
-                                    <div className="absolute inset-0 bg-black/20 group-hover/story:bg-black/10 transition-all flex items-center justify-center">
-                                        <span className="text-[10px] text-white/80 font-black uppercase tracking-widest bg-black/20 px-2 py-1 rounded backdrop-blur-sm border border-white/10">Story</span>
+                                    <div className="absolute inset-0 bg-black/10 group-hover/story:bg-black/5 transition-all flex items-center justify-center">
+                                        <span className="text-[9px] text-white font-black uppercase tracking-tighter bg-black/40 px-2 py-0.5 rounded backdrop-blur-sm border border-white/10">Story</span>
                                     </div>
                                 </div>
-                                <div className="flex flex-col gap-1 px-1">
-                                    <span className="text-[10px] font-black uppercase tracking-tighter opacity-50">
+                                <div className="flex flex-col gap-0.5 mt-1">
+                                    <span className={`text-[9px] font-black uppercase tracking-tighter opacity-60 ${isSender ? 'text-white' : 'text-inherit'}`}>
                                         {msg.messageType === 'story_reaction'
-                                            ? (isSender ? "You reacted to their story" : `${otherUser?.username} reacted to your story`)
-                                            : (isSender ? "You replied to their story" : `${otherUser?.username} replied to your story`)
+                                            ? (isSender ? "You reacted" : "Reacted")
+                                            : (isSender ? "You replied" : "Replied")
                                         }
                                     </span>
-                                    <span className="text-[14px]">
+                                    <span className="text-[13.5px] font-medium leading-tight">
                                         {msg.message}
                                     </span>
                                 </div>

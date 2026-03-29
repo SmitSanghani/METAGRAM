@@ -33,6 +33,16 @@ const conversationschema = new mongoose.Schema({
     groupProfilePicture: { type: String },
     groupAdmin: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     leftParticipants: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    theme: {
+        id: { type: String, default: 'default' },
+        name: { type: String, default: 'Default' },
+        backgroundImage: { type: String, default: null },
+        bubbleColor: { type: String, default: null },
+        receivedColor: { type: String, default: null },
+        textColor: { type: String, default: null },
+        receivedTextColor: { type: String, default: null },
+        isDark: { type: Boolean, default: false }
+    },
     messages: [messageSchema]
 }, { timestamps: true });
 
