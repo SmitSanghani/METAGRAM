@@ -157,7 +157,7 @@ const MessageBubble = ({ msg, isSender, onReply, onDelete, onReact, onScrollTo, 
                                 <video
                                     src={msg.mediaUrl}
                                     controls
-                                    className={`w-full max-w-[280px] h-auto object-cover transition-all ${msg.isLoading ? 'opacity-40 blur-[4px]' : ''}`}
+                                    className={`w-full max-w-[280px] h-auto object-contain transition-all ${msg.isLoading ? 'opacity-40 blur-[4px]' : ''}`}
                                     style={{ display: 'block' }}
                                 />
                                 {msg.isLoading && (
