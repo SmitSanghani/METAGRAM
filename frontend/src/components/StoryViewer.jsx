@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronLeft, ChevronRight, Eye, Trash2, Heart, Send, Star, Plus, Loader2 } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Eye, Trash2, Heart, Send, Star, Plus, Loader2, Volume2, VolumeX } from 'lucide-react';
 import api from '@/api';
 import { useSelector } from 'react-redux';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
@@ -40,6 +40,7 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
     const [localLikes, setLocalLikes] = useState([]);
     const [localComments, setLocalComments] = useState([]);
     const [isBuffering, setIsBuffering] = useState(true);
+    const [isMuted, setIsMuted] = useState(false);
 
     const { user } = useSelector(store => store.auth);
     const navigate = useNavigate();
@@ -273,9 +274,17 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
     return createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-95 backdrop-blur-md overflow-hidden">
             {/* Close Button */}
-            <button onClick={onClose} className="absolute top-6 right-6 z-50 p-2 text-white/50 hover:text-white hover:bg-white/10 rounded-full transition-all active:scale-90">
-                <X size={28} strokeWidth={2.5} />
-            </button>
+            <div className="absolute top-6 right-6 z-50 flex items-center gap-3">
+                <button 
+                    onClick={(e) => { e.stopPropagation(); setIsMuted(!isMuted); }} 
+                    className="p-2 text-white/50 hover:text-white hover:bg-white/10 rounded-full transition-all active:scale-90"
+                >
+                    {isMuted ? <VolumeX size={24} strokeWidth={2.5} /> : <Volume2 size={24} strokeWidth={2.5} />}
+                </button>
+                <button onClick={onClose} className="p-2 text-white/50 hover:text-white hover:bg-white/10 rounded-full transition-all active:scale-90">
+                    <X size={28} strokeWidth={2.5} />
+                </button>
+            </div>
 
             {/* Viewer Container */}
             <div
@@ -387,7 +396,7 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
                                     src={currentStory.mediaUrl}
                                     autoPlay
                                     playsInline
-                                    muted={true}
+                                    muted={isMuted}
                                     preload="auto"
                                     onLoadedMetadata={(e) => {
                                         setIsBuffering(false);
