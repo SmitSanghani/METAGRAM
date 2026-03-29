@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronLeft, ChevronRight, Eye, Trash2, Heart, Send, Star, Plus } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Eye, Trash2, Heart, Send, Star, Plus, Volume2, VolumeX } from 'lucide-react';
 import api from '@/api';
 import { useSelector } from 'react-redux';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
@@ -39,6 +39,7 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
     const [comment, setComment] = useState("");
     const [localLikes, setLocalLikes] = useState([]);
     const [localComments, setLocalComments] = useState([]);
+    const [isMuted, setIsMuted] = useState(true);
 
     const { user } = useSelector(store => store.auth);
     const navigate = useNavigate();
@@ -101,7 +102,7 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
                 videoRef.current.play().catch(() => {});
             }
         }
-    }, [isPaused, showActivity]);
+    }, [isPaused, showActivity, currentIndex]);
 
     // Mark as viewed on backend when index changes
     useEffect(() => {
@@ -360,19 +361,30 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
                         className="w-full h-full flex items-center justify-center pointer-events-none"
                     >
                         {currentStory.mediaType === 'video' ? (
-                            <video
-                                ref={videoRef}
-                                src={currentStory.mediaUrl}
-                                autoPlay
-                                playsInline
-                                onLoadedMetadata={(e) => {
-                                    if (e.target.duration && e.target.duration > 0 && e.target.duration !== Infinity) {
-                                        setStoryDuration(e.target.duration * 1000);
-                                    }
-                                }}
-                                onEnded={handleNext}
-                                className="w-full h-full object-cover"
-                            />
+                            <div className="relative w-full h-full">
+                                <video
+                                    ref={videoRef}
+                                    src={currentStory.mediaUrl}
+                                    autoPlay
+                                    playsInline
+                                    muted={isMuted}
+                                    preload="auto"
+                                    crossOrigin="anonymous"
+                                    onLoadedMetadata={(e) => {
+                                        if (e.target.duration && e.target.duration > 0 && e.target.duration !== Infinity) {
+                                            setStoryDuration(e.target.duration * 1000);
+                                        }
+                                    }}
+                                    onEnded={handleNext}
+                                    className="w-full h-full object-cover"
+                                />
+                                <button 
+                                    onClick={(e) => { e.stopPropagation(); setIsMuted(!isMuted); }}
+                                    className="absolute bottom-4 right-4 z-50 p-2 bg-black/40 backdrop-blur-md rounded-full text-white pointer-events-auto hover:bg-black/60 transition-all active:scale-90"
+                                >
+                                    {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                                </button>
+                            </div>
                         ) : (
                             <img
                                 src={currentStory.mediaUrl}
