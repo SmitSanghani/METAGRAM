@@ -3,7 +3,7 @@ import cloudinary from "../utils/cloudinary.js";
 import { Conversation } from "../models/conversation.model.js";
 import { Message } from "../models/message.model.js";
 import { User } from "../models/user.model.js";
-import { broadcastToUser, io } from "../socket/socket.js";
+import { broadcastToUser, io, removeFromRoom } from "../socket/socket.js";
 
 // For Chatting 
 export const sendMessage = async (req, res) => {
@@ -755,6 +755,9 @@ export const removeGroupMember = async (req, res) => {
 
         // NOTIFY THE REMOVED USER EXPLICITLY
         broadcastToUser(userId.toString(), "removed_from_group", { conversationId: conversation._id });
+
+        // FORCE REMOVE FROM SOCKET ROOM
+        removeFromRoom(userId.toString(), conversation._id.toString());
 
         res.status(200).json({ success: true, group: updatedGroup });
     } catch (error) {

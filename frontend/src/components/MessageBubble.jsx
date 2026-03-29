@@ -14,6 +14,8 @@ const MessageBubble = ({ msg, isSender, onReply, onDelete, onReact, onScrollTo, 
     const [showSeen, setShowSeen] = useState(false); // Initially hidden
     const wasAlreadySeenRef = useRef(!!msg.seen); // Track if it was already seen on mount
     const pickerRef = useRef(null);
+    const { selectedChatTheme } = useSelector(store => store.chat || {});
+    const themeConfig = THEMES.find(t => t.id === selectedChatTheme?.id) || THEMES[0];
 
     useEffect(() => {
         if (msg.seen && !wasAlreadySeenRef.current) {
@@ -83,9 +85,6 @@ const MessageBubble = ({ msg, isSender, onReply, onDelete, onReact, onScrollTo, 
     );
     const senderProfile = msg.senderProfilePicture || senderData?.profilePicture;
     const senderName = msg.senderUsername || senderData?.username;
-
-    const { selectedChatTheme } = useSelector(store => store.chat || {});
-    const themeConfig = THEMES.find(t => t.id === selectedChatTheme?.id) || THEMES[0];
 
     return (
         <div id={`msg-${msg._id}`} className={`group flex flex-col ${msg.reactions?.length > 0 ? 'mb-8' : 'mb-4'} ${isSender ? 'items-end' : 'items-start'} transition-all duration-500`}>

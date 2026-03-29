@@ -39,11 +39,13 @@ import { setPosts, updatePostCommentLikes, deletePostComment, addPostComment, up
 import { setAuthUser, setSuggestedUsers, setUserProfile, updateUserProfileReelStats, updateUserProfilePostStats } from './redux/authSlice';
 import { useLocation } from "react-router-dom";
 import api from '@/api';
+import ErrorBoundary from "./components/ErrorBoundary"
 
 const browserRouter = createBrowserRouter([
   {
     path: "/",
     element: <ProtectedRoute><MainLayout /></ProtectedRoute>,
+    errorElement: <ErrorBoundary />,
     children: [
       {
         path: '/',
@@ -82,31 +84,38 @@ const browserRouter = createBrowserRouter([
   },
   {
     path: '/login',
-    element: <AuthenticatedRoute><Login /></AuthenticatedRoute>
+    element: <AuthenticatedRoute><Login /></AuthenticatedRoute>,
+    errorElement: <ErrorBoundary />
   },
   {
     path: '/signup',
-    element: <AuthenticatedRoute><Signup /></AuthenticatedRoute>
+    element: <AuthenticatedRoute><Signup /></AuthenticatedRoute>,
+    errorElement: <ErrorBoundary />
   },
   {
     path: '/forgot-password',
-    element: <AuthenticatedRoute><ForgotPassword /></AuthenticatedRoute>
+    element: <AuthenticatedRoute><ForgotPassword /></AuthenticatedRoute>,
+    errorElement: <ErrorBoundary />
   },
   {
     path: '/verify-otp',
-    element: <AuthenticatedRoute><VerifyOTP /></AuthenticatedRoute>
+    element: <AuthenticatedRoute><VerifyOTP /></AuthenticatedRoute>,
+    errorElement: <ErrorBoundary />
   },
   {
     path: '/reset-password',
-    element: <AuthenticatedRoute><ResetPassword /></AuthenticatedRoute>
+    element: <AuthenticatedRoute><ResetPassword /></AuthenticatedRoute>,
+    errorElement: <ErrorBoundary />
   },
   {
     path: '/animation',
-    element: <AnimationPage />
+    element: <AnimationPage />,
+    errorElement: <ErrorBoundary />
   },
   {
     path: "/admin",
     element: <AdminProtectedRoute><AdminLayout /></AdminProtectedRoute>,
+    errorElement: <ErrorBoundary />,
     children: [
       {
         path: "",
@@ -643,6 +652,9 @@ function App() {
       });
 
       socketio.on('removed_from_group', ({ conversationId }) => {
+        // Force socket to leave room
+        socketio.emit('leave_room', conversationId);
+
         // Update membership state to empty participants for the local user
         // This ensures isNotAMember becomes true in ChatPage while keeping it in sidebar
         dispatch(updateChatUserMembership({ conversationId, participants: [] }));

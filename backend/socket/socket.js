@@ -131,4 +131,20 @@ export const broadcastToUser = (receiverId, event, data) => {
     }
 };
 
+// Force remove a user from a specific room (e.g. when leaving a group)
+export const removeFromRoom = (userId, roomId) => {
+    const id = String(userId);
+    const socketIds = userSocketMap[id];
+    console.log(`[SOCKET DBG] removeFromRoom ${id} - Room: ${roomId} - Found Sockets:`, socketIds);
+    if (socketIds) {
+        socketIds.forEach(sid => {
+            const socket = io.sockets.sockets.get(sid);
+            if (socket) {
+                socket.leave(String(roomId));
+                console.log(`[SOCKET] Socket ${sid} for user ${id} forced to leave room ${roomId}`);
+            }
+        });
+    }
+};
+
 export { app, io, server };
