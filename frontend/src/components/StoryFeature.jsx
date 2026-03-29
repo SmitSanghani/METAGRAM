@@ -103,7 +103,7 @@ const StoryFeature = () => {
                 className="w-full pb-2"
             >
                 {/* Your Story Bubble */}
-                <SwiperSlide className="flex flex-col items-center gap-2 cursor-pointer mt-1 ml-2">
+                <SwiperSlide className="w-[72px] !w-auto flex flex-col items-center gap-2 cursor-pointer mt-1 first:pl-2">
                     <div
                         className="relative group transition-all"
                         onClick={() => myStoryGroup ? openStoryViewer(user._id) : setIsUploadModalOpen(true)}
@@ -128,16 +128,16 @@ const StoryFeature = () => {
                             </div>
                         </div>
                     </div>
-                    <p className="text-[11px] font-semibold text-center truncate max-w-[74px] text-zinc-500 mt-1 uppercase tracking-tight">
+                    <span className="text-[12px] font-bold text-center truncate w-[74px] text-zinc-400 mt-0.5">
                         Your story
-                    </p>
+                    </span>
                 </SwiperSlide>
 
                 {/* Other Users' Stories */}
                 {otherStoryGroups.map((group) => (
                     <SwiperSlide
                         key={group.userId?._id || group.userId}
-                        className="flex flex-col items-center gap-1.5 cursor-pointer mt-1 hover:opacity-90 transition-opacity"
+                        className="w-[72px] !w-auto flex flex-col items-center gap-1.5 cursor-pointer mt-1 hover:opacity-90 transition-opacity"
                         onClick={() => openStoryViewer(group.userId?._id || group.userId)}
                     >
                         <StoryAvatar
@@ -146,9 +146,9 @@ const StoryFeature = () => {
                             stories={group.stories}
                             size={64}
                         />
-                        <p className="text-[11px] font-semibold text-center truncate max-w-[74px] text-zinc-800 mt-1">
+                        <span className="text-[12px] font-bold text-center truncate w-[74px] text-gray-800">
                             {group.userId.username}
-                        </p>
+                        </span>
                     </SwiperSlide>
                 ))}
             </Swiper>
@@ -179,4 +179,3 @@ const StoryFeature = () => {
 };
 
 export default StoryFeature;
-
