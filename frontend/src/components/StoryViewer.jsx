@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronLeft, ChevronRight, Eye, Trash2, Heart, Send, Star, Plus, Volume2, VolumeX, Loader2 } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Eye, Trash2, Heart, Send, Star, Plus, Loader2 } from 'lucide-react';
 import api from '@/api';
 import { useSelector } from 'react-redux';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
@@ -39,7 +39,6 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
     const [comment, setComment] = useState("");
     const [localLikes, setLocalLikes] = useState([]);
     const [localComments, setLocalComments] = useState([]);
-    const [isMuted, setIsMuted] = useState(true);
     const [isBuffering, setIsBuffering] = useState(true);
 
     const { user } = useSelector(store => store.auth);
@@ -388,7 +387,7 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
                                     src={currentStory.mediaUrl}
                                     autoPlay
                                     playsInline
-                                    muted={isMuted}
+                                    muted={true}
                                     preload="auto"
                                     onLoadedMetadata={(e) => {
                                         setIsBuffering(false);
@@ -402,12 +401,6 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
                                     onEnded={handleNext}
                                     className="w-full h-full object-cover rounded-none sm:rounded-2xl"
                                 />
-                                <button 
-                                    onClick={(e) => { e.stopPropagation(); setIsMuted(!isMuted); }}
-                                    className="absolute bottom-4 right-4 z-50 p-2 bg-black/40 backdrop-blur-md rounded-full text-white pointer-events-auto hover:bg-black/60 transition-all active:scale-90"
-                                >
-                                    {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
-                                </button>
                             </div>
                         ) : (
                             <div className="relative w-full h-full flex items-center justify-center">
