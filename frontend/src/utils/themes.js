@@ -5,6 +5,8 @@ import p4 from '../assets/p4.png';
 import p5 from '../assets/p5.png';
 import p6 from '../assets/p6.png';
 import p7 from '../assets/p7.jpg';
+import p8 from '../assets/p8.jpg';
+import p9 from '../assets/p9.jpg';
 
 export const THEMES = [
     {
@@ -108,6 +110,44 @@ export const THEMES = [
 
     // sender text
     textColor: 'text-black font-semibold',
+
+    // received text
+    receivedTextColor: 'text-white/90',
+
+    isDark: true
+},
+{
+    id: 'theme8',
+    name: 'Dark Eyes',
+    backgroundImage: p8,
+
+    // sender bubble
+    bubbleColor: 'bg-white/90 shadow-[0_0_10px_rgba(255,255,255,0.2)]',
+
+    // received bubble
+    receivedColor: 'bg-black/50 backdrop-blur-xl border border-white/10',
+
+    // sender text
+    textColor: 'text-black font-semibold',
+
+    // received text
+    receivedTextColor: 'text-white/90',
+
+    isDark: true
+},
+{
+    id: 'theme9',
+    name: 'Apple Dark',
+    backgroundImage: p9,
+
+    // sender bubble (gradient)
+    bubbleColor: 'bg-gradient-to-r from-gray-700 via-gray-800 to-black shadow-[0_0_10px_rgba(0,0,0,0.6)]',
+
+    // received bubble
+    receivedColor: 'bg-white/10 backdrop-blur-xl border border-white/10',
+
+    // sender text
+    textColor: 'text-white font-medium',
 
     // received text
     receivedTextColor: 'text-white/90',
