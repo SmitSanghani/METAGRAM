@@ -128,9 +128,9 @@ const StoryFeature = () => {
                             </div>
                         </div>
                     </div>
-                    <span className="text-[12px] font-bold text-center truncate w-[74px] text-zinc-400 mt-0.5">
+                    <p className="w-full text-center px-1 text-[12px] font-bold truncate text-zinc-400 mt-0.5">
                         Your story
-                    </span>
+                    </p>
                 </SwiperSlide>
 
                 {/* Other Users' Stories */}
@@ -146,9 +146,9 @@ const StoryFeature = () => {
                             stories={group.stories}
                             size={64}
                         />
-                        <span className="text-[12px] font-bold text-center truncate w-[74px] text-gray-800">
+                        <p className="w-full text-center px-1 text-[12px] font-bold truncate text-gray-800">
                             {group.userId.username}
-                        </span>
+                        </p>
                     </SwiperSlide>
                 ))}
             </Swiper>

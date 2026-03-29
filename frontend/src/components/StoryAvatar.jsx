@@ -53,7 +53,7 @@ const StoryAvatar = ({ user, currentUser, stories = [], size = 66, isYourStory =
     }
 
     return (
-        <div className="relative flex items-center justify-center transition-all group cursor-pointer" style={{ width: svgSize, height: svgSize }}>
+        <div className="relative flex items-center justify-center p-2 transition-all group cursor-pointer" style={{ width: svgSize, height: svgSize }}>
             {/* Static Ring */}
             <svg
                 width={svgSize}
