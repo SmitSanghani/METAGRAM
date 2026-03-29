@@ -36,7 +36,7 @@ export const uploadStory = async (req, res) => {
                 for (let i = 0; i < parts; i++) {
                     const start = i * 60;
                     const end = Math.min((i + 1) * 60, Math.floor(cloudResponse.duration));
-                    const splitUrl = cloudResponse.secure_url.replace('/upload/', `/upload/so_${start},eo_${end}/`);
+                    const splitUrl = cloudResponse.secure_url.replace('/upload/', `/upload/f_auto,q_auto,so_${start},eo_${end}/`);
 
                     const story = await Story.create({
                         userId,
@@ -48,9 +48,13 @@ export const uploadStory = async (req, res) => {
                     uploadedStories.push(story);
                 }
             } else {
+                const videoUrl = resourceType === 'video' 
+                    ? cloudResponse.secure_url.replace('/upload/', '/upload/f_auto,q_auto/') 
+                    : cloudResponse.secure_url;
+
                 const story = await Story.create({
                     userId,
-                    mediaUrl: cloudResponse.secure_url,
+                    mediaUrl: videoUrl,
                     mediaType: resourceType,
                     audience
                 });

@@ -104,13 +104,16 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
         }
     }, [isPaused, showActivity, currentIndex]);
 
+    const viewedSet = useRef(new Set()); // Track viewed story IDs locally
+
     // Mark as viewed on backend when index changes
     useEffect(() => {
         const currentStory = stories[currentIndex];
-        if (currentStory && !currentStory.viewedLocally) {
-            api.post(`/story/${currentStory._id}/view`, {})
+        if (currentStory && !viewedSet.current.has(currentStory?._id)) {
+            viewedSet.current.add(currentStory?._id);
+            api.post(`/story/${currentStory?._id}/view`, {})
                 .then(() => {
-                    if (onStoryViewed) onStoryViewed(currentStory._id);
+                    if (onStoryViewed) onStoryViewed(currentStory?._id);
                 }).catch(console.error);
         }
     }, [currentIndex, stories, onStoryViewed]);
@@ -363,20 +366,37 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
                         {currentStory.mediaType === 'video' ? (
                             <div className="relative w-full h-full">
                                 <video
-                                    ref={videoRef}
+                                    ref={(el) => {
+                                        if (el) {
+                                            videoRef.current = el;
+                                            // More robust play on mount
+                                            if (!isPaused && !showActivity) {
+                                                const playPromise = el.play();
+                                                if (playPromise !== undefined) {
+                                                    playPromise.catch(() => {});
+                                                }
+                                            }
+                                        }
+                                    }}
+                                    key={currentStory.mediaUrl}
                                     src={currentStory.mediaUrl}
                                     autoPlay
                                     playsInline
                                     muted={isMuted}
                                     preload="auto"
-                                    crossOrigin="anonymous"
                                     onLoadedMetadata={(e) => {
                                         if (e.target.duration && e.target.duration > 0 && e.target.duration !== Infinity) {
                                             setStoryDuration(e.target.duration * 1000);
                                         }
                                     }}
+                                    onCanPlay={() => {
+                                        // Some browsers need this additional trigger
+                                        if (videoRef.current && !isPaused && !showActivity) {
+                                            videoRef.current.play().catch(() => {});
+                                        }
+                                    }}
                                     onEnded={handleNext}
-                                    className="w-full h-full object-cover"
+                                    className="w-full h-full object-cover rounded-none sm:rounded-2xl"
                                 />
                                 <button 
                                     onClick={(e) => { e.stopPropagation(); setIsMuted(!isMuted); }}
