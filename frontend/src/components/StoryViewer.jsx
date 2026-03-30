@@ -45,6 +45,7 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
     const [storySwitchTime, setStorySwitchTime] = useState(Date.now());
     const [performanceLog, setPerformanceLog] = useState({});
     const [showLoader, setShowLoader] = useState(false);
+    const [isMetadataLoaded, setIsMetadataLoaded] = useState(false);
 
     // Utility to optimize Cloudinary URLs
     const getOptimizedMediaUrl = (url) => {
@@ -139,6 +140,12 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
 
         if (nextStoryItem?.mediaType === 'image') {
             setStoryDuration(DEFAULT_STORY_DURATION);
+            setIsMetadataLoaded(true); // Images don't have separate metadata event
+        } else {
+            // For video, reset metadata status and set a very long duration 
+            // until we know the real one to prevent timeline skipping
+            setIsMetadataLoaded(false);
+            setStoryDuration(999999); 
         }
         
         return () => clearTimeout(loaderTimeout);
@@ -468,14 +475,22 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
                                         
                                         if (duration && duration > 0 && duration !== Infinity) {
                                             setStoryDuration(duration * 1000);
+                                            setIsMetadataLoaded(true);
                                         }
                                     }}
-                                    onCanPlay={(e) => {
-                                        setIsBuffering(false);
+                                    onCanPlayThrough={(e) => {
                                         const now = Date.now();
                                         const video = e.target;
-                                        console.log(`[StoryViewer DBG] Video can play. Time from Switch: ${now - storySwitchTime}ms`);
-                                        console.log(`[StoryViewer DBG] Video State: networkState=${video.networkState}, readyState=${video.readyState}`);
+                                        console.log(`[StoryViewer DBG] Video can play through. Time from Switch: ${now - storySwitchTime}ms`);
+                                        
+                                        // Only stop buffering if we also have metadata (duration)
+                                        // Use a small delay for state sync
+                                        setTimeout(() => {
+                                            if (video.duration && video.duration !== Infinity) {
+                                                setIsBuffering(false);
+                                            }
+                                        }, 50);
+
                                         setPerformanceLog(prev => ({ ...prev, canPlay: now }));
                                     }}
                                     onWaiting={() => {
@@ -483,9 +498,14 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
                                         console.log("[StoryViewer DBG] Video waiting (buffering)...");
                                     }}
                                     onPlaying={(e) => {
-                                        setIsBuffering(false);
                                         const now = Date.now();
                                         const video = e.target;
+
+                                        // Only stop buffering if we have metadata
+                                        if (video.duration && video.duration !== Infinity && video.duration > 0) {
+                                            setIsBuffering(false);
+                                        }
+
                                         const ttff = now - storySwitchTime;
                                         console.log(`[StoryViewer DBG] Video started playing. TTFF: ${ttff}ms`);
                                         console.log(`[StoryViewer DBG] Final State: networkState=${video.networkState}, readyState=${video.readyState}`);
