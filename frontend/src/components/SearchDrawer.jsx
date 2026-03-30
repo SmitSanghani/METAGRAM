@@ -39,7 +39,7 @@ const SearchDrawer = ({ isOpen, onClose }) => {
             } else {
                 setResults([]);
             }
-        }, 500);
+        }, 100);
 
         return () => clearTimeout(delayDebounceFn);
     }, [query]);

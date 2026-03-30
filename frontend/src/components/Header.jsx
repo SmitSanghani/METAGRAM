@@ -21,7 +21,7 @@ const Header = () => {
             } else {
                 setResults([]);
             }
-        }, 500);
+        }, 100);
 
         return () => clearTimeout(delayDebounceFn);
     }, [query]);
