@@ -253,40 +253,51 @@ export const deleteStory = async (req, res) => {
 
         await Story.findByIdAndDelete(storyId);
 
-        // Delete associated messages in conversations using arrayFilters
-        try {
-            await Conversation.updateMany(
-                { "messages.storyId": storyId },
-                { $set: { "messages.$[elem].isDeleted": true } },
-                { arrayFilters: [{ "elem.storyId": storyId }] }
-            );
+        // --- Background Tasks (Don't await these to keep response fast) ---
 
-            // Also emit socket deletion update to participants of those modified conversations
-            const conversations = await Conversation.find({ "messages.storyId": storyId });
-            conversations.forEach(conv => {
-                conv.participants.forEach(pId => {
-                    const receiverSocketId = getReceiverSocketId(pId.toString());
-                    if (receiverSocketId) {
-                        // Emit an event that tells the client to fetch messages again or update UI
-                        io.to(receiverSocketId).emit('story_deleted_from_chat', storyId);
-                    }
-                });
-            });
-        } catch (convErr) { }
-
-        // Emit global story delete to followers
-        const user = await User.findById(userId).populate('followers');
-        if (user) {
-            user.followers.forEach(follower => {
-                const receiverSocketId = getReceiverSocketId(follower._id.toString());
-                if (receiverSocketId) {
-                    io.to(receiverSocketId).emit('story_deleted', { storyId, userId });
+        // 1. Delete associated messages in conversations and notify participants
+        (async () => {
+            try {
+                // Delete from Cloudinary if mediaUrl exists
+                if (story.mediaUrl) {
+                    const publicId = story.mediaUrl.split('/').pop().split('.')[0];
+                    const resourceType = story.mediaType === 'video' ? 'video' : 'image';
+                    await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
                 }
-            });
-            // Emit to self
-            const myId = getReceiverSocketId(userId);
-            if (myId) io.to(myId).emit('story_deleted', { storyId, userId });
-        }
+
+                await Conversation.updateMany(
+                    { "messages.storyId": storyId },
+                    { $set: { "messages.$[elem].isDeleted": true } },
+                    { arrayFilters: [{ "elem.storyId": storyId }] }
+                );
+
+                const conversations = await Conversation.find({ "messages.storyId": storyId });
+                conversations.forEach(conv => {
+                    conv.participants.forEach(pId => {
+                        const receiverSocketId = getReceiverSocketId(pId.toString());
+                        if (receiverSocketId) {
+                            io.to(receiverSocketId).emit('story_deleted_from_chat', storyId);
+                        }
+                    });
+                });
+
+                // 2. Emit global story delete to followers
+                const user = await User.findById(userId).populate('followers');
+                if (user) {
+                    user.followers.forEach(follower => {
+                        const receiverSocketId = getReceiverSocketId(follower._id.toString());
+                        if (receiverSocketId) {
+                            io.to(receiverSocketId).emit('story_deleted', { storyId, userId });
+                        }
+                    });
+                    // Emit to self
+                    const myId = getReceiverSocketId(userId);
+                    if (myId) io.to(myId).emit('story_deleted', { storyId, userId });
+                }
+            } catch (bgErr) {
+                console.error("Background task error in deleteStory:", bgErr);
+            }
+        })();
 
         return res.status(200).json({ message: "Story deleted", success: true });
     } catch (error) {

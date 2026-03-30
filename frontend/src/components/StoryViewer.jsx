@@ -290,15 +290,24 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
     const uniqueViewers = currentStory.viewers?.filter((v, i, a) => a.findIndex(t => t._id?.toString() === v._id?.toString()) === i && v._id?.toString() !== currentStory.userId?._id?.toString()) || [];
 
     const handleDeleteStory = async () => {
+        const storyId = currentStory._id;
+        
+        // Optimistic UI: Close immediately and provide feedback
+        onClose();
+        const deletingToast = toast.loading("Deleting story...");
+
         try {
-            const res = await api.delete(`/story/${currentStory._id}`);
+            const res = await api.delete(`/story/${storyId}`);
             if (res.data.success) {
+                toast.dismiss(deletingToast);
                 toast.success(res.data.message);
-                if (onStoryDeleted) onStoryDeleted();
-                onClose(); // In a real app we'd remove it from the array without closing if there are more
+                if (onStoryDeleted) onStoryDeleted(storyId);
             }
         } catch (error) {
+            toast.dismiss(deletingToast);
             toast.error(error.response?.data?.message || 'Failed to delete story');
+            // Note: In a true optimistic system, we would revert the state here 
+            // if we didn't just close the modal. Since we closed it, we just show error.
         }
     };
 

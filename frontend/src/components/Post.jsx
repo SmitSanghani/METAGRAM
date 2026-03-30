@@ -123,28 +123,41 @@ const Post = ({ post }) => {
     }
 
     const bookmarkHandler = async () => {
+        // Optimistic Values
+        const isBookmarked = user?.bookmarks?.some(item => (item._id || item) === post._id);
+        const previousUser = { ...user };
+        const previousUserProfile = userProfile ? { ...userProfile } : null;
+
+        // 1. Update Redux Auth state immediately (Optimistically)
+        const updatedBookmarks = isBookmarked
+            ? user.bookmarks.filter(item => (item._id || item) !== post._id)
+            : [...user.bookmarks, post._id];
+        
+        dispatch(setAuthUser({ ...user, bookmarks: updatedBookmarks }));
+
+        // If user is viewing their own profile, sync the object-based bookmarks list
+        if (userProfile && userProfile._id === user._id) {
+            const updatedProfileBookmarks = isBookmarked
+                ? userProfile.bookmarks.filter(p => (p._id || p) !== post._id)
+                : [...userProfile.bookmarks, post];
+            dispatch(setUserProfile({ ...userProfile, bookmarks: updatedProfileBookmarks }));
+        }
+
         try {
             const res = await api.post(`/post/${post?._id}/bookmark`, {});
             if (res.data.success) {
                 toast.success(res.data.message);
-
-                const isBookmarked = user?.bookmarks?.some(item => (item._id || item) === post._id);
-                // Update bookmarks in redux user object :
-                const updatedBookmarks = isBookmarked
-                    ? user.bookmarks.filter(item => (item._id || item) !== post._id)
-                    : [...user.bookmarks, post._id];
-                dispatch(setAuthUser({ ...user, bookmarks: updatedBookmarks }));
-
-                // If user is viewing their own profile, sync the object-based bookmarks list
-                if (userProfile && userProfile._id === user._id) {
-                    const updatedProfileBookmarks = isBookmarked
-                        ? userProfile.bookmarks.filter(p => (p._id || p) !== post._id)
-                        : [...userProfile.bookmarks, post];
-                    dispatch(setUserProfile({ ...userProfile, bookmarks: updatedProfileBookmarks }));
-                }
+            } else {
+                throw new Error(res.data.message || "Failed to bookmark");
             }
         } catch (error) {
+            // ROLLBACK on error
+            dispatch(setAuthUser(previousUser));
+            if (previousUserProfile) {
+                dispatch(setUserProfile(previousUserProfile));
+            }
             console.log(error);
+            toast.error(error.message || "Failed to bookmark");
         }
     }
 

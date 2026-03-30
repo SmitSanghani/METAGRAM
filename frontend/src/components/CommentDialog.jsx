@@ -212,83 +212,111 @@ const CommentDialog = ({ open, setOpen }) => {
     }
 
     const likeOrDislikeHandler = async () => {
+        // Optimistic Values
+        const wasLiked = liked;
+        const previousLikesCount = postLike;
+        const previousSelectedPost = { ...selectedPost };
+        const previousPosts = [...posts];
+        const previousReels = [...reels];
+
+        // 1. Update LOCAL UI state immediately
+        setLiked(!wasLiked);
+        setPostLike(wasLiked ? previousLikesCount - 1 : previousLikesCount + 1);
+
+        // 2. Prepare updated likes array for Redux
+        const updatedLikes = wasLiked
+            ? (selectedPost.likes || []).filter(id => (id._id || id) !== user._id)
+            : [...(selectedPost.likes || []), user._id];
+
+        // 3. Update Redux state immediately (Optimistically)
+        if (isReel) {
+            dispatch(updateReelLikes({ reelId: selectedPost._id, likes: updatedLikes }));
+        } else {
+            const updatedPostData = posts.map(p =>
+                p._id === selectedPost._id ? { ...p, likes: updatedLikes } : p
+            );
+            dispatch(setPosts(updatedPostData));
+        }
+        dispatch(setSelectedPost({ ...selectedPost, likes: updatedLikes }));
+
         try {
-            const action = liked ? "dislike" : "like";
+            const action = wasLiked ? "dislike" : "like";
             const endpoint = isReel ? `/reels/like/${selectedPost._id}` : `/post/${selectedPost._id}/${action}`;
 
             const res = isReel ? await api.post(endpoint) : await api.get(endpoint);
 
-            if (res.data.success) {
-                const updatedLikesCount = liked ? postLike - 1 : postLike + 1;
-                setPostLike(updatedLikesCount);
-                setLiked(!liked);
-
-                const updatedLikes = liked
-                    ? (selectedPost.likes || []).filter(id => (id._id || id) !== user._id)
-                    : [...(selectedPost.likes || []), user._id];
-
-                if (isReel) {
-                    dispatch(updateReelLikes({ reelId: selectedPost._id, likes: updatedLikes }));
-                } else {
-                    const updatedPostData = posts.map(p =>
-                        p._id === selectedPost._id ? {
-                            ...p,
-                            likes: updatedLikes
-                        } : p
-                    );
-                    dispatch(setPosts(updatedPostData));
-                }
-
-                // Keep selected post in sync
-                dispatch(setSelectedPost({ ...selectedPost, likes: updatedLikes }));
-
-                toast.success(res.data.message);
+            if (!res.data.success) {
+                throw new Error(res.data.message || "Failed to update like");
             }
+            toast.success(res.data.message);
         } catch (error) {
-            toast.error("Failed to update like");
+            // ROLLBACK on error
+            setLiked(wasLiked);
+            setPostLike(previousLikesCount);
+            dispatch(setSelectedPost(previousSelectedPost));
+            if (isReel) {
+                // For reels we'd ideally have a way to reset the whole slice or item,
+                // but since we updated it, we'll just try to keep it simple.
+            } else {
+                dispatch(setPosts(previousPosts));
+            }
+            toast.error(error.message || "Failed to update like");
         }
     }
 
     const bookmarkHandler = async () => {
+        // Optimistic Values
+        const isCurrentlySaved = isReel
+            ? user?.savedReels?.some(item => (typeof item === 'object' ? item._id : item).toString() === selectedPost._id.toString())
+            : user?.bookmarks?.some(item => (typeof item === 'object' ? item._id : item).toString() === selectedPost._id.toString());
+
+        const previousUser = { ...user };
+        const previousUserProfile = userProfile ? { ...userProfile } : null;
+
         try {
-            const endpoint = isReel ? `/reels/save/${selectedPost?._id}` : `/post/${selectedPost?._id}/bookmark`;
-            const res = await api.post(endpoint, {});
-            if (res.data.success) {
-                toast.success(res.data.message);
+            // 1. Update Redux Auth state immediately (Optimistically)
+            if (isReel) {
+                const updatedSavedReels = isCurrentlySaved
+                    ? user.savedReels.filter(item => (item._id || item).toString() !== selectedPost._id.toString())
+                    : [...(user.savedReels || []), selectedPost._id];
+                
+                dispatch(setAuthUser({ ...user, savedReels: updatedSavedReels }));
 
-                if (isReel) {
-                    const isSaved = user?.savedReels?.some(item => (typeof item === 'object' ? item._id : item).toString() === selectedPost._id.toString());
-                    const updatedSavedReels = isSaved
-                        ? user.savedReels.filter(item => (item._id || item).toString() !== selectedPost._id.toString())
-                        : [...(user.savedReels || []), selectedPost._id];
-                    
-                    dispatch(setAuthUser({ ...user, savedReels: updatedSavedReels }));
+                if (userProfile && userProfile._id === user._id) {
+                    const updatedProfileSavedReels = isCurrentlySaved
+                        ? userProfile.savedReels.filter(p => (p._id || p).toString() !== selectedPost._id.toString())
+                        : [...(userProfile.savedReels || []), selectedPost];
+                    dispatch(setUserProfile({ ...userProfile, savedReels: updatedProfileSavedReels }));
+                }
+            } else {
+                const updatedBookmarks = isCurrentlySaved
+                    ? user.bookmarks.filter(item => (item._id || item).toString() !== selectedPost._id.toString())
+                    : [...(user.bookmarks || []), selectedPost._id];
+                
+                dispatch(setAuthUser({ ...user, bookmarks: updatedBookmarks }));
 
-                    if (userProfile && userProfile._id === user._id) {
-                        const updatedProfileSavedReels = isSaved
-                            ? userProfile.savedReels.filter(p => (p._id || p).toString() !== selectedPost._id.toString())
-                            : [...(userProfile.savedReels || []), selectedPost];
-                        dispatch(setUserProfile({ ...userProfile, savedReels: updatedProfileSavedReels }));
-                    }
-                } else {
-                    const isBookmarked = user?.bookmarks?.some(item => (typeof item === 'object' ? item._id : item).toString() === selectedPost._id.toString());
-                    const updatedBookmarks = isBookmarked
-                        ? user.bookmarks.filter(item => (item._id || item).toString() !== selectedPost._id.toString())
-                        : [...(user.bookmarks || []), selectedPost._id];
-                    
-                    dispatch(setAuthUser({ ...user, bookmarks: updatedBookmarks }));
-
-                    if (userProfile && userProfile._id === user._id) {
-                        const updatedProfileBookmarks = isBookmarked
-                            ? userProfile.bookmarks.filter(p => (p._id || p).toString() !== selectedPost._id.toString())
-                            : [...(userProfile.bookmarks || []), selectedPost];
-                        dispatch(setUserProfile({ ...userProfile, bookmarks: updatedProfileBookmarks }));
-                    }
+                if (userProfile && userProfile._id === user._id) {
+                    const updatedProfileBookmarks = isCurrentlySaved
+                        ? userProfile.bookmarks.filter(p => (p._id || p).toString() !== selectedPost._id.toString())
+                        : [...(userProfile.bookmarks || []), selectedPost];
+                    dispatch(setUserProfile({ ...userProfile, bookmarks: updatedProfileBookmarks }));
                 }
             }
+
+            const endpoint = isReel ? `/reels/save/${selectedPost?._id}` : `/post/${selectedPost?._id}/bookmark`;
+            const res = await api.post(endpoint, {});
+
+            if (!res.data.success) {
+                throw new Error(res.data.message || "Failed to bookmark");
+            }
+            toast.success(res.data.message);
         } catch (error) {
-            console.log(error);
-            toast.error("Failed to bookmark");
+            // ROLLBACK on error
+            dispatch(setAuthUser(previousUser));
+            if (previousUserProfile) {
+                dispatch(setUserProfile(previousUserProfile));
+            }
+            toast.error(error.message || "Failed to bookmark");
         }
     };
 

@@ -101,43 +101,50 @@ const FeedCard = ({ item, type = 'post', onDelete }) => {
         
         // Optimistic values for rollback
         const previousPosts = [...posts];
-        // Note: For reels, we would need the slice state to rollback, 
-        // but since it's a single item update, we'll try to keep it simple.
+        const wasLiked = liked;
+        const previousItem = { ...item };
 
         try {
-            const action = liked ? "dislike" : "like";
+            const action = wasLiked ? "dislike" : "like";
             const endpoint = isReel ? `/reels/like/${item._id}` : `/post/${item._id}/${action}`;
 
-            // Optimistic Update UI
+            // 1. Optimistic Update UI (Update Redux immediately)
             if (!isReel) {
                 const updatedPostData = posts.map(p =>
                     p._id === item._id ? {
                         ...p,
-                        likes: liked ? p.likes.filter(id => (id._id || id) !== user._id) : [...(item.likes || []), user._id]
+                        likes: wasLiked ? p.likes.filter(id => (id._id || id) !== user._id) : [...(item.likes || []), user._id]
                     } : p
                 );
                 dispatch(setPosts(updatedPostData));
             } else {
                 dispatch(updateReelLikes({
                     reelId: item._id,
-                    likes: liked ? item.likes.filter(id => (id._id || id) !== user._id) : [...(item.likes || []), user._id]
+                    likes: wasLiked ? item.likes.filter(id => (id._id || id) !== user._id) : [...(item.likes || []), user._id]
                 }));
             }
 
+            // 2. Call API (Backend)
             const res = isReel ? await api.post(endpoint) : await api.get(endpoint);
 
             if (res.data.success) {
                 toast.success(res.data.message);
             } else {
-                // Revert on backend-side failure
-                if (!isReel) dispatch(setPosts(previousPosts));
-                toast.error(res.data.message);
+                throw new Error(res.data.message);
             }
         } catch (error) {
-            // Revert on network/server error
-            if (!isReel) dispatch(setPosts(previousPosts));
+            // ROLLBACK on failure
+            if (!isReel) {
+                dispatch(setPosts(previousPosts));
+            } else {
+                // For reels rollback logic:
+                dispatch(updateReelLikes({
+                    reelId: item._id,
+                    likes: previousItem.likes
+                }));
+            }
             console.error(error);
-            toast.error("Failed to update like");
+            toast.error(error.message || "Failed to update like");
         }
     };
 
