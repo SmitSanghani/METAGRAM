@@ -15,17 +15,17 @@ const formatTimeAgo = (date) => {
     const now = new Date();
     const then = new Date(date);
     if (isNaN(then.getTime())) return 'now';
-    
+
     const seconds = Math.floor((now - then) / 1000);
     if (seconds < 6) return 'now';
     if (seconds < 60) return `${seconds}s`;
-    
+
     const minutes = Math.floor(seconds / 60);
     if (minutes < 60) return `${minutes}m`;
-    
+
     const hours = Math.floor(minutes / 60);
     if (hours < 24) return `${hours}h`;
-    
+
     const days = Math.floor(hours / 24);
     return `${days}d`;
 };
@@ -40,7 +40,30 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
     const [localLikes, setLocalLikes] = useState([]);
     const [localComments, setLocalComments] = useState([]);
     const [isBuffering, setIsBuffering] = useState(true);
-    const [isMuted, setIsMuted] = useState(false);
+    const [isMuted, setIsMuted] = useState(true);
+    const [storyOpenTime] = useState(Date.now());
+    const [storySwitchTime, setStorySwitchTime] = useState(Date.now());
+    const [performanceLog, setPerformanceLog] = useState({});
+    const [showLoader, setShowLoader] = useState(false);
+
+    // Utility to optimize Cloudinary URLs
+    const getOptimizedMediaUrl = (url) => {
+        if (!url) return url;
+        // Check for existing transformations
+        const hasTransformations = url.includes('/upload/v') || url.includes('/upload/');
+        const isCloudinary = url.includes('cloudinary.com');
+        
+        console.log(`[StoryViewer DBG] Cloudinary URL Check:`, {
+            url,
+            isCloudinary,
+            hasTransformations,
+            isMP4: url.endsWith('.mp4'),
+            isHLS: url.endsWith('.m3u8')
+        });
+
+        // Temporarily bypassing optimization to eliminate it as a suspect for the loading hang
+        return url;
+    };
 
     const { user } = useSelector(store => store.auth);
     const navigate = useNavigate();
@@ -48,6 +71,7 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
     const progressRef = useRef(progress);
     const isPausedRef = useRef(isPaused);
     const showActivityRef = useRef(showActivity);
+    const isBufferingRef = useRef(isBuffering);
     const storyDurationRef = useRef(storyDuration);
     const touchStartX = useRef(null);
     const touchEndX = useRef(null);
@@ -59,16 +83,21 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
         progressRef.current = progress;
         isPausedRef.current = isPaused;
         showActivityRef.current = showActivity;
+        isBufferingRef.current = isBuffering;
         storyDurationRef.current = storyDuration;
-    }, [progress, isPaused, showActivity, storyDuration]);
+    }, [progress, isPaused, showActivity, isBuffering, storyDuration]);
 
     useEffect(() => {
-        if (isPaused || showActivity) return;
+        // PAUSE TIMER IF BUFFERING, PAUSED, OR SHOWING ACTIVITY
+        if (isPaused || showActivity || isBuffering) {
+            if (isBuffering) console.log("[StoryViewer] Timer paused: Buffering...");
+            return;
+        }
 
         const duration = storyDuration;
         const startProgress = progress;
         const startTime = Date.now();
-        
+
         let animationFrame;
         const animate = () => {
             const now = Date.now();
@@ -87,11 +116,32 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
 
         animationFrame = requestAnimationFrame(animate);
         return () => cancelAnimationFrame(animationFrame);
-    }, [currentIndex, isPaused, showActivity, storyDuration]);
+    }, [currentIndex, isPaused, showActivity, isBuffering, storyDuration]);
 
     useEffect(() => {
-        // Reset story duration on index change (progress reset handled in navigation)
-        setStoryDuration(DEFAULT_STORY_DURATION);
+        // Reset story duration and set buffering based on media type
+        const nextStoryItem = stories[currentIndex];
+        setIsBuffering(true); // Default to true when switching
+        setShowLoader(false); // Reset loader delay
+        
+        // Timer for showing the loader after 400ms to avoid flicker
+        const loaderTimeout = setTimeout(() => {
+            if (isBufferingRef.current) setShowLoader(true);
+        }, 400);
+
+        const now = Date.now();
+        setStorySwitchTime(now);
+        setPerformanceLog({
+            switchStarted: now,
+            mediaUrl: nextStoryItem?.mediaUrl,
+            mediaType: nextStoryItem?.mediaType
+        });
+
+        if (nextStoryItem?.mediaType === 'image') {
+            setStoryDuration(DEFAULT_STORY_DURATION);
+        }
+        
+        return () => clearTimeout(loaderTimeout);
     }, [currentIndex]);
 
     // Handle video play/pause sync
@@ -100,7 +150,10 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
             if (isPaused || showActivity) {
                 videoRef.current.pause();
             } else {
-                videoRef.current.play().catch(() => {});
+                videoRef.current.play().catch(() => {
+                    // Browser policy fallback
+                    console.warn("[StoryViewer] Play failed. Checking if sound-interaction needed.");
+                });
             }
         }
     }, [isPaused, showActivity, currentIndex]);
@@ -124,6 +177,7 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
     useEffect(() => {
         const currentStory = stories[currentIndex];
         if (currentStory) {
+            console.log(`[StoryViewer DBG] Story #${currentIndex} opened. Type: ${currentStory.mediaType}. Total time since viewer open: ${(Date.now() - storyOpenTime) / 1000}s`);
             setLocalLikes(currentStory.likes || []);
             setLocalComments(currentStory.comments || []);
         }
@@ -256,7 +310,7 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
     const onTouchEnd = () => {
         setIsPaused(false);
         if (!touchStartX.current || !touchEndX.current) return;
-        
+
         const distance = touchStartX.current - touchEndX.current;
         const isLeftSwipe = distance > minSwipeDistance;
         const isRightSwipe = distance < -minSwipeDistance;
@@ -275,8 +329,8 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-95 backdrop-blur-md overflow-hidden">
             {/* Close Button */}
             <div className="absolute top-6 right-6 z-50 flex items-center gap-3">
-                <button 
-                    onClick={(e) => { e.stopPropagation(); setIsMuted(!isMuted); }} 
+                <button
+                    onClick={(e) => { e.stopPropagation(); setIsMuted(!isMuted); }}
                     className="p-2 text-white/50 hover:text-white hover:bg-white/10 rounded-full transition-all active:scale-90"
                 >
                     {isMuted ? <VolumeX size={24} strokeWidth={2.5} /> : <Volume2 size={24} strokeWidth={2.5} />}
@@ -313,7 +367,7 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
                 {/* Header (User Identity) */}
                 <div className="absolute top-[20px] inset-x-0 px-[12px] z-20 flex items-center justify-between pointer-events-none">
                     <div className="flex items-center gap-[10px] pointer-events-auto">
-                        <Avatar 
+                        <Avatar
                             className="w-[32px] h-[32px] border border-white/20 shadow-md cursor-pointer transition-transform active:scale-95"
                             onClick={() => navigate(`/profile/${currentStory.userId._id}`)}
                         >
@@ -323,7 +377,7 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
                             </AvatarFallback>
                         </Avatar>
                         <div className="flex items-center gap-[5px]">
-                            <span 
+                            <span
                                 className="text-white font-bold text-[14px] hover:underline cursor-pointer drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]"
                                 onClick={() => navigate(`/profile/${currentStory.userId._id}`)}
                             >
@@ -343,7 +397,7 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
 
                     {/* Add to Story Button (Top Right Header Area) */}
                     {isOwner && (
-                        <button 
+                        <button
                             onClick={(e) => { e.stopPropagation(); onAddStory?.(); }}
                             className="pointer-events-auto p-1 text-white hover:bg-white/20 rounded-full transition-all active:scale-90"
                         >
@@ -365,7 +419,7 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
                 />
 
                 {/* Media Content */}
-                <AnimatePresence mode="wait">
+                <AnimatePresence mode="popLayout" initial={false}>
                     <motion.div
                         key={currentIndex}
                         initial={{ opacity: 0, scale: 0.95 }}
@@ -375,7 +429,7 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
                     >
                         {currentStory.mediaType === 'video' ? (
                             <div className="relative w-full h-full flex items-center justify-center">
-                                {isBuffering && (
+                                {isBuffering && showLoader && (
                                     <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/20">
                                         <Loader2 className="w-10 h-10 text-white/50 animate-spin" />
                                     </div>
@@ -384,52 +438,112 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
                                     ref={(el) => {
                                         if (el) {
                                             videoRef.current = el;
-                                            if (!isPaused && !showActivity) {
-                                                const playPromise = el.play();
-                                                if (playPromise !== undefined) {
-                                                    playPromise.catch(() => {});
-                                                }
-                                            }
+                                            // Auto-play attempt is already handled in the dedicated useEffect, 
+                                            // but we keep this here as a fallback for the first frame.
                                         }
                                     }}
                                     key={currentStory.mediaUrl}
-                                    src={currentStory.mediaUrl}
+                                    src={getOptimizedMediaUrl(currentStory.mediaUrl)}
                                     autoPlay
                                     playsInline
                                     muted={isMuted}
                                     preload="auto"
+                                    crossOrigin="anonymous"
+                                    onLoadStart={() => {
+                                        setIsBuffering(true);
+                                        const now = Date.now();
+                                        console.log(`[StoryViewer DBG] Video load start: ${currentStory.mediaUrl}`);
+                                        console.log(`[StoryViewer DBG] Time from Switch to LoadStart: ${now - storySwitchTime}ms`);
+                                        setPerformanceLog(prev => ({ ...prev, loadStart: now }));
+                                    }}
                                     onLoadedMetadata={(e) => {
-                                        setIsBuffering(false);
-                                        if (e.target.duration && e.target.duration > 0 && e.target.duration !== Infinity) {
-                                            setStoryDuration(e.target.duration * 1000);
+                                        const now = Date.now();
+                                        const video = e.target;
+                                        const duration = video.duration;
+                                        console.log(`[StoryViewer DBG] Metadata loaded. Duration: ${duration}s`);
+                                        console.log(`[StoryViewer DBG] Time from Switch to Metadata: ${now - storySwitchTime}ms`);
+                                        console.log(`[StoryViewer DBG] Video State: networkState=${video.networkState}, readyState=${video.readyState}`);
+                                        
+                                        setPerformanceLog(prev => ({ ...prev, loadedMetadata: now }));
+                                        
+                                        if (duration && duration > 0 && duration !== Infinity) {
+                                            setStoryDuration(duration * 1000);
                                         }
                                     }}
-                                    onCanPlay={() => setIsBuffering(false)}
-                                    onWaiting={() => setIsBuffering(true)}
-                                    onPlaying={() => setIsBuffering(false)}
-                                    onEnded={handleNext}
+                                    onCanPlay={(e) => {
+                                        setIsBuffering(false);
+                                        const now = Date.now();
+                                        const video = e.target;
+                                        console.log(`[StoryViewer DBG] Video can play. Time from Switch: ${now - storySwitchTime}ms`);
+                                        console.log(`[StoryViewer DBG] Video State: networkState=${video.networkState}, readyState=${video.readyState}`);
+                                        setPerformanceLog(prev => ({ ...prev, canPlay: now }));
+                                    }}
+                                    onWaiting={() => {
+                                        setIsBuffering(true);
+                                        console.log("[StoryViewer DBG] Video waiting (buffering)...");
+                                    }}
+                                    onPlaying={(e) => {
+                                        setIsBuffering(false);
+                                        const now = Date.now();
+                                        const video = e.target;
+                                        const ttff = now - storySwitchTime;
+                                        console.log(`[StoryViewer DBG] Video started playing. TTFF: ${ttff}ms`);
+                                        console.log(`[StoryViewer DBG] Final State: networkState=${video.networkState}, readyState=${video.readyState}`);
+                                        
+                                        setPerformanceLog(prev => ({ 
+                                            ...prev, 
+                                            playing: now,
+                                            ttff
+                                        }));
+                                    }}
+                                    onEnded={() => {
+                                        console.log("[StoryViewer DBG] Video ended.");
+                                        handleNext();
+                                    }}
                                     className="w-full h-full object-cover rounded-none sm:rounded-2xl"
                                 />
                             </div>
                         ) : (
                             <div className="relative w-full h-full flex items-center justify-center">
                                 <img
-                                    src={currentStory.mediaUrl}
+                                    src={getOptimizedMediaUrl(currentStory.mediaUrl)}
                                     alt="story"
                                     className="w-full h-full object-cover"
-                                    onLoad={() => setIsBuffering(false)}
+                                    onLoad={() => {
+                                        setIsBuffering(false);
+                                        console.log(`[StoryViewer DBG] Image loaded. Total time elapsed: ${(Date.now() - storyOpenTime) / 1000}s`);
+                                    }}
                                 />
                             </div>
                         )}
                     </motion.div>
                 </AnimatePresence>
+ 
+                {/* Preloader for the next story */}
+                <div className="hidden pointer-events-none opacity-0 invisible" aria-hidden="true">
+                    {stories[currentIndex + 1] && (
+                        stories[currentIndex + 1].mediaType === 'video' ? (
+                            <video 
+                                key={`preload-${stories[currentIndex + 1].mediaUrl}`}
+                                src={getOptimizedMediaUrl(stories[currentIndex + 1].mediaUrl)} 
+                                preload="auto" 
+                                muted 
+                            />
+                        ) : (
+                            <img 
+                                key={`preload-${stories[currentIndex + 1].mediaUrl}`}
+                                src={getOptimizedMediaUrl(stories[currentIndex + 1].mediaUrl)} 
+                            />
+                        )
+                    )}
+                </div>
 
                 {/* Bottom Bar for Non-Owners (Like & Reply) */}
                 {!isOwner && (
                     <div className="absolute bottom-0 inset-x-0 p-4 pb-10 z-30 flex items-center gap-4 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
-                        <div className="flex-1 relative flex items-center rounded-full border border-white/30 bg-black/40 backdrop-blur-lg px-5 py-3 transition-all focus-within:bg-black/60 focus-within:border-white/50" 
-                             onClick={(e) => e.stopPropagation()}
-                             onMouseDown={(e) => e.stopPropagation()}
+                        <div className="flex-1 relative flex items-center rounded-full border border-white/30 bg-black/40 backdrop-blur-lg px-5 py-3 transition-all focus-within:bg-black/60 focus-within:border-white/50"
+                            onClick={(e) => e.stopPropagation()}
+                            onMouseDown={(e) => e.stopPropagation()}
                         >
                             <form onSubmit={handleStoryReply} className="w-full flex">
                                 <input

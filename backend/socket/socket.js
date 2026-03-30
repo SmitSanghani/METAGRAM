@@ -148,21 +148,32 @@ export const broadcastToUser = (receiverId, event, data) => {
 export const removeFromRoom = (userId, roomId) => {
     const id = String(userId);
     const socketIds = userSocketMap[id];
-    console.log(`[SOCKET DBG] removeFromRoom ${id} - Room: ${roomId} - Found Sockets:`, socketIds);
-    if (socketIds) {
+    console.log(`[SOCKET DBG] removeFromRoom attempt for User: ${id}, Room: ${roomId}`);
+    if (socketIds && socketIds.length > 0) {
+        console.log(`[SOCKET DBG] User ${id} has ${socketIds.length} active sockets:`, socketIds);
         socketIds.forEach(sid => {
             const socket = io.sockets.sockets.get(sid);
             if (socket) {
                 socket.leave(String(roomId));
-                console.log(`[SOCKET] Socket ${sid} for user ${id} forced to leave room ${roomId}`);
+                console.log(`[SOCKET] Socket ${sid} for user ${id} FORCED to leave room ${roomId}`);
+            } else {
+                console.warn(`[SOCKET] Could not find socket object for ID ${sid}`);
             }
         });
+    } else {
+        console.warn(`[SOCKET DBG] removeFromRoom: No active sockets found for User ${id}`);
     }
 };
 
 // Securely broadcast to all current participants of a conversation (avoids room leaks)
 export const broadcastToRoomParticipants = (participants, event, data) => {
-    if (!participants || !Array.isArray(participants)) return;
+    if (!participants || !Array.isArray(participants)) {
+        console.warn(`[SOCKET DBG] broadcastToRoomParticipants: Invalid participants array`, participants);
+        return;
+    }
+    const participantIds = participants.map(p => p._id ? p._id.toString() : p.toString());
+    console.log(`[SOCKET DBG] Broadcasting ${event} to ${participantIds.length} participants:`, participantIds);
+    
     participants.forEach(p => {
         const id = p._id ? p._id.toString() : p.toString();
         broadcastToUser(id, event, data);

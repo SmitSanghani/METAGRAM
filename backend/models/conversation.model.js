@@ -43,6 +43,20 @@ const conversationschema = new mongoose.Schema({
         receivedTextColor: { type: String, default: null },
         isDark: { type: Boolean, default: false }
     },
+    leftAtThemes: {
+        type: Map,
+        of: {
+            id: String,
+            name: String,
+            backgroundImage: String,
+            bubbleColor: String,
+            receivedColor: String,
+            textColor: String,
+            receivedTextColor: String,
+            isDark: Boolean
+        },
+        default: {}
+    },
     messages: [messageSchema]
 }, { timestamps: true });
 

@@ -9,7 +9,7 @@ import api from '@/api';
 import { toast } from 'sonner';
 import { toggleMuteUserAction } from '../redux/authSlice';
 import Swal from 'sweetalert2';
-import { setMessages, addMessage, updateMessageStatus, updateReactions, markUnsent, markStoryUnsent, incrementUnreadCount, clearUnreadCount, updateLastMessage, removeTempMessage, setSelectedUser, setChatUsers, reorderUsers, updateChatUserConversation, addChatUser, clearChat, clearChatLocally, setSelectedChatTheme } from '../redux/chatSlice';
+import { setMessages, addMessage, updateMessageStatus, updateReactions, markUnsent, markStoryUnsent, incrementUnreadCount, clearUnreadCount, updateLastMessage, removeTempMessage, setSelectedUser, setChatUsers, reorderUsers, updateChatUserConversation, addChatUser, clearChat, clearChatLocally, setSelectedChatTheme, updateChatUserMembership } from '../redux/chatSlice';
 import ScrollToBottom from 'react-scroll-to-bottom';
 import MessageBubble from './MessageBubble';
 import useGetChatUsers from '@/hooks/useGetChatUsers';
@@ -56,6 +56,7 @@ const ChatPage = () => {
     const [groupSearchResults, setGroupSearchResults] = useState([]);
     const [isGroupInfoOpen, setIsGroupInfoOpen] = useState(false);
     const searchInputRef = useRef(null);
+    const typingTimeout = useRef(null);
     const currentUserId = String(user?._id || user?.id || "");
     const isNotAMember = selectedUser?.isGroup && (
         !selectedUser?.participants?.some(p => String(p?._id || p) === currentUserId) &&
@@ -82,8 +83,14 @@ const ChatPage = () => {
         localStorage.setItem('lastChatUserId', targetUser._id);
         dispatch(clearUnreadCount(String(targetUser._id)));
 
-        // Immediate sync with backend
-        api.get(`/message/seen/${targetUser._id}`).catch(() => { });
+        // Immediate sync with backend (only if member)
+        const isTargetNotMember = targetUser?.isGroup &&
+            !targetUser?.participants?.some(p => String(p?._id || p) === currentUserId) &&
+            !targetUser?.groupAdmin?.some(a => String(a?._id || a) === currentUserId);
+
+        if (!isTargetNotMember) {
+            api.get(`/message/seen/${targetUser._id}`).catch(() => { });
+        }
 
         // Join conversation room immediately if we already know the conversationId
         if (socket && targetUser.conversationId) {
@@ -114,6 +121,13 @@ const ChatPage = () => {
         const targetId = String(selectedUser?._id);
         if (!targetId || targetId === '[object Object]' || targetId === 'undefined') return;
 
+        // Skip fetch if we already know we are not a member of this group
+        if (isNotAMember) {
+            console.log(`[ChatPage] Skipping fetch for ${targetId} - User is no longer a member.`);
+            dispatch(setMessages([]));
+            return;
+        }
+
         console.log(`[ChatPage] Loading chat with ${selectedUser.username} (${targetId})`);
         let isCancelled = false;
 
@@ -133,14 +147,22 @@ const ChatPage = () => {
                     }
                 }
             } catch (error) {
-                if (!isCancelled) console.error("[ChatPage] Error fetching messages:", error);
+                if (!isCancelled) {
+                    if (error.response?.status === 403) {
+                        // User was likely removed, clear history
+                        dispatch(setMessages([]));
+                        console.warn("[ChatPage] Unauthorized fetch: User is not a member.");
+                    } else {
+                        console.error("[ChatPage] Error fetching messages:", error);
+                    }
+                }
             } finally {
                 if (!isCancelled) setIsLoadingMessages(false);
             }
         };
         fetchChatMessages();
         return () => { isCancelled = true; };
-    }, [selectedUser?._id, dispatch, socket]);
+    }, [selectedUser?._id, isNotAMember, dispatch, socket]);
 
     // Fetch user stories for the header
     useEffect(() => {
@@ -220,7 +242,7 @@ const ChatPage = () => {
     }, [messages, selectedUser]);
 
     const markAsSeen = async () => {
-        if (!selectedUser) return;
+        if (!selectedUser || isNotAMember) return;
         try {
             await api.get(`/message/seen/${selectedUser._id}`);
             if (socket) {
@@ -489,9 +511,9 @@ const ChatPage = () => {
             const currentUserId = String(user?._id);
 
             // 1. Group Logic: Match by conversationId (Only if we are still a member)
-            const isGroupMatch = selectedUser?.isGroup && 
-                                String(newMessage.conversationId) === String(selectedUser.conversationId) && 
-                                !isNotAMember;
+            const isGroupMatch = selectedUser?.isGroup &&
+                String(newMessage.conversationId) === String(selectedUser.conversationId) &&
+                !isNotAMember;
 
             // 2. 1v1 Logic: EXACT Match (One side is ME, other side is SELECTED USER)
             const isMeAndSelectedUser = !selectedUser?.isGroup && (
@@ -580,6 +602,21 @@ const ChatPage = () => {
             }
         };
 
+        const handleRemovedFromGroup = ({ conversationId }) => {
+            console.log(`[ChatPage] Received removed_from_group for ${conversationId}`);
+            if (selectedUser?.isGroup && String(selectedUser._id) === String(conversationId)) {
+                // Update local selectedUser state so UI reflects "no longer a member"
+                const updatedParticipants = selectedUser.participants?.filter(p => String(p._id || p) !== currentUserId) || [];
+                dispatch(updateChatUserMembership({ conversationId, participants: updatedParticipants }));
+                toast.error("You are no longer a member of this group.");
+            }
+        };
+
+        const handleGroupUpdated = (updatedGroup) => {
+            console.log(`[ChatPage] Received group_updated for ${updatedGroup._id}`);
+            dispatch(updateChatUserMembership({ conversationId: updatedGroup._id, participants: updatedGroup.participants }));
+        };
+
         socket.on('receive_message', handleIncomingMessage);
         socket.on('message_reaction_added', handleReactionAdded);
         socket.on('message_deleted', handleDeletedMessage);
@@ -587,6 +624,8 @@ const ChatPage = () => {
         socket.on('user_typing', handleUserTyping);
         socket.on('user_stopped_typing', handleUserStoppedTyping);
         socket.on('update_theme', handleThemeUpdate);
+        socket.on('removed_from_group', handleRemovedFromGroup);
+        socket.on('group_updated', handleGroupUpdated);
 
         return () => {
             socket.off('receive_message', handleIncomingMessage);
@@ -596,6 +635,8 @@ const ChatPage = () => {
             socket.off('user_typing', handleUserTyping);
             socket.off('user_stopped_typing', handleUserStoppedTyping);
             socket.off('update_theme', handleThemeUpdate);
+            socket.off('removed_from_group', handleRemovedFromGroup);
+            socket.off('group_updated', handleGroupUpdated);
         };
     }, [dispatch, socket, selectedUser, user?._id]);
 
@@ -892,7 +933,17 @@ const ChatPage = () => {
                                 >
                                     <Trash2 size={20} />
                                 </Button>
-                                <Button variant="ghost" size="icon" onClick={() => dispatch(setSelectedUser(null))} className="rounded-full w-10 h-10 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"><X size={20} /></Button>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                        localStorage.removeItem('lastChatUserId');
+                                        dispatch(setSelectedUser(null));
+                                    }}
+                                    className="rounded-full w-10 h-10 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
+                                >
+                                    <X size={20} />
+                                </Button>
                             </div>
                         </div>
 
@@ -1252,15 +1303,15 @@ const ChatPage = () => {
                             setContextMenu(prev => ({ ...prev, visible: false }));
                         }}
                         className={`w-full flex items-center gap-3 px-4 py-2.5 transition-colors group ${contextMenu.targetUser?.isGroup && (
-                                contextMenu.targetUser?.participants?.some(p => String(p._id || p) === String(user?._id)) ||
-                                contextMenu.targetUser?.groupAdmin?.some(a => String(a) === String(user?._id))
-                            ) ? 'opacity-40 grayscale cursor-not-allowed' : 'hover:bg-red-50 text-red-600'
+                            contextMenu.targetUser?.participants?.some(p => String(p._id || p) === String(user?._id)) ||
+                            contextMenu.targetUser?.groupAdmin?.some(a => String(a) === String(user?._id))
+                        ) ? 'opacity-40 grayscale cursor-not-allowed' : 'hover:bg-red-50 text-red-600'
                             }`}
                     >
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${contextMenu.targetUser?.isGroup && (
-                                contextMenu.targetUser?.participants?.some(p => String(p._id || p) === String(user?._id)) ||
-                                contextMenu.targetUser?.groupAdmin?.some(a => String(a) === String(user?._id))
-                            ) ? 'bg-gray-100 text-gray-400' : 'bg-red-50 text-red-500 group-hover:bg-white'
+                            contextMenu.targetUser?.participants?.some(p => String(p._id || p) === String(user?._id)) ||
+                            contextMenu.targetUser?.groupAdmin?.some(a => String(a) === String(user?._id))
+                        ) ? 'bg-gray-100 text-gray-400' : 'bg-red-50 text-red-500 group-hover:bg-white'
                             }`}>
                             <Trash2 size={16} />
                         </div>

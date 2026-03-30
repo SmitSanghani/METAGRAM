@@ -32,7 +32,7 @@ import { toast } from "sonner";
 import { Avatar, AvatarImage, AvatarFallback } from "./components/ui/avatar";
 import { X } from "lucide-react";
 import { setSocket } from "./redux/socketSlice";
-import { setOnlineUsers, incrementUnreadCount, setBulkUnreadCounts, updateLastMessage, addMessage, updateMessageStatus, reorderUsers, updateChatUserConversation, clearUnreadCount, addChatUser, updateReactions, markUnsent, setChatUsers } from "./redux/chatSlice";
+import { setOnlineUsers, incrementUnreadCount, setBulkUnreadCounts, updateLastMessage, addMessage, updateMessageStatus, reorderUsers, updateChatUserConversation, clearUnreadCount, addChatUser, updateReactions, markUnsent, setChatUsers, setSelectedUser, updateChatUserMembership } from "./redux/chatSlice";
 import { addNotification, setNotifications } from "./redux/notificationSlice";
 import { updateReelLikes, addReelComment, deleteReelComment, editReelComment, updateReelViews, updateReelCommentLikes } from "./redux/reelSlice";
 import { setPosts, updatePostCommentLikes, deletePostComment, addPostComment, updatePostLikes } from "./redux/postSlice";
@@ -314,11 +314,11 @@ function App() {
         if (newMessage.isGroup) {
           const groupChat = chatUsersRef.current?.find(u => String(u._id) === targetId);
           if (groupChat) {
-             const isStillMember = groupChat.participants?.some(p => String(p?._id || p) === currentUserId);
-             if (!isStillMember) {
-                console.log("[Socket] Ignoring message for group I am no longer a member of");
-                return;
-             }
+            const isStillMember = groupChat.participants?.some(p => String(p?._id || p) === currentUserId);
+            if (!isStillMember) {
+              console.log("[Socket] Ignoring message for group I am no longer a member of");
+              return;
+            }
           }
         }
 
@@ -524,74 +524,74 @@ function App() {
             createdAt: new Date().toISOString()
           };
 
-        const targetSidebarId = isGroup ? conversationId : senderId;
-        const openChatUser = selectedUserRef.current;
-        const isOnChatPage = window.location.pathname === '/chat';
-        const isViewingThisChat = isOnChatPage && openChatUser && String(openChatUser._id) === String(targetSidebarId);
+          const targetSidebarId = isGroup ? conversationId : senderId;
+          const openChatUser = selectedUserRef.current;
+          const isOnChatPage = window.location.pathname === '/chat';
+          const isViewingThisChat = isOnChatPage && openChatUser && String(openChatUser._id) === String(targetSidebarId);
 
-        // Always update sidebar state
-        dispatch(updateLastMessage({ userId: targetSidebarId, message: previewMsg }));
-        dispatch(reorderUsers(targetSidebarId));
+          // Always update sidebar state
+          dispatch(updateLastMessage({ userId: targetSidebarId, message: previewMsg }));
+          dispatch(reorderUsers(targetSidebarId));
 
-        // ✅ Show toast if NOT viewing this chat on the /chat page
-        if (!isViewingThisChat) {
-          const isMuted = user?.mutedUsers?.includes(senderId) || user?.mutedUsers?.includes(targetSidebarId);
-          if (audioRef.current && !isMuted) {
-            audioRef.current.currentTime = 0;
-            audioRef.current.play().catch(() => { });
+          // ✅ Show toast if NOT viewing this chat on the /chat page
+          if (!isViewingThisChat) {
+            const isMuted = user?.mutedUsers?.includes(senderId) || user?.mutedUsers?.includes(targetSidebarId);
+            if (audioRef.current && !isMuted) {
+              audioRef.current.currentTime = 0;
+              audioRef.current.play().catch(() => { });
+            }
+            toast.custom((t) => (
+              <div
+                onClick={() => {
+                  localStorage.setItem('lastChatUserId', targetSidebarId);
+                  window.location.href = '/chat';
+                  toast.dismiss(t);
+                }}
+                className="bg-white border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.06)] rounded-[24px] p-5 flex gap-4 relative max-w-[450px] w-full cursor-pointer hover:bg-gray-50 transition-all pointer-events-auto"
+              >
+                <div className="relative shrink-0">
+                  <Avatar className="w-14 h-14 border border-pink-50 shadow-sm">
+                    <AvatarImage src={reactorProfilePicture} className="object-cover" />
+                    <AvatarFallback className="bg-pink-100 text-pink-600 font-bold uppercase">{reactorUsername?.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                  <div className="absolute -bottom-1 -right-1 w-7 h-7 bg-white rounded-full flex items-center justify-center shadow-md border border-pink-50 text-[16px]">
+                    {emoji}
+                  </div>
+                </div>
+
+                <div className="flex flex-col flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-0.5">
+                    <span className="text-[12px] font-medium text-gray-400 capitalize">Just now</span>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); toast.dismiss(t); }}
+                      className="text-gray-300 hover:text-gray-500 transition-colors p-1"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+
+                  <span className="text-[14px] font-semibold text-gray-500 leading-none mb-1">{reactorUsername}</span>
+                  <p className="text-[16px] font-bold text-gray-900 leading-tight truncate mb-3">
+                    {isGroup ? `Reacted ${emoji} to your ${typeLabel} in Group` : `Reacted ${emoji} to your ${typeLabel}`}
+                  </p>
+
+                  <div className="flex items-center gap-4">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        localStorage.setItem('lastChatUserId', targetSidebarId);
+                        window.location.href = '/chat';
+                        toast.dismiss(t);
+                      }}
+                      className="text-[13px] font-bold text-pink-600 hover:text-pink-700 transition-colors"
+                    >
+                      View Chat
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ), { id: `react-${messageId}`, duration: 5000, position: 'top-right' });
           }
-          toast.custom((t) => (
-            <div
-              onClick={() => {
-                localStorage.setItem('lastChatUserId', targetSidebarId);
-                window.location.href = '/chat';
-                toast.dismiss(t);
-              }}
-              className="bg-white border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.06)] rounded-[24px] p-5 flex gap-4 relative max-w-[450px] w-full cursor-pointer hover:bg-gray-50 transition-all pointer-events-auto"
-            >
-              <div className="relative shrink-0">
-                <Avatar className="w-14 h-14 border border-pink-50 shadow-sm">
-                  <AvatarImage src={reactorProfilePicture} className="object-cover" />
-                  <AvatarFallback className="bg-pink-100 text-pink-600 font-bold uppercase">{reactorUsername?.charAt(0)}</AvatarFallback>
-                </Avatar>
-                <div className="absolute -bottom-1 -right-1 w-7 h-7 bg-white rounded-full flex items-center justify-center shadow-md border border-pink-50 text-[16px]">
-                  {emoji}
-                </div>
-              </div>
-
-              <div className="flex flex-col flex-1 min-w-0">
-                <div className="flex items-center justify-between mb-0.5">
-                  <span className="text-[12px] font-medium text-gray-400 capitalize">Just now</span>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); toast.dismiss(t); }}
-                    className="text-gray-300 hover:text-gray-500 transition-colors p-1"
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
-
-                <span className="text-[14px] font-semibold text-gray-500 leading-none mb-1">{reactorUsername}</span>
-                <p className="text-[16px] font-bold text-gray-900 leading-tight truncate mb-3">
-                  {isGroup ? `Reacted ${emoji} to your ${typeLabel} in Group` : `Reacted ${emoji} to your ${typeLabel}`}
-                </p>
-
-                <div className="flex items-center gap-4">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      localStorage.setItem('lastChatUserId', targetSidebarId);
-                      window.location.href = '/chat';
-                      toast.dismiss(t);
-                    }}
-                    className="text-[13px] font-bold text-pink-600 hover:text-pink-700 transition-colors"
-                  >
-                    View Chat
-                  </button>
-                </div>
-              </div>
-            </div>
-          ), { id: `react-${messageId}`, duration: 5000, position: 'top-right' });
-        }
         }
       });
 
@@ -637,7 +637,7 @@ function App() {
 
       socketio.on('group_updated', (updatedGroup) => {
         // Refresh membership status in the sidebar and main chat
-        dispatch(setChatUsers(chatUsersRef.current.map(u => 
+        dispatch(setChatUsers(chatUsersRef.current.map(u =>
           String(u._id) === String(updatedGroup._id) ? { ...u, ...updatedGroup } : u
         )));
 
@@ -654,12 +654,12 @@ function App() {
       socketio.on('added_to_group', (updatedGroup) => {
         // Re-join the socket room for this group instantly
         socketio.emit('join_room', updatedGroup._id);
-        
+
         // Refresh sidebar and open chat
         dispatch(addChatUser(updatedGroup));
         const openUser = selectedUserRef.current;
         if (openUser && String(openUser._id) === String(updatedGroup._id)) {
-           dispatch(setSelectedUser(updatedGroup));
+          dispatch(setSelectedUser(updatedGroup));
         }
       });
 
@@ -670,7 +670,7 @@ function App() {
         // Update membership state to empty participants for the local user
         // This ensures isNotAMember becomes true in ChatPage while keeping it in sidebar
         dispatch(updateChatUserMembership({ conversationId, participants: [] }));
-        
+
         const openUser = selectedUserRef.current;
         if (openUser && String(openUser._id) === String(conversationId)) {
           toast.error("You are no longer an active member of this group");

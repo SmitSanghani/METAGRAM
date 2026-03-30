@@ -24,6 +24,11 @@ export const sendMessage = async (req, res) => {
         conversation = await Conversation.findById(targetId);
         if (conversation) {
             isGroupMessage = conversation.isGroup;
+            
+            // SECURE GATE: Verify sender is a member of the group
+            if (isGroupMessage && !conversation.participants.some(p => String(p) === String(senderId))) {
+                 return res.status(403).json({ success: false, message: "You are no longer a member of this group." });
+            }
         } else {
             // 2. If not found, targetId MUST be a User ID (1v1)
             const receiver = await User.findById(targetId);
@@ -194,7 +199,7 @@ export const getMessages = async (req, res) => {
             return res.status(400).json({ success: false, message: "Invalid target ID" });
         }
 
-        // 1. Initial Fetch WITHOUT heavy population to avoid save validation errors
+        // 1. Initial Fetch
         let conversation = await Conversation.findById(targetId);
 
         if (!conversation) {
@@ -206,26 +211,49 @@ export const getMessages = async (req, res) => {
 
         if (!conversation) return res.status(200).json({ success: true, messages: [], conversationId: null });
 
-        // 2. Atomic Mark as Seen for Groups and 1v1
+        // atomic mark as seen
         const currentUserIdStr = senderId.toString();
-        if (conversation.isGroup) {
-            await Conversation.updateOne(
-                { _id: conversation._id },
-                { $addToSet: { "messages.$[elem].seenBy": senderId } },
-                { arrayFilters: [{ "elem.senderId": { $ne: senderId } }] }
-            );
-        } else {
-            const otherParticipantId = conversation.participants.find(p => p.toString() !== currentUserIdStr);
-            if (otherParticipantId) {
-                await Conversation.updateOne(
-                    { _id: conversation._id, isGroup: false },
-                    { $set: { "messages.$[elem].seen": true } },
-                    { arrayFilters: [{ "elem.senderId": otherParticipantId, "elem.seen": false }] }
-                );
+
+        // 1. Permission Gate: For groups, only show history to participants or former participants
+        const isParticipant = conversation.participants.some(p => String(p._id || p) === currentUserIdStr);
+        const wasParticipant = conversation.leftParticipants?.some(p => String(p) === currentUserIdStr);
+
+        if (conversation.isGroup && !isParticipant && !wasParticipant) {
+             console.warn(`[API DBG] Unauthorized fetch attempt for Group ${targetId} by User ${currentUserIdStr}`);
+             return res.status(403).json({ success: false, message: "You are no longer a member of this group." });
+        }
+
+        // 2. Select Theme: For former members, use the frozen theme at the time they left
+        let themeToReturn = conversation.theme;
+        if (conversation.isGroup && wasParticipant && !isParticipant) {
+            const frozenTheme = conversation.leftAtThemes?.get(currentUserIdStr);
+            if (frozenTheme && frozenTheme.id) {
+                console.log(`[API Theme] Returning frozen theme "${frozenTheme.name}" for former member ${currentUserIdStr}`);
+                themeToReturn = frozenTheme;
             }
         }
 
-        // 3. Now populate EVERYTHING for the response
+        // 3. Mark as seen (Only if currently a participant)
+        if (isParticipant) {
+            if (conversation.isGroup) {
+                await Conversation.updateOne(
+                    { _id: conversation._id },
+                    { $addToSet: { "messages.$[elem].seenBy": senderId } },
+                    { arrayFilters: [{ "elem.senderId": { $ne: senderId } }] }
+                );
+            } else {
+                const otherParticipantId = conversation.participants.find(p => p.toString() !== currentUserIdStr);
+                if (otherParticipantId) {
+                    await Conversation.updateOne(
+                        { _id: conversation._id },
+                        { $set: { "messages.$[elem].seen": true } },
+                        { arrayFilters: [{ "elem.senderId": otherParticipantId, "elem.seen": false }] }
+                    );
+                }
+            }
+        }
+
+        // 4. Now populate EVERYTHING for the response
         await conversation.populate([
             { path: 'participants', select: 'username profilePicture' },
             { path: 'messages.senderId', select: 'username profilePicture' },
@@ -235,8 +263,8 @@ export const getMessages = async (req, res) => {
             { path: 'messages.reactions.userId', select: 'username profilePicture' }
         ]);
 
-        const clearTime = conversation.clearedAt?.get(senderId.toString());
-        const filteredMessages = clearTime 
+        const clearTime = conversation.clearedAt?.get(currentUserIdStr);
+        const filteredMessages = clearTime
             ? conversation.messages.filter(msg => new Date(msg.createdAt) > new Date(clearTime))
             : conversation.messages;
 
@@ -256,7 +284,15 @@ export const getMessages = async (req, res) => {
             return msgObj;
         });
 
-        res.status(200).json({ success: true, messages: populatedMessages, conversationId: conversation._id.toString(), isGroup: conversation.isGroup, groupName: conversation.groupName, groupAdmin: conversation.groupAdmin, theme: conversation.theme });
+        res.status(200).json({ 
+            success: true, 
+            messages: populatedMessages, 
+            conversationId: conversation._id.toString(), 
+            isGroup: conversation.isGroup, 
+            groupName: conversation.groupName, 
+            groupAdmin: conversation.groupAdmin, 
+            theme: themeToReturn 
+        });
     } catch (error) {
         console.error(error);
         res.status(500).json({ success: false, message: "Internal server error" });
@@ -281,6 +317,12 @@ export const markAsSeen = async (req, res) => {
 
         if (conversation) {
             const isGroup = conversation.isGroup;
+            
+            // SECURE GATE: Verify membership for groups
+            if (isGroup && !conversation.participants.some(p => String(p) === String(userId))) {
+                return res.status(403).json({ success: false, message: "Not a member" });
+            }
+
             let targetReceiverId;
 
             if (isGroup) {
@@ -357,6 +399,11 @@ export const addReaction = async (req, res) => {
 
         const conversation = await Conversation.findOne({ "messages._id": messageId });
         if (!conversation) return res.status(404).json({ success: false });
+        
+        // SECURE GATE: Verify membership for groups
+        if (conversation.isGroup && !conversation.participants.some(p => String(p) === String(userId))) {
+            return res.status(403).json({ success: false, message: "Not a member" });
+        }
 
         const message = conversation.messages.id(messageId);
         const reactionIndex = message.reactions.findIndex(r => r.userId.toString() === userId.toString());
@@ -423,14 +470,14 @@ export const getUnreadCounts = async (req, res) => {
         conversations.forEach(conv => {
             const currentUserIdStr = String(userId);
             const clearTime = conv.clearedAt?.get(currentUserIdStr);
-            
+
             const filteredMessages = clearTime
                 ? conv.messages.filter(msg => new Date(msg.createdAt) > new Date(clearTime))
                 : conv.messages;
 
             if (conv.isGroup) {
                 // For Groups: Key is conversation ID, check seenBy array
-                const count = filteredMessages.filter(msg => 
+                const count = filteredMessages.filter(msg =>
                     String(msg.senderId) !== currentUserIdStr && !msg.seenBy.some(id => String(id) === currentUserIdStr)
                 ).length;
                 unreadCounts[conv._id.toString()] = count;
@@ -554,7 +601,7 @@ export const addGroupMembers = async (req, res) => {
         const conversation = await Conversation.findById(conversationId);
         if (!conversation) return res.status(404).json({ success: false });
         if (!conversation.isGroup) return res.status(400).json({ success: false, message: "Not a group" });
-        
+
         // Check if sender is admin
         if (!conversation.groupAdmin.some(adminId => String(adminId) === String(senderId))) {
             return res.status(403).json({ success: false, message: "Only admins can add members" });
@@ -563,23 +610,23 @@ export const addGroupMembers = async (req, res) => {
         const newMembers = targetUserIds.filter(id => !conversation.participants.some(p => String(p) === String(id)));
         if (newMembers.length > 0) {
             conversation.participants.push(...newMembers);
-            
+
             // Remove from leftParticipants if they re-joined
             if (conversation.leftParticipants) {
                 conversation.leftParticipants = conversation.leftParticipants.filter(id => !newMembers.some(nm => String(nm) === String(id)));
             }
-            
+
             // Create a "System Message" describing the additions
             const admin = await User.findById(senderId).select("username");
             const newUsers = await User.find({ _id: { $in: newMembers } }).select("username");
             const usernames = newUsers.map(u => u.username).join(", ");
-            
+
             const systemMessage = {
                 senderId: senderId,
                 message: `${admin.username} added ${usernames}`,
                 messageType: 'system'
             };
-            
+
             conversation.messages.push(systemMessage);
             await conversation.save();
 
@@ -682,7 +729,7 @@ export const removeGroupMember = async (req, res) => {
 
         const conversation = await Conversation.findById(conversationId);
         if (!conversation) return res.status(404).json({ success: false });
-        
+
         const isAdmin = conversation.groupAdmin.some(adminId => String(adminId) === String(senderId));
         const isSelf = String(senderId) === String(userId);
 
@@ -697,16 +744,34 @@ export const removeGroupMember = async (req, res) => {
 
         const removedUser = await User.findById(userId).select("username");
         const admin = await User.findById(senderId).select("username");
+
+        console.log(`[API DBG] Group Leave Request for User: ${userId} FROM Conversation: ${conversationId}`);
+        console.log(`[API DBG] Current Participants BEFORE removal:`, conversation.participants.map(p => String(p._id || p)));
         
         conversation.participants = conversation.participants.filter(id => id.toString() !== String(userId));
-        
+        console.log(`[API DBG] Remaining Participants AFTER removal:`, conversation.participants.map(p => String(p._id || p)));
+
         // Track that they left so it stays in their sidebar
         if (conversation.leftParticipants) {
             if (!conversation.leftParticipants.some(id => String(id) === String(userId))) {
                 conversation.leftParticipants.push(userId);
+                
+                // FREEZE THEME: Store the current theme for this user
+                if (conversation.leftAtThemes && conversation.theme) {
+                    conversation.leftAtThemes.set(String(userId), {
+                        id: conversation.theme.id,
+                        name: conversation.theme.name,
+                        backgroundImage: conversation.theme.backgroundImage,
+                        bubbleColor: conversation.theme.bubbleColor,
+                        receivedColor: conversation.theme.receivedColor,
+                        textColor: conversation.theme.textColor,
+                        receivedTextColor: conversation.theme.receivedTextColor,
+                        isDark: conversation.theme.isDark
+                    });
+                }
             }
         }
-        
+
         // If admin removed, assign new admin if any members left
         if (conversation.groupAdmin.some(id => String(id) === String(userId))) {
             conversation.groupAdmin = conversation.groupAdmin.filter(id => String(id) !== String(userId));
@@ -722,7 +787,7 @@ export const removeGroupMember = async (req, res) => {
             messageType: 'system'
         };
         conversation.messages.push(systemMessage);
-        
+
         await conversation.save();
         await conversation.populate('participants', 'username profilePicture');
         await conversation.populate('messages.senderId', 'username profilePicture');

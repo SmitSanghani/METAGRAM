@@ -29,6 +29,13 @@ export const uploadStory = async (req, res) => {
 
             const cloudResponse = await cloudinary.uploader.upload(dataURI, {
                 resource_type: resourceType,
+                eager: resourceType === 'video' ? [
+                    { transformation: [
+                        { fetch_format: "auto", quality: "auto" },
+                        { width: 720, crop: "limit" }
+                    ]}
+                ] : [],
+                eager_async: true // Don't block the main upload response
             });
 
             if (resourceType === 'video' && cloudResponse.duration > 60) {
