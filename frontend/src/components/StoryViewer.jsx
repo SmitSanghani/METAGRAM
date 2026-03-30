@@ -53,7 +53,7 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
         // Check for existing transformations
         const hasTransformations = url.includes('/upload/v') || url.includes('/upload/');
         const isCloudinary = url.includes('cloudinary.com');
-        
+
         console.log(`[StoryViewer DBG] Cloudinary URL Check:`, {
             url,
             isCloudinary,
@@ -124,7 +124,7 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
         const nextStoryItem = stories[currentIndex];
         setIsBuffering(true); // Default to true when switching
         setShowLoader(false); // Reset loader delay
-        
+
         // Timer for showing the loader after 400ms to avoid flicker
         const loaderTimeout = setTimeout(() => {
             if (isBufferingRef.current) setShowLoader(true);
@@ -145,9 +145,9 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
             // For video, reset metadata status and set a very long duration 
             // until we know the real one to prevent timeline skipping
             setIsMetadataLoaded(false);
-            setStoryDuration(999999); 
+            setStoryDuration(999999);
         }
-        
+
         return () => clearTimeout(loaderTimeout);
     }, [currentIndex]);
 
@@ -291,7 +291,7 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
 
     const handleDeleteStory = async () => {
         const storyId = currentStory._id;
-        
+
         // Optimistic UI: Close immediately and provide feedback
         onClose();
         const deletingToast = toast.loading("Deleting story...");
@@ -479,9 +479,9 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
                                         console.log(`[StoryViewer DBG] Metadata loaded. Duration: ${duration}s`);
                                         console.log(`[StoryViewer DBG] Time from Switch to Metadata: ${now - storySwitchTime}ms`);
                                         console.log(`[StoryViewer DBG] Video State: networkState=${video.networkState}, readyState=${video.readyState}`);
-                                        
+
                                         setPerformanceLog(prev => ({ ...prev, loadedMetadata: now }));
-                                        
+
                                         if (duration && duration > 0 && duration !== Infinity) {
                                             setStoryDuration(duration * 1000);
                                             setIsMetadataLoaded(true);
@@ -491,7 +491,7 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
                                         const now = Date.now();
                                         const video = e.target;
                                         console.log(`[StoryViewer DBG] Video can play through. Time from Switch: ${now - storySwitchTime}ms`);
-                                        
+
                                         // Only stop buffering if we also have metadata (duration)
                                         // Use a small delay for state sync
                                         setTimeout(() => {
@@ -518,9 +518,9 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
                                         const ttff = now - storySwitchTime;
                                         console.log(`[StoryViewer DBG] Video started playing. TTFF: ${ttff}ms`);
                                         console.log(`[StoryViewer DBG] Final State: networkState=${video.networkState}, readyState=${video.readyState}`);
-                                        
-                                        setPerformanceLog(prev => ({ 
-                                            ...prev, 
+
+                                        setPerformanceLog(prev => ({
+                                            ...prev,
                                             playing: now,
                                             ttff
                                         }));
@@ -547,21 +547,21 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
                         )}
                     </motion.div>
                 </AnimatePresence>
- 
+
                 {/* Preloader for the next story */}
                 <div className="hidden pointer-events-none opacity-0 invisible" aria-hidden="true">
                     {stories[currentIndex + 1] && (
                         stories[currentIndex + 1].mediaType === 'video' ? (
-                            <video 
+                            <video
                                 key={`preload-${stories[currentIndex + 1].mediaUrl}`}
-                                src={getOptimizedMediaUrl(stories[currentIndex + 1].mediaUrl)} 
-                                preload="auto" 
-                                muted 
+                                src={getOptimizedMediaUrl(stories[currentIndex + 1].mediaUrl)}
+                                preload="auto"
+                                muted
                             />
                         ) : (
-                            <img 
+                            <img
                                 key={`preload-${stories[currentIndex + 1].mediaUrl}`}
-                                src={getOptimizedMediaUrl(stories[currentIndex + 1].mediaUrl)} 
+                                src={getOptimizedMediaUrl(stories[currentIndex + 1].mediaUrl)}
                             />
                         )
                     )}
