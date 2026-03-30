@@ -17,82 +17,88 @@ const SuggestedUsers = () => {
     const [isSeeAllOpen, setIsSeeAllOpen] = useState(false);
 
     const handleFollowUnfollow = async (targetUserId) => {
-        if (pendingId) return;
-
         const isCurrentlyFollowing = user?.following?.some(u => String(u._id || u) === String(targetUserId));
+        const targetUser = suggestedUsers.find(u => String(u._id) === String(targetUserId));
+        const hasCurrentlyRequested = targetUser?.followRequests?.some(id => String(id) === String(user?._id));
+
         if (isCurrentlyFollowing) {
-            setIsSeeAllOpen(false); // Close modal if open
             const result = await Swal.fire({
                 title: 'Unfollow?',
-                text: "Are you sure you want to unfollow this user?",
+                text: `Are you sure you want to unfollow @${targetUser?.username}?`,
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#ef4444',
                 cancelButtonColor: '#94a3b8',
                 confirmButtonText: 'Unfollow',
                 background: '#ffffff',
-                borderRadius: '24px',
                 customClass: {
                     container: 'z-[99999]',
                     popup: 'rounded-[24px]',
-                    confirmButton: 'rounded-xl px-4 py-2 font-bold uppercase tracking-wider text-[11px] cursor-pointer hover:bg-red-600 transition-colors !cursor-pointer',
-                    cancelButton: 'rounded-xl px-4 py-2 font-bold uppercase tracking-wider text-[11px] cursor-pointer hover:bg-gray-400 transition-colors !cursor-pointer'
-                },
-                didRender: () => {
-                    const confirmBtn = Swal.getConfirmButton();
-                    const cancelBtn = Swal.getCancelButton();
-                    if (confirmBtn) confirmBtn.style.cursor = 'pointer';
-                    if (cancelBtn) cancelBtn.style.cursor = 'pointer';
+                    confirmButton: 'rounded-xl px-4 py-2 font-bold uppercase tracking-wider text-[11px] cursor-pointer hover:bg-red-600 transition-colors',
+                    cancelButton: 'rounded-xl px-4 py-2 font-bold uppercase tracking-wider text-[11px] cursor-pointer hover:bg-gray-400 transition-colors'
                 }
             });
-
             if (!result.isConfirmed) return;
         }
 
-        setPendingId(targetUserId);
+        // --- OPTIMISTIC UPDATE ---
+        const previousUser = { ...user };
+        const previousSuggestedUsers = [...suggestedUsers];
+
+        let updatedFollowing = [...(user.following || [])];
+        let updatedSuggestedUsers = [...suggestedUsers];
+
+        if (isCurrentlyFollowing) {
+            // Optimistic Unfollow
+            updatedFollowing = updatedFollowing.filter(u => String(u._id || u) !== String(targetUserId));
+        } else if (hasCurrentlyRequested) {
+            // Optimistic Cancel Request
+            updatedSuggestedUsers = updatedSuggestedUsers.map(u => 
+                String(u._id) === String(targetUserId) 
+                ? { ...u, followRequests: (u.followRequests || []).filter(id => String(id) !== String(user._id)) }
+                : u
+            );
+        } else {
+            // Optimistic Follow or Request
+            if (targetUser?.isPrivate) {
+                // Optimistic Request
+                updatedSuggestedUsers = updatedSuggestedUsers.map(u => 
+                    String(u._id) === String(targetUserId) 
+                    ? { ...u, followRequests: [...(u.followRequests || []), String(user._id)] }
+                    : u
+                );
+            } else {
+                // Optimistic Follow (Public)
+                if (!updatedFollowing.some(u => String(u._id || u) === String(targetUserId))) {
+                    updatedFollowing.push(targetUser);
+                }
+            }
+        }
+
+        // Apply optimistic state
+        dispatch(setAuthUser({ ...user, following: updatedFollowing }));
+        dispatch(setSuggestedUsers(updatedSuggestedUsers));
 
         try {
             const res = await api.post(`/user/followorunfollow/${targetUserId}`, {});
             if (res.data.success) {
-                let updatedFollowing = [...(user.following || [])];
-                const targetIdStr = String(targetUserId);
-
                 if (res.data.status === 'followed') {
-                    const targetUserInList = suggestedUsers.find(u => String(u._id) === targetIdStr);
-                    if (!updatedFollowing.some(u => String(u._id || u) === targetIdStr)) {
-                        updatedFollowing.push(targetUserInList);
-                    }
-                    toast.success(`Followed @${targetUserInList?.username || 'user'} successfully`);
+                    toast.success(`Followed @${targetUser?.username} successfully`);
                 } else if (res.data.status === 'unfollowed') {
-                    updatedFollowing = updatedFollowing.filter(u => String(u._id || u) !== targetIdStr);
-                    const targetUserInList = suggestedUsers.find(u => String(u._id) === targetIdStr);
-                    toast.success(`Unfollowed @${targetUserInList?.username || 'user'} successfully`);
+                    toast.success(`Unfollowed @${targetUser?.username} successfully`);
                 } else if (res.data.status === 'requested') {
-                    const targetUser = suggestedUsers.find(u => String(u._id) === targetIdStr);
-                    if (targetUser) {
-                        dispatch(updateSuggestedUser({
-                            targetUserId,
-                            updates: { followRequests: [...(targetUser.followRequests || []), String(user._id)] }
-                        }));
-                    }
                     toast.success("Follow request sent");
                 } else if (res.data.status === 'canceled') {
-                    const targetUser = suggestedUsers.find(u => String(u._id) === targetIdStr);
-                    if (targetUser) {
-                        dispatch(updateSuggestedUser({
-                            targetUserId,
-                            updates: { followRequests: (targetUser.followRequests || []).filter(id => String(id) !== String(user._id)) }
-                        }));
-                    }
                     toast.success("Follow request canceled");
                 }
-
-                dispatch(setAuthUser({ ...user, following: updatedFollowing }));
+            } else {
+                throw new Error("Action failed");
             }
         } catch (error) {
-            toast.error(error.response?.data?.message || 'Failed to action');
-        } finally {
-            setPendingId(null);
+            // Rollback on error
+            dispatch(setAuthUser(previousUser));
+            dispatch(setSuggestedUsers(previousSuggestedUsers));
+            toast.error(error.response?.data?.message || 'Failed to update follow status');
         }
     };
 
