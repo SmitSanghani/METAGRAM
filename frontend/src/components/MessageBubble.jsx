@@ -178,7 +178,7 @@ const MessageBubble = ({ msg, isSender, onReply, onDelete, onReact, onScrollTo, 
                             </div>
                         ) : msg.messageType === 'story_reply' || msg.messageType === 'story_reaction' ? (
                             <div
-                                className="flex flex-col gap-2 min-w-[140px] max-w-[200px] cursor-pointer"
+                                className="flex flex-col gap-2 min-w-[180px] max-w-[240px] cursor-pointer"
                                 onClick={() => {
                                     if (msg.storyId) {
                                         const storyOwner = isSender ? otherUser : currentUser;
@@ -186,7 +186,7 @@ const MessageBubble = ({ msg, isSender, onReply, onDelete, onReact, onScrollTo, 
                                     }
                                 }}
                             >
-                                <div className="relative aspect-[9/16] w-[100px] rounded-lg overflow-hidden bg-black/10 border border-white/20 shadow-inner group/story -mx-1 -mt-1">
+                                <div className="relative aspect-[9/16] w-full rounded-lg overflow-hidden bg-black/10 border border-white/20 shadow-inner group/story -mx-1 -mt-1">
                                     {msg.storyId?.mediaType === 'video' ? (
                                         <video src={msg.storyId?.mediaUrl} className="w-full h-full object-cover opacity-90" />
                                     ) : (

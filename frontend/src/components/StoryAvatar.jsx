@@ -53,13 +53,16 @@ const StoryAvatar = ({ user, currentUser, stories = [], size = 66, isYourStory =
     }
 
     return (
-        <div className="relative flex items-center justify-center p-2 transition-all group cursor-pointer" style={{ width: svgSize, height: svgSize }}>
+        <div 
+            className="relative flex-none flex items-center justify-center transition-all group cursor-pointer" 
+            style={{ width: svgSize, height: svgSize }}
+        >
             {/* Static Ring */}
             <svg
                 width={svgSize}
                 height={svgSize}
                 viewBox={`0 0 ${svgSize} ${svgSize}`}
-                className="absolute inset-0 transform -rotate-90 pointer-events-none"
+                className="absolute inset-0 transform -rotate-90 pointer-events-none overflow-visible"
             >
                 <defs>
                     <linearGradient id="instagram-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -78,12 +81,13 @@ const StoryAvatar = ({ user, currentUser, stories = [], size = 66, isYourStory =
                     fill="none"
                     stroke={strokeColor}
                     strokeWidth={ringWidth}
+                    strokeLinecap="round"
                 />
             </svg>
 
-            {/* Gap and Avatar */}
+            {/* Gap and Avatar Container */}
             <div
-                className="rounded-full overflow-hidden p-[3px] bg-white dark:bg-zinc-950 flex items-center justify-center"
+                className="rounded-full overflow-hidden p-[3px] bg-white dark:bg-zinc-950 flex items-center justify-center relative z-10"
                 style={{ width: size + 6, height: size + 6 }}
             >
                 <div className="w-full h-full rounded-full overflow-hidden border border-gray-100 dark:border-zinc-800 shadow-inner">

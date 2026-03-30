@@ -140,7 +140,14 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
 
         if (nextStoryItem?.mediaType === 'image') {
             setStoryDuration(DEFAULT_STORY_DURATION);
-            setIsMetadataLoaded(true); // Images don't have separate metadata event
+            setIsMetadataLoaded(true);
+            
+            // Fallback for image loading to prevent stuck timeline
+            // If image is cached, onLoad might fire instantly or weirdly
+            const imgFallback = setTimeout(() => {
+                setIsBuffering(false);
+            }, 1000); // 1.0s fallback
+            return () => clearTimeout(imgFallback);
         } else {
             // For video, reset metadata status and set a very long duration 
             // until we know the real one to prevent timeline skipping
@@ -148,6 +155,7 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
             setStoryDuration(999999);
         }
 
+        setProgress(0); // Explicitly reset progress here as well
         return () => clearTimeout(loaderTimeout);
     }, [currentIndex]);
 
