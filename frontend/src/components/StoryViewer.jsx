@@ -54,13 +54,13 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
         const hasTransformations = url.includes('/upload/v') || url.includes('/upload/');
         const isCloudinary = url.includes('cloudinary.com');
 
-        console.log(`[StoryViewer DBG] Cloudinary URL Check:`, {
-            url,
-            isCloudinary,
-            hasTransformations,
-            isMP4: url.endsWith('.mp4'),
-            isHLS: url.endsWith('.m3u8')
-        });
+        // console.log(`[StoryViewer DBG] Cloudinary URL Check:`, {
+        //     url,
+        //     isCloudinary,
+        //     hasTransformations,
+        //     isMP4: url.endsWith('.mp4'),
+        //     isHLS: url.endsWith('.m3u8')
+        // });
 
         // Temporarily bypassing optimization to eliminate it as a suspect for the loading hang
         return url;

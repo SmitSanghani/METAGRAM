@@ -28,10 +28,38 @@ const StoryUploadModal = ({ isOpen, onClose, user, onUploadSuccess }) => {
         }
     }, [isOpen, step, user?._id]);
 
-    // Cleanup URLs
+    // Reset state when modal opens
+    useEffect(() => {
+        if (isOpen) {
+            // Revoke any existing URLs from previous session
+            files.forEach(f => {
+                if (f.previewUrl) URL.revokeObjectURL(f.previewUrl);
+            });
+            
+            setFiles([]);
+            setStep(1);
+            setActiveIndex(0);
+            setCaption("");
+            setAudience('all');
+            setIsUploading(false);
+            setSearchTerm("");
+            
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
+        }
+    }, [isOpen]);
+
+    const filesRef = useRef(files);
+    useEffect(() => {
+        filesRef.current = files;
+    }, [files]);
+
     useEffect(() => {
         return () => {
-            files.forEach(f => URL.revokeObjectURL(f.previewUrl));
+            filesRef.current.forEach(f => {
+                if (f.previewUrl) URL.revokeObjectURL(f.previewUrl);
+            });
         };
     }, []);
 
