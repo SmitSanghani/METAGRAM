@@ -10,6 +10,8 @@ const server = http.createServer(app);
 const io = new Server(server, {
     cors: {
         origin: function (origin, callback) {
+            if (!origin) return callback(null, true);
+            
             const allowedOrigins = [
                 'https://metagram-nine.vercel.app',
                 'https://www.metagram-nine.vercel.app',
@@ -21,15 +23,14 @@ const io = new Server(server, {
                 allowedOrigins.push(process.env.URL);
             }
 
-            if (!origin) return callback(null, true);
-
-            const isAllowed = allowedOrigins.includes(origin);
-            const isVercel = origin.endsWith('.vercel.app');
+            const lowerOrigin = origin.trim().toLowerCase().replace(/\/$/, "");
+            const isAllowed = allowedOrigins.some(o => o.trim().toLowerCase().replace(/\/$/, "") === lowerOrigin);
+            const isVercel = /\.vercel\.app$/.test(lowerOrigin);
 
             if (isAllowed || isVercel) {
                 callback(null, true);
             } else {
-                console.log("[SOCKET] CORS blocked for origin:", origin);
+                console.warn(`[SOCKET CORS Blocked] Origin: ${origin}`);
                 callback(new Error('Not allowed by CORS'));
             }
         },

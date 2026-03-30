@@ -13,7 +13,10 @@ const connectDB = async () => {
         // Mongoose 6+ has these as default but adding serverSelectionTimeoutMS
         // to fail faster if the connection is impossible (e.g. firewall)
         const conn = await mongoose.connect(mongoUrl, {
-            serverSelectionTimeoutMS: 5000, // 5 seconds instead of 30
+            serverSelectionTimeoutMS: 10000, // 10 seconds (fail faster if bad)
+            socketTimeoutMS: 45000,          // 45 seconds
+            connectTimeoutMS: 10000,         // 10 seconds
+            family: 4,                       // Force IPv4 if IPv6 issues
         });
         
         console.log(`MongoDB Connected: ${conn.connection.host}`);

@@ -37,17 +37,16 @@ if (process.env.URL) {
 
 const corsOptions = {
     origin: function (origin, callback) {
-        // allow requests with no origin (like mobile apps or curl requests)
         if (!origin) return callback(null, true);
         
-        // Allow if in allowedOrigins OR if it's a Vercel subdomain
-        const isAllowed = allowedOrigins.includes(origin);
-        const isVercel = origin.endsWith('.vercel.app');
+        const lowerOrigin = origin.trim().toLowerCase().replace(/\/$/, "");
+        const isAllowed = allowedOrigins.some(o => o.trim().toLowerCase().replace(/\/$/, "") === lowerOrigin);
+        const isVercel = /\.vercel\.app$/.test(lowerOrigin);
 
         if (isAllowed || isVercel) {
             callback(null, true);
         } else {
-            console.log("CORS blocked for origin:", origin);
+            console.warn(`[CORS Blocked] Origin: ${origin}`);
             callback(new Error('Not allowed by CORS'));
         }
     },
@@ -55,7 +54,7 @@ const corsOptions = {
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
     exposedHeaders: ['Set-Cookie'],
-    optionsSuccessStatus: 200
+    optionsSuccessStatus: 204
 }
 app.use(cors(corsOptions));
 
