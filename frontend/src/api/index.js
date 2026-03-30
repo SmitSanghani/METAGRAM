@@ -1,4 +1,5 @@
 import axios from 'axios';
+axios.defaults.withCredentials = true;
 
 const API_BASE_URL = window.location.hostname === 'localhost' 
     ? "http://localhost:8000/api/v1" 

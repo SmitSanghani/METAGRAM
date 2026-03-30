@@ -24,17 +24,33 @@ const PORT = process.env.PORT || 3000;
 
 // app.get("/", (req, res) => {                  // if req. not use
 // 1. CORS - Must be first
+const allowedOrigins = [
+    'https://metagram-nine.vercel.app',
+    'https://www.metagram-nine.vercel.app',
+    'http://localhost:5173',
+    'http://localhost:3000'
+];
+
+if (process.env.URL) {
+    allowedOrigins.push(process.env.URL);
+}
+
 const corsOptions = {
-    origin: [
-        process.env.URL, 
-        'http://localhost:5173', 
-        'https://metagram-nine.vercel.app', 
-        'https://www.metagram-nine.vercel.app'
-    ],
+    origin: function (origin, callback) {
+        // allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            console.log("CORS blocked for origin:", origin);
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
-    exposedHeaders: ['Set-Cookie']
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+    exposedHeaders: ['Set-Cookie'],
+    optionsSuccessStatus: 200
 }
 app.use(cors(corsOptions));
 
@@ -81,9 +97,19 @@ cron.schedule('0 * * * *', async () => {
 });
 
 
-server.listen(PORT, () => {
-    connectDB();
-    console.log(`Server listen at port ${PORT}`)
-})
+const startServer = async () => {
+    try {
+        console.log('Starting server initialization...');
+        await connectDB();
+        server.listen(PORT, () => {
+            console.log(`Server listening at port ${PORT}`);
+        });
+    } catch (error) {
+        console.error("FAILED to start server due to database connection failure.");
+        process.exit(1);
+    }
+};
+
+startServer();
 
 
