@@ -251,26 +251,44 @@ const CommentDialog = ({ open, setOpen }) => {
 
     const bookmarkHandler = async () => {
         try {
-            const res = await api.post(`/post/${selectedPost?._id}/bookmark`, {});
+            const endpoint = isReel ? `/reels/save/${selectedPost?._id}` : `/post/${selectedPost?._id}/bookmark`;
+            const res = await api.post(endpoint, {});
             if (res.data.success) {
                 toast.success(res.data.message);
 
-                const isBookmarked = user?.bookmarks?.some(item => (typeof item === 'object' ? item._id : item).toString() === selectedPost._id.toString());
-                const updatedBookmarks = isBookmarked
-                    ? user.bookmarks.filter(item => (item._id || item).toString() !== selectedPost._id.toString())
-                    : [...user.bookmarks, selectedPost._id];
-                
-                dispatch(setAuthUser({ ...user, bookmarks: updatedBookmarks }));
+                if (isReel) {
+                    const isSaved = user?.savedReels?.some(item => (typeof item === 'object' ? item._id : item).toString() === selectedPost._id.toString());
+                    const updatedSavedReels = isSaved
+                        ? user.savedReels.filter(item => (item._id || item).toString() !== selectedPost._id.toString())
+                        : [...(user.savedReels || []), selectedPost._id];
+                    
+                    dispatch(setAuthUser({ ...user, savedReels: updatedSavedReels }));
 
-                if (userProfile && userProfile._id === user._id) {
-                    const updatedProfileBookmarks = isBookmarked
-                        ? userProfile.bookmarks.filter(p => (p._id || p).toString() !== selectedPost._id.toString())
-                        : [...userProfile.bookmarks, selectedPost];
-                    dispatch(setUserProfile({ ...userProfile, bookmarks: updatedProfileBookmarks }));
+                    if (userProfile && userProfile._id === user._id) {
+                        const updatedProfileSavedReels = isSaved
+                            ? userProfile.savedReels.filter(p => (p._id || p).toString() !== selectedPost._id.toString())
+                            : [...(userProfile.savedReels || []), selectedPost];
+                        dispatch(setUserProfile({ ...userProfile, savedReels: updatedProfileSavedReels }));
+                    }
+                } else {
+                    const isBookmarked = user?.bookmarks?.some(item => (typeof item === 'object' ? item._id : item).toString() === selectedPost._id.toString());
+                    const updatedBookmarks = isBookmarked
+                        ? user.bookmarks.filter(item => (item._id || item).toString() !== selectedPost._id.toString())
+                        : [...(user.bookmarks || []), selectedPost._id];
+                    
+                    dispatch(setAuthUser({ ...user, bookmarks: updatedBookmarks }));
+
+                    if (userProfile && userProfile._id === user._id) {
+                        const updatedProfileBookmarks = isBookmarked
+                            ? userProfile.bookmarks.filter(p => (p._id || p).toString() !== selectedPost._id.toString())
+                            : [...(userProfile.bookmarks || []), selectedPost];
+                        dispatch(setUserProfile({ ...userProfile, bookmarks: updatedProfileBookmarks }));
+                    }
                 }
             }
         } catch (error) {
             console.log(error);
+            toast.error("Failed to bookmark");
         }
     };
 
@@ -474,27 +492,30 @@ const CommentDialog = ({ open, setOpen }) => {
                         </div>
 
                         {/* Interactive Section (Likes/Stats) */}
-                        <div className="px-6 py-4 border-t border-gray-50 bg-white">
-                            <div className="flex items-center justify-between mb-2">
-                                <div className="flex items-center gap-4">
-                                    <button
-                                        onClick={likeOrDislikeHandler}
-                                        className="transition-transform active:scale-75"
-                                    >
-                                        {liked ? <FaHeart size={22} className="text-red-500" /> : <FaRegHeart size={22} className="text-gray-800" />}
-                                    </button>
-                                    <Send
-                                        onClick={() => setShowShare(true)}
-                                        size={22}
-                                        className="text-gray-800 cursor-pointer hover:text-indigo-600 transition-colors"
-                                    />
-                                </div>
-                                <SaveButton 
-                                    isSaved={user?.bookmarks?.some(item => (typeof item === 'object' ? item._id : item).toString() === selectedPost?._id?.toString())} 
-                                    onClick={bookmarkHandler}
-                                    size={22} 
-                                />
-                            </div>
+                <div className="px-6 py-4 border-t border-gray-50 bg-white">
+                    <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-4">
+                            <button
+                                onClick={likeOrDislikeHandler}
+                                className="transition-transform active:scale-75"
+                            >
+                                {liked ? <FaHeart size={22} className="text-red-500" /> : <FaRegHeart size={22} className="text-gray-800" />}
+                            </button>
+                            <Send
+                                onClick={() => setShowShare(true)}
+                                size={22}
+                                className="text-gray-800 cursor-pointer hover:text-indigo-600 transition-colors"
+                            />
+                        </div>
+                        <SaveButton 
+                            isSaved={isReel 
+                                ? user?.savedReels?.some(item => (typeof item === 'object' ? item._id : item).toString() === selectedPost?._id?.toString())
+                                : user?.bookmarks?.some(item => (typeof item === 'object' ? item._id : item).toString() === selectedPost?._id?.toString())
+                            } 
+                            onClick={bookmarkHandler}
+                            size={22} 
+                        />
+                    </div>
                             <div
                                 onClick={() => setShowLikers(true)}
                                 className="inline-flex items-center gap-1 cursor-pointer group"

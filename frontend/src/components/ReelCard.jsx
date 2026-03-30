@@ -12,7 +12,7 @@ import ShareReelModal from './ShareReelModal';
 import { useNavigate } from 'react-router-dom';
 import UserListModal from './UserListModal';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from './ui/dialog';
-import { removeUserProfileReel } from '@/redux/authSlice';
+import { removeUserProfileReel, setAuthUser } from '@/redux/authSlice';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
@@ -94,12 +94,27 @@ const ReelCard = ({ reel, isActive, isGlobalMuted, setIsGlobalMuted, onVideoEnd 
 
     const handleSave = async () => {
         if (!reel.allowSave && user?._id !== reel.author?._id) return;
-        setIsSaved(!isSaved);
+        
+        // Optimistic local state update
+        const newIsSaved = !isSaved;
+        setIsSaved(newIsSaved);
+
         try {
-            await api.post(`/reels/save/${reel._id}`, {});
+            const res = await api.post(`/reels/save/${reel._id}`, {});
+            if (res.data.success) {
+                // Update bookmarks/savedReels in redux user object :
+                const updatedSavedReels = newIsSaved
+                    ? [...(user.savedReels || []), reel._id]
+                    : user.savedReels.filter(item => (item._id || item).toString() !== reel._id.toString());
+                
+                    dispatch(setAuthUser({ ...user, savedReels: updatedSavedReels }));
+                
+                toast.success(res.data.message);
+            }
         } catch (error) {
-            setIsSaved(!isSaved);
+            setIsSaved(!newIsSaved); // Revert on error
             console.error(error);
+            toast.error("Failed to save reel");
         }
     };
 

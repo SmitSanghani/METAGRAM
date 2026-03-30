@@ -96,28 +96,48 @@ const PostModal = ({ open, setOpen, post: initialPost, onOpenComment }) => {
         }
     };
 
+    const isReel = post?.feedType === 'reel';
+
     const bookmarkHandler = async () => {
         try {
-            const res = await api.post(`/post/${post?._id}/bookmark`, {});
+            const endpoint = isReel ? `/reels/save/${post?._id}` : `/post/${post?._id}/bookmark`;
+            const res = await api.post(endpoint, {});
             if (res.data.success) {
                 toast.success(res.data.message);
 
-                const isBookmarked = user?.bookmarks?.some(item => (typeof item === 'object' ? item._id : item).toString() === post._id.toString());
-                const updatedBookmarks = isBookmarked
-                    ? user.bookmarks.filter(item => (item._id || item).toString() !== post._id.toString())
-                    : [...user.bookmarks, post._id];
-                
-                dispatch(setAuthUser({ ...user, bookmarks: updatedBookmarks }));
+                if (isReel) {
+                    const isSaved = user?.savedReels?.some(item => (typeof item === 'object' ? item._id : item).toString() === post._id.toString());
+                    const updatedSavedReels = isSaved
+                        ? user.savedReels.filter(item => (item._id || item).toString() !== post._id.toString())
+                        : [...(user.savedReels || []), post._id];
+                    
+                    dispatch(setAuthUser({ ...user, savedReels: updatedSavedReels }));
 
-                if (userProfile && userProfile._id === user._id) {
-                    const updatedProfileBookmarks = isBookmarked
-                        ? userProfile.bookmarks.filter(p => (p._id || p).toString() !== post._id.toString())
-                        : [...userProfile.bookmarks, post];
-                    dispatch(setUserProfile({ ...userProfile, bookmarks: updatedProfileBookmarks }));
+                    if (userProfile && userProfile._id === user._id) {
+                        const updatedProfileSavedReels = isSaved
+                            ? userProfile.savedReels.filter(p => (p._id || p).toString() !== post._id.toString())
+                            : [...(userProfile.savedReels || []), post];
+                        dispatch(setUserProfile({ ...userProfile, savedReels: updatedProfileSavedReels }));
+                    }
+                } else {
+                    const isBookmarked = user?.bookmarks?.some(item => (typeof item === 'object' ? item._id : item).toString() === post._id.toString());
+                    const updatedBookmarks = isBookmarked
+                        ? user.bookmarks.filter(item => (item._id || item).toString() !== post._id.toString())
+                        : [...(user.bookmarks || []), post._id];
+                    
+                    dispatch(setAuthUser({ ...user, bookmarks: updatedBookmarks }));
+
+                    if (userProfile && userProfile._id === user._id) {
+                        const updatedProfileBookmarks = isBookmarked
+                            ? userProfile.bookmarks.filter(p => (p._id || p).toString() !== post._id.toString())
+                            : [...(userProfile.bookmarks || []), post];
+                        dispatch(setUserProfile({ ...userProfile, bookmarks: updatedProfileBookmarks }));
+                    }
                 }
             }
         } catch (error) {
             console.log(error);
+            toast.error("Failed to bookmark");
         }
     };
 
@@ -232,7 +252,10 @@ const PostModal = ({ open, setOpen, post: initialPost, onOpenComment }) => {
                                 </button>
                             </div>
                             <SaveButton 
-                                isSaved={user?.bookmarks?.some(item => (typeof item === 'object' ? item._id : item).toString() === post?._id?.toString())} 
+                                isSaved={isReel 
+                                    ? user?.savedReels?.some(item => (typeof item === 'object' ? item._id : item).toString() === post?._id?.toString())
+                                    : user?.bookmarks?.some(item => (typeof item === 'object' ? item._id : item).toString() === post?._id?.toString())
+                                } 
                                 onClick={bookmarkHandler}
                                 size={24} 
                             />
