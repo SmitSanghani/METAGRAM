@@ -186,7 +186,7 @@ const MessageBubble = ({ msg, isSender, onReply, onDelete, onReact, onScrollTo, 
                                     }
                                 }}
                             >
-                                <div className="relative aspect-[9/16] w-full rounded-lg overflow-hidden bg-black/10 border border-white/20 shadow-inner group/story -mx-1 -mt-1">
+                                <div className="relative aspect-[4/5] w-full rounded-lg overflow-hidden bg-black/10 border border-white/20 shadow-inner group/story -mx-1 -mt-1">
                                     {msg.storyId?.mediaType === 'video' ? (
                                         <video src={msg.storyId?.mediaUrl} className="w-full h-full object-cover opacity-90" />
                                     ) : (
