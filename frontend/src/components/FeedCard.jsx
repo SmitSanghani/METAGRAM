@@ -98,31 +98,44 @@ const FeedCard = ({ item, type = 'post', onDelete }) => {
 
     const handleLike = async (e) => {
         e.stopPropagation();
+        
+        // Optimistic values for rollback
+        const previousPosts = [...posts];
+        // Note: For reels, we would need the slice state to rollback, 
+        // but since it's a single item update, we'll try to keep it simple.
+
         try {
             const action = liked ? "dislike" : "like";
             const endpoint = isReel ? `/reels/like/${item._id}` : `/post/${item._id}/${action}`;
 
+            // Optimistic Update UI
+            if (!isReel) {
+                const updatedPostData = posts.map(p =>
+                    p._id === item._id ? {
+                        ...p,
+                        likes: liked ? p.likes.filter(id => (id._id || id) !== user._id) : [...(item.likes || []), user._id]
+                    } : p
+                );
+                dispatch(setPosts(updatedPostData));
+            } else {
+                dispatch(updateReelLikes({
+                    reelId: item._id,
+                    likes: liked ? item.likes.filter(id => (id._id || id) !== user._id) : [...(item.likes || []), user._id]
+                }));
+            }
+
             const res = isReel ? await api.post(endpoint) : await api.get(endpoint);
 
             if (res.data.success) {
-                if (!isReel) {
-                    const updatedPostData = posts.map(p =>
-                        p._id === item._id ? {
-                            ...p,
-                            likes: liked ? p.likes.filter(id => (id._id || id) !== user._id) : [...p.likes, user._id]
-                        } : p
-                    );
-                    dispatch(setPosts(updatedPostData));
-                } else {
-                    // Update reel likes in redux
-                    dispatch(updateReelLikes({
-                        reelId: item._id,
-                        likes: liked ? item.likes.filter(id => (id._id || id) !== user._id) : [...(item.likes || []), user._id]
-                    }));
-                }
                 toast.success(res.data.message);
+            } else {
+                // Revert on backend-side failure
+                if (!isReel) dispatch(setPosts(previousPosts));
+                toast.error(res.data.message);
             }
         } catch (error) {
+            // Revert on network/server error
+            if (!isReel) dispatch(setPosts(previousPosts));
             console.error(error);
             toast.error("Failed to update like");
         }

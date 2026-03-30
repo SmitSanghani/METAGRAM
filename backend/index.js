@@ -23,6 +23,27 @@ dotenv.config({ quiet: true });
 const PORT = process.env.PORT || 3000;
 
 // app.get("/", (req, res) => {                  // if req. not use
+// 1. CORS - Must be first
+const corsOptions = {
+    origin: [
+        process.env.URL, 
+        'http://localhost:5173', 
+        'https://metagram-nine.vercel.app', 
+        'https://www.metagram-nine.vercel.app'
+    ],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+    exposedHeaders: ['Set-Cookie']
+}
+app.use(cors(corsOptions));
+
+// 2. Global Parsers
+app.use(express.json());
+app.use(cookieParser());
+app.use(urlencoded({ extended: true }));
+
+// 3. Test Route
 app.get("/", (_, res) => {
     return res.status(200).json({
         message: "I Am Coming From Backend...",
@@ -30,23 +51,9 @@ app.get("/", (_, res) => {
     })
 })
 
-
-// Middlewares - By default
-app.use(express.json());
-app.use(cookieParser());
-app.use(urlencoded({ extended: true }));
-
-const corsOptions = {
-    origin: [process.env.URL, 'http://localhost:5173', 'https://metagram-nine.vercel.app'],
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-}
-app.use(cors(corsOptions));
-
 const __dirname = path.resolve();
 
-// All APIs Are Show Here :
+// 4. API Routes
 app.use("/api/v1/auth", authRoute);
 app.use("/api/v1/user", userRoute);
 app.use("/api/v1/post", postroute);

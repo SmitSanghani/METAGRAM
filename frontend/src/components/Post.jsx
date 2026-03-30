@@ -48,23 +48,32 @@ const Post = ({ post }) => {
 
     // like or dislike post handler :
     const likeOrDislikeHandler = async () => {
+        const previousPosts = [...posts];
         try {
             const action = liked ? "dislike" : "like";
+            
+            // Optimistic Update : Update UI immediately
+            const updatedPostData = posts.map(p =>
+                p._id === post._id ? {
+                    ...p,
+                    likes: liked ? p.likes.filter(id => id !== user._id) : [...p.likes, user._id]
+                } : p
+            );
+            dispatch(setPosts(updatedPostData));
+
             const res = await api.get(`/post/${post._id}/${action}`);
             if (res.data.success) {
-                // Update the post likes in Redux :
-                const updatedPostData = posts.map(p =>
-                    p._id === post._id ? {
-                        ...p,
-                        likes: liked ? p.likes.filter(id => id !== user._id) : [...p.likes, user._id]
-                    } : p
-                );
-                dispatch(setPosts(updatedPostData));
-
                 toast.success(res.data.message);
+            } else {
+                // Revert if success is false
+                dispatch(setPosts(previousPosts));
+                toast.error(res.data.message);
             }
         } catch (error) {
+            // Revert on network/server error
+            dispatch(setPosts(previousPosts));
             console.log(error);
+            toast.error("Failed to update like");
         }
     }
 
