@@ -167,6 +167,35 @@ const authSlice = createSlice({
                 state.user.mutedUsers.push(userId);
             }
         },
+        toggleBookmark: (state, action) => {
+            const { postId, isReel } = action.payload;
+            if (!state.user) return;
+
+            const collection = isReel ? 'savedReels' : 'bookmarks';
+            if (!state.user[collection]) state.user[collection] = [];
+
+            const isSaved = state.user[collection].some(id => (id._id || id).toString() === postId.toString());
+
+            if (isSaved) {
+                state.user[collection] = state.user[collection].filter(id => (id._id || id).toString() !== postId.toString());
+            } else {
+                state.user[collection].push(postId);
+            }
+
+            // Sync userProfile if it's the current user's profile
+            if (state.userProfile && state.userProfile._id === state.user._id) {
+                if (!state.userProfile[collection]) state.userProfile[collection] = [];
+                const profileIsSaved = state.userProfile[collection].some(p => (p._id || p).toString() === postId.toString());
+                
+                if (profileIsSaved) {
+                    state.userProfile[collection] = state.userProfile[collection].filter(p => (p._id || p).toString() !== postId.toString());
+                } else {
+                    // Note: This won't have full post details if we just push ID, 
+                    // but for "instant" UI on the bookmark icon it works.
+                    state.userProfile[collection].push(postId);
+                }
+            }
+        },
         addUserProfileReel: (state, action) => {
             if (state.userProfile && (state.userProfile._id === action.payload.author?._id || state.userProfile._id === action.payload.author)) {
                 if (!state.userProfile.reels) state.userProfile.reels = [];
@@ -191,6 +220,6 @@ const authSlice = createSlice({
     }
 });
 
-export const { setTheme, setAuthUser, setToken, setSuggestedUsers, setUserProfile, updateSuggestedUser, setFollowRelationship, updateUserProfileReelStats, updateUserProfilePostStats, removeUserProfileReelComment, editUserProfileReelComment, updateUserProfileReelCommentLikes, toggleMuteUserAction, addUserProfileReel, addUserProfilePost, removeUserProfileReel } = authSlice.actions;
+export const { setTheme, setAuthUser, setToken, setSuggestedUsers, setUserProfile, updateSuggestedUser, setFollowRelationship, updateUserProfileReelStats, updateUserProfilePostStats, removeUserProfileReelComment, editUserProfileReelComment, updateUserProfileReelCommentLikes, toggleMuteUserAction, toggleBookmark, addUserProfileReel, addUserProfilePost, removeUserProfileReel } = authSlice.actions;
 export default authSlice.reducer;
 

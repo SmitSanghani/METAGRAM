@@ -7,8 +7,8 @@ import { useSelector, useDispatch } from 'react-redux';
 import { FaHeart, FaRegHeart } from "react-icons/fa";
 import api from '@/api';
 import { toast } from 'sonner';
-import { setPosts, setSelectedPost } from '@/redux/postSlice';
-import { setAuthUser, setUserProfile } from '@/redux/authSlice';
+import { setPosts, setSelectedPost, updatePostLikes } from '@/redux/postSlice';
+import { setAuthUser, setUserProfile, toggleBookmark } from '@/redux/authSlice';
 import SaveButton from './SaveButton';
 import SharePostModal from './SharePostModal';
 import CommentDialog from './CommentDialog';
@@ -40,29 +40,37 @@ const PostModal = ({ open, setOpen, post: initialPost, onOpenComment }) => {
 
     const handleLike = async (e) => {
         if (e) e.stopPropagation();
+        
+        // Optimistic Values
+        const action = liked ? "dislike" : "like";
+        
+        // 1. Update Redux immediately
+        dispatch(updatePostLikes({ 
+            postId: post._id, 
+            userId: user._id, 
+            type: action 
+        }));
+
         try {
-            const action = liked ? "dislike" : "like";
             const res = await api.get(`/post/${post._id}/${action}`);
-            if (res.data.success) {
-                const updatedLikes = liked 
-                    ? post.likes.filter(id => (id._id || id).toString() !== user._id.toString())
-                    : [...(post.likes || []), user._id];
-                
-                const updatedPost = { ...post, likes: updatedLikes };
-                
-                // Update in posts list if it exists there
-                const updatedPostData = posts.map(p =>
-                    p._id === post._id ? updatedPost : p
-                );
-                dispatch(setPosts(updatedPostData));
-                
-                // Also update selected post to reflect change in modal
-                dispatch(setSelectedPost(updatedPost));
-                
-                toast.success(res.data.message);
+            if (!res.data.success) {
+                // Rollback on failure (simplified: toggle back)
+                dispatch(updatePostLikes({ 
+                    postId: post._id, 
+                    userId: user._id, 
+                    type: action === 'like' ? 'dislike' : 'like' 
+                }));
+                toast.error(res.data.message || "Failed to update like");
             }
         } catch (error) {
-            console.log(error);
+            // Rollback on error
+            dispatch(updatePostLikes({ 
+                postId: post._id, 
+                userId: user._id, 
+                type: action === 'like' ? 'dislike' : 'like' 
+            }));
+            console.error(error);
+            toast.error("Network error: Failed to update like");
         }
     };
 
@@ -99,44 +107,24 @@ const PostModal = ({ open, setOpen, post: initialPost, onOpenComment }) => {
     const isReel = post?.feedType === 'reel';
 
     const bookmarkHandler = async () => {
+        // 1. Update Redux immediately (Optimistically)
+        dispatch(toggleBookmark({ postId: post._id, isReel: isReel }));
+
         try {
             const endpoint = isReel ? `/reels/save/${post?._id}` : `/post/${post?._id}/bookmark`;
             const res = await api.post(endpoint, {});
+            
             if (res.data.success) {
                 toast.success(res.data.message);
-
-                if (isReel) {
-                    const isSaved = user?.savedReels?.some(item => (typeof item === 'object' ? item._id : item).toString() === post._id.toString());
-                    const updatedSavedReels = isSaved
-                        ? user.savedReels.filter(item => (item._id || item).toString() !== post._id.toString())
-                        : [...(user.savedReels || []), post._id];
-                    
-                    dispatch(setAuthUser({ ...user, savedReels: updatedSavedReels }));
-
-                    if (userProfile && userProfile._id === user._id) {
-                        const updatedProfileSavedReels = isSaved
-                            ? userProfile.savedReels.filter(p => (p._id || p).toString() !== post._id.toString())
-                            : [...(userProfile.savedReels || []), post];
-                        dispatch(setUserProfile({ ...userProfile, savedReels: updatedProfileSavedReels }));
-                    }
-                } else {
-                    const isBookmarked = user?.bookmarks?.some(item => (typeof item === 'object' ? item._id : item).toString() === post._id.toString());
-                    const updatedBookmarks = isBookmarked
-                        ? user.bookmarks.filter(item => (item._id || item).toString() !== post._id.toString())
-                        : [...(user.bookmarks || []), post._id];
-                    
-                    dispatch(setAuthUser({ ...user, bookmarks: updatedBookmarks }));
-
-                    if (userProfile && userProfile._id === user._id) {
-                        const updatedProfileBookmarks = isBookmarked
-                            ? userProfile.bookmarks.filter(p => (p._id || p).toString() !== post._id.toString())
-                            : [...(userProfile.bookmarks || []), post];
-                        dispatch(setUserProfile({ ...userProfile, bookmarks: updatedProfileBookmarks }));
-                    }
-                }
+            } else {
+                // Rollback on failure
+                dispatch(toggleBookmark({ postId: post._id, isReel: isReel }));
+                toast.error(res.data.message || "Failed to bookmark");
             }
         } catch (error) {
-            console.log(error);
+            // Rollback on error
+            dispatch(toggleBookmark({ postId: post._id, isReel: isReel }));
+            console.error(error);
             toast.error("Failed to bookmark");
         }
     };

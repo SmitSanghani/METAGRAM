@@ -10,8 +10,8 @@ import CommentDialog from './CommentDialog'
 import { useDispatch, useSelector } from 'react-redux'
 import { toast } from 'sonner'
 import api from '@/api';
-import { setPosts, setSelectedPost } from '@/redux/postSlice'
-import { setAuthUser, setUserProfile } from '@/redux/authSlice'
+import { setPosts, setSelectedPost, updatePostLikes } from '@/redux/postSlice'
+import { setAuthUser, setUserProfile, toggleBookmark } from '@/redux/authSlice'
 import { Badge } from './ui/badge'
 import UserListModal from './UserListModal'
 import SharePostModal from './SharePostModal'
@@ -48,35 +48,39 @@ const Post = ({ post }) => {
 
     // like or dislike post handler :
     const likeOrDislikeHandler = async () => {
-        const previousPosts = [...posts];
-        try {
-            const action = liked ? "dislike" : "like";
-            
-            // Optimistic Update : Update UI immediately
-            const updatedPostData = posts.map(p =>
-                p._id === post._id ? {
-                    ...p,
-                    likes: liked ? p.likes.filter(id => id !== user._id) : [...p.likes, user._id]
-                } : p
-            );
-            dispatch(setPosts(updatedPostData));
+        const action = liked ? "dislike" : "like";
+        
+        // Optimistic Update : Update UI immediately
+        dispatch(updatePostLikes({ 
+            postId: post._id, 
+            userId: user._id, 
+            type: action 
+        }));
 
+        try {
             const res = await api.get(`/post/${post._id}/${action}`);
             if (res.data.success) {
                 toast.success(res.data.message);
             } else {
-                // Revert if success is false
-                dispatch(setPosts(previousPosts));
+                // Rollback on failure
+                dispatch(updatePostLikes({ 
+                    postId: post._id, 
+                    userId: user._id, 
+                    type: action === 'like' ? 'dislike' : 'like' 
+                }));
                 toast.error(res.data.message);
             }
         } catch (error) {
             // Revert on network/server error
-            dispatch(setPosts(previousPosts));
+            dispatch(updatePostLikes({ 
+                postId: post._id, 
+                userId: user._id, 
+                type: action === 'like' ? 'dislike' : 'like' 
+            }));
             console.log(error);
             toast.error("Failed to update like");
         }
     }
-
 
     // comment on post handler :
     const commentHandler = async () => {
@@ -86,9 +90,8 @@ const Post = ({ post }) => {
                     'Content-Type': 'application/json'
                 },
             });
-            console.log(res.data);
             if (res.data.success) {
-                const updatedCommnetData = [...comment, res.data.comment];
+                const updatedCommnetData = [...post.comments, res.data.comment];
 
                 const updatedPostData = posts.map(p =>
                     p._id === post._id ? {
@@ -102,7 +105,6 @@ const Post = ({ post }) => {
             }
         } catch (error) {
             console.log(error);
-
         }
     }
 
@@ -118,44 +120,26 @@ const Post = ({ post }) => {
             }
         } catch (error) {
             console.log(error);
-            toast.error(error.response.data.message);
+            toast.error(error.response?.data?.message || "Failed to delete post");
         }
     }
 
     const bookmarkHandler = async () => {
-        // Optimistic Values
-        const isBookmarked = user?.bookmarks?.some(item => (item._id || item) === post._id);
-        const previousUser = { ...user };
-        const previousUserProfile = userProfile ? { ...userProfile } : null;
-
         // 1. Update Redux Auth state immediately (Optimistically)
-        const updatedBookmarks = isBookmarked
-            ? user.bookmarks.filter(item => (item._id || item) !== post._id)
-            : [...user.bookmarks, post._id];
-        
-        dispatch(setAuthUser({ ...user, bookmarks: updatedBookmarks }));
-
-        // If user is viewing their own profile, sync the object-based bookmarks list
-        if (userProfile && userProfile._id === user._id) {
-            const updatedProfileBookmarks = isBookmarked
-                ? userProfile.bookmarks.filter(p => (p._id || p) !== post._id)
-                : [...userProfile.bookmarks, post];
-            dispatch(setUserProfile({ ...userProfile, bookmarks: updatedProfileBookmarks }));
-        }
+        dispatch(toggleBookmark({ postId: post._id, isReel: false }));
 
         try {
             const res = await api.post(`/post/${post?._id}/bookmark`, {});
             if (res.data.success) {
                 toast.success(res.data.message);
             } else {
+                // Rollback
+                dispatch(toggleBookmark({ postId: post._id, isReel: false }));
                 throw new Error(res.data.message || "Failed to bookmark");
             }
         } catch (error) {
             // ROLLBACK on error
-            dispatch(setAuthUser(previousUser));
-            if (previousUserProfile) {
-                dispatch(setUserProfile(previousUserProfile));
-            }
+            dispatch(toggleBookmark({ postId: post._id, isReel: false }));
             console.log(error);
             toast.error(error.message || "Failed to bookmark");
         }
