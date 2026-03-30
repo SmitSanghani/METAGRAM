@@ -128,7 +128,7 @@ const FeedCard = ({ item, type = 'post', onDelete }) => {
             const res = isReel ? await api.post(endpoint) : await api.get(endpoint);
 
             if (res.data.success) {
-                toast.success(res.data.message);
+                toast.success(res.data.message, { id: `like-${item._id}` });
             } else {
                 throw new Error(res.data.message);
             }
@@ -144,7 +144,7 @@ const FeedCard = ({ item, type = 'post', onDelete }) => {
                 }));
             }
             console.error(error);
-            toast.error(error.message || "Failed to update like");
+            toast.error(error.message || "Failed to update like", { id: `like-${item._id}` });
         }
     };
 

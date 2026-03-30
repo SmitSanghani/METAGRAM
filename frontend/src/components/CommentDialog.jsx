@@ -248,7 +248,7 @@ const CommentDialog = ({ open, setOpen }) => {
             if (!res.data.success) {
                 throw new Error(res.data.message || "Failed to update like");
             }
-            toast.success(res.data.message);
+            toast.success(res.data.message, { id: `like-${selectedPost._id}` });
         } catch (error) {
             // ROLLBACK on error
             setLiked(wasLiked);
@@ -260,7 +260,7 @@ const CommentDialog = ({ open, setOpen }) => {
             } else {
                 dispatch(setPosts(previousPosts));
             }
-            toast.error(error.message || "Failed to update like");
+            toast.error(error.message || "Failed to update like", { id: `like-${selectedPost._id}` });
         }
     }
 
@@ -316,7 +316,7 @@ const CommentDialog = ({ open, setOpen }) => {
             if (previousUserProfile) {
                 dispatch(setUserProfile(previousUserProfile));
             }
-            toast.error(error.message || "Failed to bookmark");
+            toast.error(error.message || "Failed to bookmark", { id: `bookmark-${selectedPost._id}` });
         }
     };
 

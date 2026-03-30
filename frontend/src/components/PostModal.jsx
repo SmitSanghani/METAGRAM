@@ -54,13 +54,15 @@ const PostModal = ({ open, setOpen, post: initialPost, onOpenComment }) => {
         try {
             const res = await api.get(`/post/${post._id}/${action}`);
             if (!res.data.success) {
-                // Rollback on failure (simplified: toggle back)
+                // Rollback on failure
                 dispatch(updatePostLikes({ 
                     postId: post._id, 
                     userId: user._id, 
                     type: action === 'like' ? 'dislike' : 'like' 
                 }));
-                toast.error(res.data.message || "Failed to update like");
+                toast.error(res.data.message || "Failed to update like", { id: `like-${post._id}` });
+            } else {
+                toast.success(res.data.message, { id: `like-${post._id}` });
             }
         } catch (error) {
             // Rollback on error
@@ -70,7 +72,7 @@ const PostModal = ({ open, setOpen, post: initialPost, onOpenComment }) => {
                 type: action === 'like' ? 'dislike' : 'like' 
             }));
             console.error(error);
-            toast.error("Network error: Failed to update like");
+            toast.error("Network error: Failed to update like", { id: `like-${post._id}` });
         }
     };
 
@@ -115,17 +117,17 @@ const PostModal = ({ open, setOpen, post: initialPost, onOpenComment }) => {
             const res = await api.post(endpoint, {});
             
             if (res.data.success) {
-                toast.success(res.data.message);
+                toast.success(res.data.message, { id: `bookmark-${post?._id}` });
             } else {
                 // Rollback on failure
                 dispatch(toggleBookmark({ postId: post._id, isReel: isReel }));
-                toast.error(res.data.message || "Failed to bookmark");
+                toast.error(res.data.message || "Failed to bookmark", { id: `bookmark-${post?._id}` });
             }
         } catch (error) {
             // Rollback on error
             dispatch(toggleBookmark({ postId: post._id, isReel: isReel }));
             console.error(error);
-            toast.error("Failed to bookmark");
+            toast.error("Failed to bookmark", { id: `bookmark-${post?._id}` });
         }
     };
 

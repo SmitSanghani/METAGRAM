@@ -157,19 +157,29 @@ function App() {
   const { user } = useSelector(store => store.auth);
   const { socket } = useSelector(store => store.socketio);
   const { selectedUser, chatUsers = [], messages = [] } = useSelector(store => store.chat || {});
+  const userRef = useRef(user);
   const selectedUserRef = useRef(null);
   const audioRef = useRef(null);
   const chatUsersRef = useRef(chatUsers);
   const messagesRef = useRef(messages);
+  const lastSoundTime = useRef(0);
   const dispatch = useDispatch();
 
-  useEffect(() => {
-    messagesRef.current = messages;
-  }, [messages]);
+  const playNotificationSound = () => {
+    const now = Date.now();
+    if (now - lastSoundTime.current < 1000) return; // 1 second debounce
+    if (audioRef.current) {
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch(() => { });
+      lastSoundTime.current = now;
+    }
+  };
 
   useEffect(() => {
+    userRef.current = user;
     chatUsersRef.current = chatUsers;
-  }, [chatUsers]);
+    messagesRef.current = messages;
+  }, [user, chatUsers, messages]);
 
   useEffect(() => {
     // Initialize audio only once on mount
@@ -261,10 +271,10 @@ function App() {
       });
 
       dispatch(setSocket(socketio));
-      console.log("socket connected", socketio.id);
 
       socketio.on("connect", () => {
-        socketio.emit("register_user", user._id);
+        console.log("socket connected", socketio.id);
+        socketio.emit("register_user", userRef.current?._id);
       });
 
       socketio.on('getOnlineUsers', (onlineUsers) => {
@@ -273,10 +283,7 @@ function App() {
 
       socketio.on('notification', (notification) => {
         dispatch(addNotification(notification));
-        if (audioRef.current) {
-          audioRef.current.currentTime = 0;
-          audioRef.current.play().catch(() => { });
-        }
+        playNotificationSound();
       });
 
       socketio.on('postLiked', ({ postId, userId }) => {
@@ -411,17 +418,14 @@ function App() {
           }
         } else {
           // Check if muted (either the sender or the group)
-          const isMuted = user?.mutedUsers?.includes(targetId) || user?.mutedUsers?.includes(senderId);
+          const isMuted = userRef.current?.mutedUsers?.includes(targetId) || userRef.current?.mutedUsers?.includes(senderId);
 
           // Play sound and show toast if: 
           // 1. NOT viewing this chat ON the chat page
           // 2. NOT from me
           // 3. NOT muted
           if (!isFromMe && !isMuted) {
-            if (audioRef.current) {
-              audioRef.current.currentTime = 0;
-              audioRef.current.play().catch(() => { });
-            }
+            playNotificationSound();
 
             toast.custom((t) => (
               <div
@@ -503,7 +507,7 @@ function App() {
         const emoji = reaction;
 
         // Only show notification/preview if the reaction is NOT from the current user AND it wasn't a removal
-        if (senderId !== String(user?._id) && action !== 'removed') {
+        if (senderId !== String(userRef.current?._id) && action !== 'removed') {
           // Find target message to see what was reacted to
           const targetMsg = messagesRef.current?.find(m => String(m._id) === String(messageId));
           let typeLabel = "message";
@@ -535,10 +539,9 @@ function App() {
 
           // ✅ Show toast if NOT viewing this chat on the /chat page
           if (!isViewingThisChat) {
-            const isMuted = user?.mutedUsers?.includes(senderId) || user?.mutedUsers?.includes(targetSidebarId);
-            if (audioRef.current && !isMuted) {
-              audioRef.current.currentTime = 0;
-              audioRef.current.play().catch(() => { });
+            const isMuted = userRef.current?.mutedUsers?.includes(senderId) || userRef.current?.mutedUsers?.includes(targetSidebarId);
+            if (!isMuted) {
+              playNotificationSound();
             }
             toast.custom((t) => (
               <div
@@ -712,7 +715,7 @@ function App() {
       }
       api.interceptors.response.eject(interceptor);
     }
-  }, [user, dispatch]);
+  }, [user?._id, dispatch]);
 
   return (
     <>

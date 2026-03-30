@@ -60,7 +60,7 @@ const Post = ({ post }) => {
         try {
             const res = await api.get(`/post/${post._id}/${action}`);
             if (res.data.success) {
-                toast.success(res.data.message);
+                toast.success(res.data.message, { id: `like-${post._id}` });
             } else {
                 // Rollback on failure
                 dispatch(updatePostLikes({ 
@@ -68,7 +68,7 @@ const Post = ({ post }) => {
                     userId: user._id, 
                     type: action === 'like' ? 'dislike' : 'like' 
                 }));
-                toast.error(res.data.message);
+                toast.error(res.data.message, { id: `like-${post._id}` });
             }
         } catch (error) {
             // Revert on network/server error
@@ -78,7 +78,7 @@ const Post = ({ post }) => {
                 type: action === 'like' ? 'dislike' : 'like' 
             }));
             console.log(error);
-            toast.error("Failed to update like");
+            toast.error("Failed to update like", { id: `like-${post._id}` });
         }
     }
 
@@ -101,7 +101,7 @@ const Post = ({ post }) => {
                 );
                 dispatch(setPosts(updatedPostData));
                 setText("");
-                toast.success(res.data.message);
+                toast.success(res.data.message, { id: `comment-${post._id}` });
             }
         } catch (error) {
             console.log(error);
@@ -131,17 +131,17 @@ const Post = ({ post }) => {
         try {
             const res = await api.post(`/post/${post?._id}/bookmark`, {});
             if (res.data.success) {
-                toast.success(res.data.message);
+                toast.success(res.data.message, { id: `bookmark-${post._id}` });
             } else {
                 // Rollback
                 dispatch(toggleBookmark({ postId: post._id, isReel: false }));
-                throw new Error(res.data.message || "Failed to bookmark");
+                toast.error(res.data.message || "Failed to bookmark", { id: `bookmark-${post._id}` });
             }
         } catch (error) {
             // ROLLBACK on error
             dispatch(toggleBookmark({ postId: post._id, isReel: false }));
             console.log(error);
-            toast.error(error.message || "Failed to bookmark");
+            toast.error(error.message || "Failed to bookmark", { id: `bookmark-${post._id}` });
         }
     }
 

@@ -114,7 +114,7 @@ const ReelCard = ({ reel, isActive, isGlobalMuted, setIsGlobalMuted, onVideoEnd 
         } catch (error) {
             setIsSaved(!newIsSaved); // Revert on error
             console.error(error);
-            toast.error("Failed to save reel");
+            toast.error("Failed to bookmark", { id: `bookmark-${reel?._id}` });
         }
     };
 
@@ -384,12 +384,14 @@ const EditReelModal = ({ reel, open, setOpen, handleDelete }) => {
                 allowSave
             });
             if (res.data.success) {
-                toast.success(res.data.message);
+                toast.success(res.data.message, { id: `like-${reel?._id}` });
                 dispatch(updateReel(res.data.reel));
                 setOpen(false);
+            } else {
+                toast.error(res.data.message || "Failed to update like", { id: `like-${reel?._id}` });
             }
         } catch (error) {
-            toast.error("Failed to update reel");
+            toast.error("Failed to update like", { id: `like-${reel?._id}` });
         } finally {
             setLoading(false);
         }
