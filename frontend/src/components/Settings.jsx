@@ -38,8 +38,8 @@ const Settings = () => {
     };
 
     const handleDeleteAccount = async () => {
-        if (deleteConfirmText !== user?.username) {
-            toast.error("Username does not match.");
+        if (deleteConfirmText !== `@${user?.username}`) {
+            toast.error("Username does not match correctly.");
             return;
         }
 
@@ -283,7 +283,7 @@ const Settings = () => {
                                      <div className="flex flex-col gap-3">
                                          <Button 
                                              onClick={handleDeleteAccount}
-                                             disabled={isDeleting || deleteConfirmText !== user?.username}
+                                             disabled={isDeleting || deleteConfirmText !== `@${user?.username}`}
                                              className="w-full h-12 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl shadow-lg shadow-rose-200 disabled:opacity-50"
                                          >
                                              {isDeleting ? <Loader2 className="animate-spin mr-2" /> : "I understand, delete my account"}

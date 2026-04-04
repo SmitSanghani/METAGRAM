@@ -20,11 +20,49 @@ const PostViewModal = ({ post, onClose, onDeleteComment, onDeletePost }) => {
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Image Section */}
-                <div className="flex-1 bg-black flex items-center justify-center min-h-[300px] relative">
-                    <img src={post.image} alt="Viewing post" className="max-w-full max-h-full object-contain" />
+                <div className="flex-1 bg-black flex items-center justify-center min-h-[300px] relative group/carousel">
+                    {post.images && post.images.length > 1 ? (
+                        <>
+                            <div 
+                                className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar scroll-smooth w-full h-full"
+                                id="admin-post-carousel"
+                            >
+                                {post.images.map((img, index) => (
+                                    <div key={index} className="w-full h-full flex-none snap-center flex items-center justify-center">
+                                        <img src={img} alt={`Post img ${index}`} className="max-w-full max-h-full object-contain" />
+                                    </div>
+                                ))}
+                            </div>
+                            
+                            <div className="absolute top-6 right-6 bg-black/60 backdrop-blur-md text-white px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest z-10 border border-white/10 shadow-xl">
+                                {post.images.length} Photos
+                            </div>
+
+                            <button 
+                                onClick={() => {
+                                    const el = document.getElementById('admin-post-carousel');
+                                    el.scrollBy({ left: -el.clientWidth, behavior: 'smooth' });
+                                }}
+                                className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-white/10 hover:bg-white/20 text-white rounded-2xl backdrop-blur-md border border-white/5 opacity-0 group-hover/carousel:opacity-100 transition-all active:scale-90"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                            </button>
+                            <button 
+                                onClick={() => {
+                                    const el = document.getElementById('admin-post-carousel');
+                                    el.scrollBy({ left: el.clientWidth, behavior: 'smooth' });
+                                }}
+                                className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-white/10 hover:bg-white/20 text-white rounded-2xl backdrop-blur-md border border-white/5 opacity-0 group-hover/carousel:opacity-100 transition-all active:scale-90"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                            </button>
+                        </>
+                    ) : (
+                        <img src={post.image || (post.images && post.images[0])} alt="Viewing post" className="max-w-full max-h-full object-contain" />
+                    )}
                     <button 
                         onClick={onClose} 
-                        className="absolute top-6 left-6 p-3 bg-white/20 hover:bg-white/40 text-white rounded-2xl backdrop-blur-xl transition-all md:hidden cursor-pointer active:scale-95"
+                        className="absolute top-6 left-6 p-3 bg-white/20 hover:bg-white/40 text-white rounded-2xl backdrop-blur-xl transition-all md:hidden cursor-pointer active:scale-95 z-20"
                     >
                         <X size={24} />
                     </button>

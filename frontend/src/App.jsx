@@ -23,6 +23,7 @@ import MessageMonitoring from "./components/admin/MessageMonitoring"
 import AdminSettings from "./components/admin/AdminSettings"
 import AdminLogin from "./components/admin/AdminLogin"
 import AdminProtectedRoute from "./components/admin/AdminProtectedRoute"
+import DeleteAccounts from "./components/admin/DeleteAccounts"
 import AnimationPage from "./components/AnimationPage"
 import { createBrowserRouter, RouterProvider } from "react-router-dom"
 import { io } from "socket.io-client";
@@ -124,6 +125,10 @@ const browserRouter = createBrowserRouter([
       {
         path: "users",
         element: <UserManagement />
+      },
+      {
+        path: "delete-accounts",
+        element: <DeleteAccounts />
       },
       {
         path: "posts",

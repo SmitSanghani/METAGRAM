@@ -120,12 +120,12 @@ const NotificationDropdown = ({ onClose }) => {
         e.stopPropagation();
         if (!n.sender?._id) return;
         if (!n.read) {
-            try { await api.post(`/notification/${n._id}/read`, {}); dispatch(markSingleAsRead(n._id)); } catch (_) {}
+            try { await api.post(`/notification/${n._id}/read`, {}); dispatch(markSingleAsRead(n._id)); } catch (_) { }
         }
-        try { 
-            await api.get(`/message/seen/${n.sender._id}`); 
+        try {
+            await api.get(`/message/seen/${n.sender._id}`);
             dispatch(clearUnreadCount(n.sender._id));
-        } catch (_) {}
+        } catch (_) { }
         dispatch(setSelectedUser(n.sender));
         navigate('/chat');
         onClose();
@@ -134,14 +134,14 @@ const NotificationDropdown = ({ onClose }) => {
     const handleMarkMessageAsRead = async (e, n) => {
         e.stopPropagation();
         if (!n.read) {
-            try { await api.post(`/notification/${n._id}/read`, {}); dispatch(markSingleAsRead(n._id)); } catch (_) {}
+            try { await api.post(`/notification/${n._id}/read`, {}); dispatch(markSingleAsRead(n._id)); } catch (_) { }
         }
         if (n.sender?._id) {
-            try { 
-                await api.get(`/message/seen/${n.sender._id}`); 
+            try {
+                await api.get(`/message/seen/${n.sender._id}`);
                 dispatch(clearUnreadCount(n.sender._id));
-                toast.success("Marked as read"); 
-            } catch (_) {}
+                toast.success("Marked as read");
+            } catch (_) { }
         }
     };
 
@@ -150,18 +150,18 @@ const NotificationDropdown = ({ onClose }) => {
             <div className="pt-10 pb-6 px-6 border-b border-gray-50 flex flex-col gap-4">
                 <div className="flex items-center justify-between">
                     <h2 className="text-2xl font-black tracking-tighter text-gray-900">Notifications</h2>
-                    <button 
-                        onClick={onClose} 
+                    <button
+                        onClick={onClose}
                         className="p-2 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-900 transition-all cursor-pointer"
                     >
                         <X size={20} />
                     </button>
                 </div>
-                
+
                 <div className="flex items-center justify-between">
                     <span className="text-[13px] font-bold text-gray-400 uppercase tracking-widest">Recent Activity</span>
-                    <button 
-                        onClick={handleRead} 
+                    <button
+                        onClick={handleRead}
                         className="text-[12px] font-bold text-indigo-600 hover:text-indigo-700 transition-colors cursor-pointer"
                     >
                         Mark all as read
@@ -185,7 +185,7 @@ const NotificationDropdown = ({ onClose }) => {
                             onClick={() => handleNotificationClick(n)}
                             className={`flex items-center gap-3 p-4 border-b border-[#F0F0F0] hover:bg-gray-50 cursor-pointer transition group ${!n.read ? 'bg-[#EEF2FF]/60 border-l-4 border-l-[#4F46E5]' : 'border-l-4 border-l-transparent'}`}
                         >
-                            <Avatar 
+                            <Avatar
                                 onClick={(e) => handleUserClick(e, n.sender?._id)}
                                 className="w-12 h-12 shadow-sm border border-[#F0F0F0] hover:opacity-80 transition-opacity shrink-0"
                             >
@@ -195,7 +195,7 @@ const NotificationDropdown = ({ onClose }) => {
                                 </AvatarFallback>
                             </Avatar>
                             <div className="flex-1 text-[13px] leading-tight overflow-hidden">
-                                <span 
+                                <span
                                     onClick={(e) => handleUserClick(e, n.sender?._id)}
                                     className="font-bold mr-1 text-[#333] hover:underline cursor-pointer"
                                 >
@@ -245,19 +245,19 @@ const NotificationDropdown = ({ onClose }) => {
                             </div>
                             {/* Content Thumbnail */}
                             {n.post?.image && (
-                                <img 
+                                <img
                                     onClick={(e) => handlePostThumbnailClick(e, n.post._id || n.post)}
-                                    src={n.post.image} 
-                                    alt="post" 
-                                    className="w-12 h-12 object-cover rounded-md shadow-sm border border-[#F0F0F0] shrink-0 hover:scale-110 active:scale-95 transition-all" 
+                                    src={n.post.image}
+                                    alt="post"
+                                    className="w-12 h-12 object-cover rounded-md shadow-sm border border-[#F0F0F0] shrink-0 hover:scale-110 active:scale-95 transition-all"
                                 />
                             )}
                             {n.reel?.thumbnail && (
-                                <img 
+                                <img
                                     onClick={(e) => { e.stopPropagation(); navigate(`/reels/${n.reel._id}`); onClose(); }}
-                                    src={n.reel.thumbnail} 
-                                    alt="reel" 
-                                    className="w-12 h-12 object-cover rounded-md shadow-sm border border-[#F0F0F0] shrink-0 hover:scale-110 active:scale-95 transition-all" 
+                                    src={n.reel.thumbnail}
+                                    alt="reel"
+                                    className="w-12 h-12 object-cover rounded-md shadow-sm border border-[#F0F0F0] shrink-0 hover:scale-110 active:scale-95 transition-all"
                                 />
                             )}
                             {n.story?.mediaUrl && (
@@ -286,9 +286,9 @@ const NotificationDropdown = ({ onClose }) => {
 
             {/* Side-by-side Comments Dialog (Same as Feed) */}
             {openCommentDialog && (
-                <CommentDialog 
-                    open={openCommentDialog} 
-                    setOpen={setOpenCommentDialog} 
+                <CommentDialog
+                    open={openCommentDialog}
+                    setOpen={setOpenCommentDialog}
                 />
             )}
         </div>

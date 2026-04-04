@@ -133,9 +133,9 @@ export const login = async (req, res) => {
             });
         }
 
-        if (user.isActive === false) {
+        if (user.isActive === false || user.isDeleted === true) {
             return res.status(403).json({
-                message: "Your account has been suspended. Please contact admin.",
+                message: user.isDeleted ? "Your account has been deleted. Please contact admin for restoration." : "Your account has been suspended. Please contact admin.",
                 success: false,
             });
         }
@@ -253,7 +253,7 @@ export const getProfile = async (req, res) => {
             .populate("followers", "username fullName profilePicture")
             .populate("following", "username fullName profilePicture");
 
-        if (!user) {
+        if (!user || user.isDeleted) {
             return res.status(404).json({
                 message: "User not found",
                 success: false
@@ -396,6 +396,7 @@ export const getSuggestedUsers = async (req, res) => {
         const suggestedUsers = await User.find({
             _id: { $ne: req.id, $nin: [...user.blockedUsers, ...user.blockedBy, ...user.following] },
             isActive: { $ne: false },
+            isDeleted: { $ne: true },
             blockedUsers: { $ne: req.id }
         }).select("-password");
         if (!suggestedUsers) {
@@ -452,7 +453,7 @@ export const followOrUnfollow = async (req, res) => {
         if (!user || !targetUser) return res.status(404).json({ message: "User not found", success: false });
 
         // BLOCK CHECK:
-        if (user.blockedUsers?.some(id => id && id.toString() === jiskoFollowKrunga) || 
+        if (user.blockedUsers?.some(id => id && id.toString() === jiskoFollowKrunga) ||
             user.blockedBy?.some(id => id && id.toString() === jiskoFollowKrunga)) {
             return res.status(403).json({ message: "Action not allowed due to a block", success: false });
         }
@@ -628,7 +629,7 @@ export const getChatUsers = async (req, res) => {
             const currentUserIdStr = String(userId);
             const hiddenTime = conv.hiddenAt?.get(currentUserIdStr);
             const latestMsg = conv.messages[conv.messages.length - 1];
-            
+
             // Logic: Hide if HiddenAt exists AND (no messages OR latest message is older than HiddenAt)
             if (hiddenTime) {
                 const isStillHidden = !latestMsg || new Date(latestMsg.createdAt) <= new Date(hiddenTime);
@@ -756,7 +757,8 @@ export const searchUsers = async (req, res) => {
         const currentUser = await User.findById(req.id);
         const filter = {
             _id: { $ne: req.id, $nin: [...currentUser.blockedUsers, ...currentUser.blockedBy] },
-            isActive: { $ne: false }
+            isActive: { $ne: false },
+            isDeleted: { $ne: true }
         };
 
         if (query) {
@@ -994,41 +996,13 @@ export const deleteAccount = async (req, res) => {
             });
         }
 
-        // 1. Delete all assets (Posts, Reels)
-        // Note: For production, you'd also delete media from Cloudinary
-        await Post.deleteMany({ author: userId });
-        await Reel.deleteMany({ author: userId });
-
-        // 2. Delete all interactions (Comments, Notifications)
-        await Comment.deleteMany({ author: userId });
-        await ReelComment.deleteMany({ author: userId });
-        await Notification.deleteMany({ $or: [{ sender: userId }, { receiver: userId }] });
-
-        // 3. Cleanup relationships (Followers, Following, Linked Accounts, etc.)
-        await User.updateMany(
-            {},
-            {
-                $pull: {
-                    followers: userId,
-                    following: userId,
-                    blockedUsers: userId,
-                    blockedBy: userId,
-                    recentSearches: userId,
-                    mutedUsers: userId,
-                    linkedAccounts: userId,
-                    followRequests: userId
-                }
-            }
-        );
-
-        // 4. Delete conversations where user was a participant
-        await Conversation.deleteMany({ participants: userId });
-
-        // 5. Finally, delete the user record
-        await User.findByIdAndDelete(userId);
+        // SOFT DELETE:
+        user.isDeleted = true;
+        user.isActive = false; // also disable login
+        await user.save();
 
         return res.status(200).cookie("token", "", { maxAge: 0 }).json({
-            message: "Account and all associated data deleted successfully.",
+            message: "Account has been deleted successfully. Your data is preserved for admin review.",
             success: true
         });
 

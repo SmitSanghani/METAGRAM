@@ -67,6 +67,9 @@ export const addNewPost = async (req, res) => {
             select: '-password'
         });
 
+        // Real-time globally
+        io.emit('newPost', post);
+
         return res.status(201).json({
             message: "New Post Added Successfully",
             success: true,
@@ -86,7 +89,7 @@ export const getAllPosts = async (req, res) => {
         const posts = await Post.find().sort({ createdAt: -1 })
             .populate({
                 path: "author",
-                select: 'username profilePicture'
+                select: 'username profilePicture isDeleted'
             })
             .populate({
                 path: "comments",
@@ -98,8 +101,10 @@ export const getAllPosts = async (req, res) => {
             })
             .populate("likes", "username profilePicture");
 
+        const filteredPosts = posts.filter(post => post.author && !post.author.isDeleted);
+
         return res.status(200).json({
-            posts,
+            posts: filteredPosts,
             success: true
         });
     } catch (error) {
@@ -469,6 +474,9 @@ export const deletePost = async (req, res) => {
         // Delete Associated Comments : 
         await Comment.deleteMany({ post: postId });
 
+        // Real-time globally
+        io.emit('deletePost', postId);
+
         return res.status(200).json({
             success: true,
             message: "Post Deleted Successfully"
@@ -530,7 +538,7 @@ export const bookmarkPost = async (req, res) => {
 export const getExplore = async (req, res) => {
     try {
         const posts = await Post.find()
-            .populate("author", "username profilePicture")
+            .populate("author", "username profilePicture isDeleted")
             .populate("likes", "username profilePicture")
             .populate({
                 path: "comments",
@@ -538,7 +546,7 @@ export const getExplore = async (req, res) => {
             });
 
         const reels = await Reel.find()
-            .populate("author", "username profilePicture")
+            .populate("author", "username profilePicture isDeleted")
             .populate("likes", "username profilePicture")
             .populate({
                 path: "comments",
@@ -569,8 +577,8 @@ export const getExplore = async (req, res) => {
 
         return res.status(200).json({
             success: true,
-            top_posts: topPosts,
-            top_reels: topReels
+            top_posts: topPosts.filter(p => p.author && !p.author.isDeleted),
+            top_reels: topReels.filter(r => r.author && !r.author.isDeleted)
         });
     } catch (error) {
         console.error(error);

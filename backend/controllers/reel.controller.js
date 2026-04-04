@@ -72,16 +72,17 @@ export const getReelsFeed = async (req, res) => {
         const { page = 1, limit = 5 } = req.query;
         const reels = await Reel.find()
             .sort({ createdAt: -1 })
-            .skip((page - 1) * limit)
-            .limit(parseInt(limit))
-            .populate({ path: 'author', select: 'username profilePicture' })
+            .populate({ path: 'author', select: 'username profilePicture isDeleted' })
             .populate({
                 path: 'comments',
                 populate: { path: 'author', select: 'username profilePicture' }
             })
             .populate('likes', 'username profilePicture');
 
-        return res.status(200).json({ reels, success: true });
+        const filteredReels = reels.filter(reel => reel.author && !reel.author.isDeleted);
+        const paginatedReels = filteredReels.slice(0, parseInt(limit));
+
+        return res.status(200).json({ reels: paginatedReels, success: true });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Internal server error", success: false });

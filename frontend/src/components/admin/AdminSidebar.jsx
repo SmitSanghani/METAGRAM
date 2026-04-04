@@ -10,7 +10,8 @@ import {
     LogOut,
     MessageCircle,
     Flag,
-    ExternalLink
+    ExternalLink,
+    Trash2
 } from 'lucide-react';
 import logo from '../../assets/logo2.png';
 import { NavLink, Link } from 'react-router-dom';
@@ -19,6 +20,7 @@ const AdminSidebar = () => {
     const menuItems = [
         { icon: <LayoutDashboard size={18} />, text: 'Dashboard', path: '/admin' },
         { icon: <Users size={18} />, text: 'Users Management', path: '/admin/users' },
+        { icon: <Trash2 size={18} />, text: 'Delete Accounts', path: '/admin/delete-accounts' },
         { icon: <Image size={18} />, text: 'Posts Management', path: '/admin/posts' },
         { icon: <Video size={18} />, text: 'Reels Management', path: '/admin/reels' },
         { icon: <MessageSquare size={18} />, text: 'Comments', path: '/admin/comments' },

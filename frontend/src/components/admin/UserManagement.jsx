@@ -99,8 +99,10 @@ const UserManagement = () => {
     };
 
     const filteredUsers = users.filter(user =>
-        user.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.email?.toLowerCase().includes(searchTerm.toLowerCase())
+        !user.isDeleted && (
+            user.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            user.email?.toLowerCase().includes(searchTerm.toLowerCase())
+        )
     );
 
     return (
@@ -113,7 +115,7 @@ const UserManagement = () => {
             </div>
 
             {/* Filter Bar */}
-            <div className="bg-white p-4 rounded-[24px] border border-gray-100 flex gap-4">
+            <div className="bg-white p-4 rounded-[24px] border border-gray-100">
                 <div className="relative flex-1">
                     <span className="absolute inset-y-0 left-4 flex items-center text-gray-400">
                         <Search size={16} />
@@ -126,10 +128,6 @@ const UserManagement = () => {
                         className="w-full pl-12 pr-4 py-2 bg-gray-50 border border-transparent focus:border-sky-300 rounded-xl text-sm outline-none transition-all"
                     />
                 </div>
-                <button className="flex items-center gap-2 px-4 py-2 border border-gray-100 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-all">
-                    <Filter size={16} />
-                    Filter
-                </button>
             </div>
 
             {/* Users Table */}
@@ -171,15 +169,23 @@ const UserManagement = () => {
                                     </td>
                                     <td className="px-8 py-5">
                                         <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${user.isActive === false
-                                                ? 'bg-rose-100 text-rose-600'
-                                                : 'bg-emerald-100 text-emerald-600'
+                                            ? 'bg-rose-100 text-rose-600'
+                                            : 'bg-emerald-100 text-emerald-600'
                                             }`}>
                                             {user.isActive === false ? 'Suspended' : 'Active'}
                                         </span>
                                     </td>
                                     <td className="px-8 py-5">
-                                        <p className="text-sm font-bold text-gray-700">{user.followers?.length || 0}</p>
-                                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">Followers</p>
+                                        <div className="flex items-center gap-6">
+                                            <div>
+                                                <p className="text-sm font-bold text-gray-700">{user.posts?.length || 0}</p>
+                                                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">Posts</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-bold text-gray-700">{user.followers?.length || 0}</p>
+                                                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">Followers</p>
+                                            </div>
+                                        </div>
                                     </td>
                                     <td className="px-8 py-5">
                                         <div className="w-[100px]">
@@ -191,8 +197,8 @@ const UserManagement = () => {
                                             <button
                                                 onClick={() => toggleStatusHandler(user._id, user.isActive)}
                                                 className={`p-2 rounded-lg transition-all ${user.isActive === false
-                                                        ? 'text-emerald-500 bg-emerald-50 hover:bg-emerald-100'
-                                                        : 'text-rose-500 bg-rose-50 hover:bg-rose-100'
+                                                    ? 'text-emerald-500 bg-emerald-50 hover:bg-emerald-100'
+                                                    : 'text-rose-500 bg-rose-50 hover:bg-rose-100'
                                                     }`}
                                                 title={user.isActive === false ? "Activate User" : "Suspend User"}
                                             >

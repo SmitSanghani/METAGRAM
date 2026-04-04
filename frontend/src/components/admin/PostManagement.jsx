@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Heart, MessageCircle, MoreHorizontal, Trash2, Eye, Loader2, X } from 'lucide-react';
+import { useSelector } from 'react-redux';
+import { Heart, MessageCircle, MoreHorizontal, Trash2, Eye, Loader2, X, Image as ImageIcon } from 'lucide-react';
 import api from '@/api';
 import { toast } from 'sonner';
 import PostViewModal from './PostViewModal';
@@ -10,6 +11,8 @@ const PostManagement = () => {
     const [loading, setLoading] = useState(true);
     const [selectedPost, setSelectedPost] = useState(null);
     const [showModal, setShowModal] = useState(false);
+
+    const { socket } = useSelector(store => store.socketio);
 
     const fetchPosts = async () => {
         try {
@@ -28,7 +31,22 @@ const PostManagement = () => {
 
     useEffect(() => {
         fetchPosts();
-    }, []);
+
+        if (socket) {
+            socket.on('newPost', (newPost) => {
+                setPosts(prev => [newPost, ...prev]);
+            });
+
+            socket.on('deletePost', (deletedPostId) => {
+                setPosts(prev => prev.filter(p => p._id !== deletedPostId));
+            });
+
+            return () => {
+                socket.off('newPost');
+                socket.off('deletePost');
+            };
+        }
+    }, [socket]);
 
     const deletePostHandler = async (postId) => {
         const result = await Swal.fire({
@@ -122,9 +140,17 @@ const PostManagement = () => {
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
-            <div>
-                <h1 className="text-2xl font-black text-gray-900 mb-1">Posts Management</h1>
-                <p className="text-sm text-gray-500">Moderate media shared on the platform.</p>
+            <div className="flex justify-between items-end">
+                <div>
+                    <h1 className="text-2xl font-black text-gray-900 mb-1">Posts Management</h1>
+                    <p className="text-sm text-gray-500">Moderate media shared on the platform.</p>
+                </div>
+                <button 
+                    onClick={fetchPosts}
+                    className="px-6 py-2.5 bg-gray-900 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-black transition-all shadow-lg active:scale-95"
+                >
+                    Refresh Data
+                </button>
             </div>
 
             {loading ? (
@@ -136,9 +162,15 @@ const PostManagement = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
                     {posts.map((post) => (
                         <div key={post._id} className="bg-white rounded-[18px] border border-gray-100 overflow-hidden group shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-                            {/* Post Image */}
-                            <div className="relative aspect-square overflow-hidden bg-gray-50">
-                                <img src={post.image} alt="post" className="w-full h-full object-cover" />
+                            {/* Post Image with Badge for Multiple */}
+                            <div className="relative aspect-square overflow-hidden bg-gray-50 cursor-pointer" onClick={() => viewPostHandler(post)}>
+                                <img src={post.image} alt="post" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                {post.images?.length > 1 && (
+                                    <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-md text-white px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 shadow-lg border border-white/20">
+                                        <ImageIcon size={12} className="text-white" />
+                                        {post.images.length} Photos
+                                    </div>
+                                )}
                                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-6">
                                     <div className="flex items-center gap-1.5 text-white">
                                         <Heart size={20} fill="currentColor" />

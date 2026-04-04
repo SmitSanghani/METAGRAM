@@ -99,7 +99,11 @@ const userSchema = new mongoose.Schema({
     linkedAccounts: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
-    }]
+    }],
+    isDeleted: {
+        type: Boolean,
+        default: false
+    }
 }, { timestamps: true });
 
 export const User = mongoose.model('User', userSchema);
