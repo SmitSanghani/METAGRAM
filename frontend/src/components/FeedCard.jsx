@@ -199,6 +199,15 @@ const FeedCard = ({ item, type = 'post', onDelete }) => {
                         </div>
                     ) : (
                         <div className='w-full overflow-hidden relative bg-gray-50 flex items-center justify-center aspect-square'>
+                            {item.author?._id === user?._id && (
+                                <div 
+                                    onClick={(e) => { e.stopPropagation(); onDelete && onDelete(item._id, e); }}
+                                    className='absolute top-3 left-3 bg-black/30 backdrop-blur-md p-1.5 rounded-lg text-white opacity-0 group-hover:opacity-100 transition-all hover:bg-red-500 z-20 cursor-pointer'
+                                    title="Delete Post"
+                                >
+                                    <Trash2 size={14} />
+                                </div>
+                            )}
                             <AnimatePresence mode='wait'>
                                 <motion.img
                                     key={currentIndex}

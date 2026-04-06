@@ -267,6 +267,43 @@ const Profile = () => {
     }
   };
 
+  const deletePostHandler = async (postId, e) => {
+    e.stopPropagation();
+    
+    const result = await Swal.fire({
+      title: 'Delete Post?',
+      text: "This action cannot be undone!",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#94a3b8',
+      confirmButtonText: 'Yes, delete it!',
+      background: '#ffffff',
+      borderRadius: '24px',
+      customClass: {
+        container: 'z-[9999]',
+        popup: 'rounded-[24px]',
+        confirmButton: 'rounded-xl px-6 py-2.5 font-bold uppercase tracking-wider text-xs',
+        cancelButton: 'rounded-xl px-6 py-2.5 font-bold uppercase tracking-wider text-xs'
+      }
+    });
+
+    if (result.isConfirmed) {
+      try {
+        const res = await api.delete(`/post/delete/${postId}`);
+        if (res.data.success) {
+          toast.success("Post deleted successfully");
+          dispatch(setUserProfile({
+            ...userProfile,
+            posts: userProfile.posts.filter(p => p._id !== postId)
+          }));
+        }
+      } catch (error) {
+        toast.error("Failed to delete post");
+      }
+    }
+  };
+
   const displayedPost =
     activeTab === "posts" ? userProfile?.posts
       : activeTab === "saved" ? userProfile?.bookmarks
@@ -461,7 +498,7 @@ const Profile = () => {
                         key={item?._id} 
                         item={item} 
                         type={(activeTab === 'reels' || activeTab === 'saved_reels' || item.videoUrl) ? 'reel' : 'post'} 
-                        onDelete={item.videoUrl ? deleteReelHandler : undefined}
+                        onDelete={isLoggedInUserProfile ? (item.videoUrl ? deleteReelHandler : deletePostHandler) : undefined}
                       />
                     ))
                   }
