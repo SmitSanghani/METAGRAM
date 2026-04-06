@@ -160,12 +160,10 @@ const PostModal = ({ open, setOpen, post: initialPost, onOpenComment }) => {
                                     </button>
                                 </DialogTrigger>
                                 <DialogContent className="p-0 border-none bg-white rounded-3xl overflow-hidden max-w-[400px] shadow-2xl flex flex-col items-center text-sm text-center">
-                                    <button className="w-full py-4 font-black text-[#ED4956] hover:bg-red-50 border-b border-gray-50 transition-colors">Report Content</button>
                                     <button className="w-full py-4 font-black text-[#ED4956] hover:bg-red-50 border-b border-gray-50 transition-colors">Unfollow User</button>
                                     {user?._id === post?.author?._id && (
                                         <button onClick={deletePostHandler} className="w-full py-4 font-black text-[#ED4956] hover:bg-red-50 border-b border-gray-50 transition-colors">Delete Post</button>
                                     )}
-                                    <button className='w-full font-bold py-4 hover:bg-gray-50 transition-colors border-b border-gray-50'>Add to Favorites</button>
                                     <button onClick={() => { setShowMoreOptions(false); setShowShare(true); }} className='w-full font-bold py-4 hover:bg-gray-50 transition-colors border-b border-gray-50'>Share Post</button>
                                     <button onClick={() => setShowMoreOptions(false)} className="w-full py-4 hover:bg-gray-100 font-black text-gray-400 transition-colors">Cancel</button>
                                 </DialogContent>

@@ -449,9 +449,7 @@ const CommentDialog = ({ open, setOpen }) => {
                                         </div>
                                     </DialogTrigger>
                                     <DialogContent className="flex flex-col items-center text-sm text-center sm:rounded-3xl p-0 overflow-hidden border-none shadow-2xl">
-                                        <button className='w-full text-[#ED4956] font-black py-4 hover:bg-red-50 transition-colors border-b border-gray-50'>Report Content</button>
                                         <button onClick={() => { }} className='w-full text-[#ED4956] font-black py-4 hover:bg-red-50 transition-colors border-b border-gray-50'>Unfollow User</button>
-                                        <button className='w-full font-bold py-4 hover:bg-gray-50 transition-colors border-b border-gray-50'>Add to Favorites</button>
                                         <button className='w-full font-bold py-4 hover:bg-gray-50 transition-colors border-b border-gray-50'>Share Post</button>
                                         <DialogClose className='w-full py-4 hover:bg-gray-100 font-black text-gray-400 transition-colors'>Cancel</DialogClose>
                                     </DialogContent>
