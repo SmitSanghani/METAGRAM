@@ -33,7 +33,10 @@ const Profile = () => {
   useGetUserProfile(userId);
   const [activeTab, setActiveTab] = useState('posts');
 
-  const { userProfile, user, isFollowing: storeIsFollowing, isFollower: storeIsFollower, requestPending: storeRequestPending } = useSelector(store => store.auth);
+  const { userProfile, user, isProfileLoading, isFollowing: storeIsFollowing, isFollower: storeIsFollower, requestPending: storeRequestPending } = useSelector(store => store.auth);
+
+  // We should also verify the profile belongs to the URL ID to avoid stale data flicker
+  const isCorrectProfile = userProfile?._id === userId;
 
   const isLoggedInUserProfile = String(user?._id) === String(userProfile?._id);
   const isFollowing = user?.following?.some(u => String(u._id || u) === String(userProfile?._id)) || storeIsFollowing;
@@ -273,7 +276,12 @@ const Profile = () => {
 
   return (
     <div className='min-h-screen bg-[rgb(248,252,252)] py-10 px-4'>
-      {!userProfile ? (
+      {isProfileLoading ? (
+        <div className="max-w-5xl mx-auto flex flex-col items-center justify-center py-40 bg-white rounded-[13px] border border-[#efefef] shadow-sm">
+           <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+           <p className="mt-4 text-gray-500 font-medium animate-pulse">Loading profile...</p>
+        </div>
+      ) : (!userProfile || !isCorrectProfile) ? (
         <div className="max-w-5xl mx-auto flex flex-col items-center justify-center py-20 bg-white rounded-[13px] border border-[#efefef] shadow-sm">
           <div className="w-24 h-24 rounded-full bg-gray-100 flex items-center justify-center mb-6">
             <AtSign size={40} className="text-gray-400" />

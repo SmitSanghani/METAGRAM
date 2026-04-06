@@ -7,6 +7,7 @@ import { useSelector } from 'react-redux';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import { cn, getAvatarColor } from '@/lib/utils';
 
 const DEFAULT_STORY_DURATION = 5000; // 5 seconds default for images
 
@@ -623,9 +624,11 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
                         <div className="flex items-center gap-2">
                             <div className="flex -space-x-2">
                                 {uniqueViewers.slice(0, 3).map((viewer, i) => (
-                                    <Avatar key={i} className="w-6 h-6 border-2 border-white">
+                                    <Avatar key={i} className="w-6 h-6 border-2 border-white ring-1 ring-black/5">
                                         <AvatarImage src={viewer?.profilePicture} />
-                                        <AvatarFallback>{viewer?.username?.charAt(0)}</AvatarFallback>
+                                        <AvatarFallback className={cn("text-[8px] font-bold uppercase", getAvatarColor(viewer?.username))}>
+                                            {viewer?.username?.charAt(0)}
+                                        </AvatarFallback>
                                     </Avatar>
                                 ))}
                             </div>
@@ -677,9 +680,11 @@ const StoryViewer = ({ stories, onClose, onStoryViewed, onStoryDeleted, onAddSto
                                         }}
                                     >
                                         <div className="flex items-center gap-3">
-                                            <Avatar className="w-10 h-10 border border-gray-200 dark:border-zinc-800 transition-transform group-hover/viewer:scale-105">
-                                                <AvatarImage src={viewer?.profilePicture} />
-                                                <AvatarFallback>{viewer?.username?.charAt(0)?.toUpperCase()}</AvatarFallback>
+                                            <Avatar className="w-10 h-10 border border-gray-100 dark:border-zinc-800 transition-transform group-hover/viewer:scale-105 shadow-sm">
+                                                <AvatarImage src={viewer?.profilePicture} className="object-cover" />
+                                                <AvatarFallback className={cn("font-bold uppercase", getAvatarColor(viewer?.username))}>
+                                                    {viewer?.username?.charAt(0)}
+                                                </AvatarFallback>
                                             </Avatar>
                                             <span className="font-medium text-sm dark:text-white group-hover/viewer:underline">{viewer?.username}</span>
                                         </div>

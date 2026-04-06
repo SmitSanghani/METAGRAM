@@ -11,6 +11,7 @@ const authSlice = createSlice({
         requestPending: false,
         theme: localStorage.getItem('theme') || 'light-theme',
         token: localStorage.getItem('token') || null,
+        isProfileLoading: false,
     },
     reducers: {
         // actions
@@ -37,6 +38,9 @@ const authSlice = createSlice({
         },
         setUserProfile: (state, action) => {
             state.userProfile = action.payload;
+        },
+        setProfileLoading: (state, action) => {
+            state.isProfileLoading = action.payload;
         },
         setFollowRelationship: (state, action) => {
             const { isFollowing, isFollower, requestPending } = action.payload;
@@ -220,6 +224,6 @@ const authSlice = createSlice({
     }
 });
 
-export const { setTheme, setAuthUser, setToken, setSuggestedUsers, setUserProfile, updateSuggestedUser, setFollowRelationship, updateUserProfileReelStats, updateUserProfilePostStats, removeUserProfileReelComment, editUserProfileReelComment, updateUserProfileReelCommentLikes, toggleMuteUserAction, toggleBookmark, addUserProfileReel, addUserProfilePost, removeUserProfileReel } = authSlice.actions;
+export const { setTheme, setAuthUser, setToken, setSuggestedUsers, setUserProfile, setProfileLoading, updateSuggestedUser, setFollowRelationship, updateUserProfileReelStats, updateUserProfilePostStats, removeUserProfileReelComment, editUserProfileReelComment, updateUserProfileReelCommentLikes, toggleMuteUserAction, toggleBookmark, addUserProfileReel, addUserProfilePost, removeUserProfileReel } = authSlice.actions;
 export default authSlice.reducer;
 

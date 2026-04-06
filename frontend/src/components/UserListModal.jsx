@@ -8,6 +8,7 @@ import api from '@/api';
 import { toast } from 'sonner';
 import { X, Loader2 } from 'lucide-react';
 import Swal from 'sweetalert2';
+import { cn, getAvatarColor } from '@/lib/utils';
 
 const UserListItem = ({ user: targetUser, currentAuthUser, onClose, onUpdate }) => {
     const navigate = useNavigate();
@@ -86,8 +87,8 @@ const UserListItem = ({ user: targetUser, currentAuthUser, onClose, onUpdate }) 
             >
                 <Avatar className="w-10 h-10 border border-gray-100 shadow-sm transition-transform group-hover:scale-105">
                     <AvatarImage src={targetUser.profilePicture || null} className="object-cover" />
-                    <AvatarFallback className="bg-gray-100 font-bold text-gray-400">
-                        {targetUser.username?.charAt(0)?.toUpperCase() || 'U'}
+                    <AvatarFallback className={cn("font-bold uppercase", getAvatarColor(targetUser.username))}>
+                        {targetUser.username?.charAt(0) || 'U'}
                     </AvatarFallback>
                 </Avatar>
                 <div className="flex flex-col">

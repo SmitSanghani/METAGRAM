@@ -1,4 +1,4 @@
-import { setFollowRelationship, setUserProfile } from "@/redux/authSlice";
+import { setFollowRelationship, setUserProfile, setProfileLoading } from "@/redux/authSlice";
 import api from "@/api";
 import { useEffect } from "react";
 import { useDispatch } from "react-redux";
@@ -11,6 +11,7 @@ const useGetUserProfile = (userId) => {
     useEffect(() => {
         const fetchUserProfile = async () => {
             try {
+                dispatch(setProfileLoading(true));
                 const res = await api.get(`/user/${userId}/profile`);
                 if (res.data.success) {
                     dispatch(setUserProfile(res.data.user));
@@ -23,10 +24,20 @@ const useGetUserProfile = (userId) => {
             } catch (error) {
                 console.log(error);
                 dispatch(setUserProfile(null));
+            } finally {
+                dispatch(setProfileLoading(false));
             }
         }
-        fetchUserProfile();
-    }, [userId]);
+
+        if (userId) {
+            fetchUserProfile();
+        }
+
+        // Cleanup: Clear profile when ID changes to prevent stale data flicker
+        return () => {
+            dispatch(setUserProfile(null));
+        }
+    }, [userId, dispatch]);
 };
 
 export default useGetUserProfile;

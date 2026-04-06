@@ -770,7 +770,7 @@ const ChatPage = () => {
                                         <div className="relative shrink-0">
                                             <Avatar className={`w-14 h-14 border-2 ${isSelected ? 'border-white' : 'border-transparent'} shadow-sm transition-all group-hover:scale-105`}>
                                                 <AvatarImage src={suggestedUser?.profilePicture} className="object-cover" />
-                                                <AvatarFallback className={cn("text-black font-black text-[15px] uppercase", getAvatarColor(suggestedUser?.username))}>
+                                                <AvatarFallback className={cn("font-black text-[15px] uppercase", getAvatarColor(suggestedUser?.username))}>
                                                     {suggestedUser?.username?.charAt(0)}
                                                 </AvatarFallback>
                                             </Avatar>

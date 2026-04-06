@@ -261,14 +261,15 @@ export const getProfile = async (req, res) => {
         }
 
         // BLOCK CHECK: If the target user has blocked current user, return "User not found"
-        if (user.blockedUsers.includes(currentUserId)) {
+        const hasBlockedMe = user.blockedUsers?.some(id => id.toString() === currentUserId?.toString());
+        if (hasBlockedMe) {
             return res.status(404).json({
                 message: "User not found",
                 success: false
             });
         }
 
-        const isBlocked = user.blockedBy.includes(currentUserId);
+        const isBlocked = user.blockedBy?.some(id => id.toString() === currentUserId?.toString());
 
         const isSelf = currentUserId?.toString() === userId?.toString();
         const isFollowing = user.followers.some(f => (f._id || f).toString() === currentUserId);
