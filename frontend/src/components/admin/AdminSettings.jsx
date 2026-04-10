@@ -80,6 +80,7 @@ const AdminSettings = () => {
     const [platformSettings, setPlatformSettingsState] = useState({
         postsEnabled: true,
         reelsEnabled: true,
+        callingEnabled: true,
     });
     const [platformLoading, setPlatformLoading] = useState(false);
 
@@ -91,6 +92,7 @@ const AdminSettings = () => {
                     const settings = {
                         postsEnabled: res.data.settings.postsEnabled,
                         reelsEnabled: res.data.settings.reelsEnabled ?? true,
+                        callingEnabled: res.data.settings.callingEnabled ?? true,
                     };
                     setPlatformSettingsState(settings);
                     dispatch(setPlatformSettings(settings));
@@ -259,6 +261,13 @@ const AdminSettings = () => {
                             description="Allow users to upload new reels" 
                             checked={platformSettings.reelsEnabled}
                             onChange={(val) => setPlatformSettingsState(p => ({...p, reelsEnabled: val}))}
+                        />
+
+                        <Toggle 
+                            label="Voice & Video Calling" 
+                            description="Enable/Disable calling buttons site-wide" 
+                            checked={platformSettings.callingEnabled}
+                            onChange={(val) => setPlatformSettingsState(p => ({...p, callingEnabled: val}))}
                         />
 
                         <button

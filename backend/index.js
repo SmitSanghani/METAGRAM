@@ -28,7 +28,8 @@ const allowedOrigins = [
     'https://metagram-nine.vercel.app',
     'https://www.metagram-nine.vercel.app',
     'http://localhost:5173',
-    'http://localhost:3000'
+    'http://localhost:3000',
+    'http://127.0.0.1:5173'
 ];
 
 if (process.env.URL) {
@@ -42,8 +43,9 @@ const corsOptions = {
         const lowerOrigin = origin.trim().toLowerCase().replace(/\/$/, "");
         const isAllowed = allowedOrigins.some(o => o.trim().toLowerCase().replace(/\/$/, "") === lowerOrigin);
         const isVercel = /\.vercel\.app$/.test(lowerOrigin);
+        const isLocalNetwork = /^http:\/\/192\.168\.\d+\.\d+:5173$/.test(lowerOrigin);
 
-        if (isAllowed || isVercel) {
+        if (isAllowed || isVercel || isLocalNetwork) {
             callback(null, true);
         } else {
             console.warn(`[CORS Blocked] Origin: ${origin}`);

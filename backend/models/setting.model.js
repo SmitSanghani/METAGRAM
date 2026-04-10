@@ -9,7 +9,10 @@ const settingSchema = new mongoose.Schema({
         type: Boolean,
         default: true
     },
-    // We can add other global settings here in the future
+    callingEnabled: {
+        type: Boolean,
+        default: true
+    },
 }, { timestamps: true });
 
 export const Setting = mongoose.model('Setting', settingSchema);

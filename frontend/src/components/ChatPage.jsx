@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { cn, getAvatarColor } from '@/lib/utils';
 import { Button } from './ui/button';
-import { MessageCircle, Send, X, Image as ImageIcon, Smile, Plus, FileText, Reply, Trash2, Search, BellOff, Bell, VolumeOff, Volume2, Users, UserPlus, UserMinus, Shield } from 'lucide-react';
+import { MessageCircle, Send, X, Image as ImageIcon, Smile, Plus, FileText, Reply, Trash2, Search, BellOff, Bell, VolumeOff, Volume2, Users, UserPlus, UserMinus, Shield, ArrowLeft } from 'lucide-react';
 import api from '@/api';
 import { toast } from 'sonner';
 import { toggleMuteUserAction } from '../redux/authSlice';
@@ -19,7 +19,8 @@ import PostModal from './PostModal';
 import CommentDialog from './CommentDialog';
 import { THEMES } from '@/utils/themes';
 import ThemeSelectorModal from './ThemeSelectorModal';
-import { Palette } from 'lucide-react';
+import { Palette, Phone, Video } from 'lucide-react';
+import { useWebRTC } from '@/hooks/useWebRTC';
 
 const NOTIFICATION_SOUND_URL = "/notification.mp3"; // Reference local file
 
@@ -29,6 +30,7 @@ const ChatPage = () => {
     const [textMessage, setTextMessage] = useState("");
     const { user } = useSelector(store => store.auth);
     const { onlineUsers = [], messages = [], unreadCounts = {}, lastMessages = {}, selectedUser, chatUsers = [], selectedChatTheme } = useSelector(store => store.chat || {});
+    const { callingEnabled } = useSelector(store => store.settings);
     const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
     const { socket } = useSelector(store => store.socketio);
     const [replyTo, setReplyTo] = useState(null);
@@ -39,6 +41,7 @@ const ChatPage = () => {
     const [openCommentDialog, setOpenCommentDialog] = useState(false);
     const [selectedPostForModal, setSelectedPostForModal] = useState(null);
     const dispatch = useDispatch();
+    const { startCall } = useWebRTC();
 
     const [isTyping, setIsTyping] = useState(false);
     const [isSending, setIsSending] = useState(false);
@@ -696,7 +699,7 @@ const ChatPage = () => {
     return (
         <div className='flex h-[100dvh] bg-[rgb(218,242,242)] text-[#333333] w-full overflow-hidden font-sans border-0'>
             {/* Sidebar User List */}
-            <section className='hidden md:flex flex-col w-[350px] shrink-0 border-r border-[#efefef] bg-white px-2'>
+            <section className={`${selectedUser ? 'hidden md:flex' : 'flex'} flex-col w-full md:w-[350px] shrink-0 border-r border-[#efefef] bg-white px-2`}>
                 <div className='py-8 px-4 flex items-center justify-between'>
                     <h1 className='font-black text-[22px] tracking-tight text-[#262626]'>{user?.username}</h1>
                     <div className="flex gap-2">
@@ -871,12 +874,21 @@ const ChatPage = () => {
             </section>
 
             {/* Main Chat Area */}
-            <section className='flex-1 flex flex-col h-full bg-white relative overflow-hidden'>
+            <section className={`${selectedUser ? 'flex' : 'hidden md:flex'} flex-1 flex flex-col h-full bg-white relative overflow-hidden`}>
                 {selectedUser ? (
                     <>
                         {/* Header */}
-                        <div className='flex items-center justify-between px-8 py-5 border-b border-[#efefef] bg-white/95 backdrop-blur-md z-40 sticky top-0'>
-                            <div className='flex items-center gap-4'>
+                        <div className='flex items-center justify-between px-4 md:px-8 py-4 md:py-5 border-b border-[#efefef] bg-white/95 backdrop-blur-md z-40 sticky top-0'>
+                            <div className='flex items-center gap-3 md:gap-4'>
+                                <button 
+                                    className="md:hidden p-2 -ml-2 text-gray-500 hover:text-black hover:bg-gray-100 rounded-full transition-all"
+                                    onClick={() => {
+                                        localStorage.removeItem('lastChatUserId');
+                                        dispatch(setSelectedUser(null));
+                                    }}
+                                >
+                                    <ArrowLeft size={24} />
+                                </button>
                                 <div
                                     className={`relative z-10 ${(headerStories?.length || 0) > 0 ? 'cursor-pointer' : ''}`}
                                     onClick={() => (headerStories?.length || 0) > 0 && setIsHeaderStoryOpen(true)}
@@ -911,6 +923,26 @@ const ChatPage = () => {
                                     <Button variant="ghost" size="icon" onClick={() => setIsThemeModalOpen(true)} className="rounded-full w-10 h-10 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all">
                                         <Palette size={20} />
                                     </Button>
+                                )}
+                                {!selectedUser.isGroup && callingEnabled && (
+                                    <>
+                                        <Button 
+                                            variant="ghost" 
+                                            size="icon" 
+                                            onClick={() => startCall(selectedUser, 'voice')} 
+                                            className="rounded-full w-10 h-10 text-gray-400 hover:text-green-500 hover:bg-green-50 transition-all"
+                                        >
+                                            <Phone size={20} />
+                                        </Button>
+                                        <Button 
+                                            variant="ghost" 
+                                            size="icon" 
+                                            onClick={() => startCall(selectedUser, 'video')} 
+                                            className="rounded-full w-10 h-10 text-gray-400 hover:text-blue-500 hover:bg-blue-50 transition-all"
+                                        >
+                                            <Video size={20} />
+                                        </Button>
+                                    </>
                                 )}
                                 <Button variant="ghost" size="icon" onClick={() => searchInputRef.current?.focus()} className="rounded-full w-10 h-10 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all"><MessageCircle size={20} /></Button>
                                 <Button

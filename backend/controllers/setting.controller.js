@@ -4,7 +4,7 @@ export const getSettings = async (req, res) => {
     try {
         let settings = await Setting.findOne();
         if (!settings) {
-            settings = await Setting.create({ postsEnabled: true, reelsEnabled: true });
+            settings = await Setting.create({ postsEnabled: true, reelsEnabled: true, callingEnabled: true });
         }
         return res.status(200).json({
             success: true,
@@ -21,16 +21,18 @@ export const getSettings = async (req, res) => {
 
 export const updateSettings = async (req, res) => {
     try {
-        const { postsEnabled, reelsEnabled } = req.body;
+        const { postsEnabled, reelsEnabled, callingEnabled } = req.body;
         let settings = await Setting.findOne();
         if (!settings) {
             settings = await Setting.create({ 
                 postsEnabled: postsEnabled !== undefined ? postsEnabled : true, 
-                reelsEnabled: reelsEnabled !== undefined ? reelsEnabled : true 
+                reelsEnabled: reelsEnabled !== undefined ? reelsEnabled : true,
+                callingEnabled: callingEnabled !== undefined ? callingEnabled : true
             });
         } else {
             if (postsEnabled !== undefined) settings.postsEnabled = postsEnabled;
             if (reelsEnabled !== undefined) settings.reelsEnabled = reelsEnabled;
+            if (callingEnabled !== undefined) settings.callingEnabled = callingEnabled;
             await settings.save();
         }
         return res.status(200).json({

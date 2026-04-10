@@ -1,8 +1,9 @@
 import axios from 'axios';
 axios.defaults.withCredentials = true;
 
-const API_BASE_URL = window.location.hostname === 'localhost' 
-    ? "http://localhost:8000/api/v1" 
+const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname.startsWith('192.168.');
+const API_BASE_URL = isDev
+    ? `http://${window.location.hostname}:8000/api/v1`
     : "https://metagram-3.onrender.com/api/v1";
 
 const api = axios.create({

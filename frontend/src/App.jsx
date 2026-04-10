@@ -156,9 +156,20 @@ const browserRouter = createBrowserRouter([
 
 import { setPlatformSettings } from "./redux/settingsSlice";
 import useTheme from "./hooks/useTheme";
+import { audioGenerator } from "./utils/audioGenerator";
 
 function App() {
   useTheme(); // Initialize theme sync
+  
+  // Force HTTPS for secure context on mobile (needed for camera/mic)
+  useEffect(() => {
+    const isIp = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(window.location.hostname);
+    if (window.location.protocol === 'http:' && (isIp || window.location.hostname.includes('metagram'))) {
+        console.log("Forcing HTTPS for secure context...");
+        window.location.href = window.location.href.replace('http:', 'https:');
+    }
+  }, []);
+
   const { user } = useSelector(store => store.auth);
   const { socket } = useSelector(store => store.socketio);
   const { selectedUser, chatUsers = [], messages = [] } = useSelector(store => store.chat || {});
@@ -222,10 +233,15 @@ function App() {
   // Audio unlocking for browsers
   useEffect(() => {
     const unlockAudio = () => {
+      // Unlock traditional audio
       audioRef.current.play().then(() => {
         audioRef.current.pause();
         audioRef.current.currentTime = 0;
       }).catch(() => { });
+
+      // Unlock Web Audio API context
+      audioGenerator.init();
+
       window.removeEventListener('click', unlockAudio);
     };
     window.addEventListener('click', unlockAudio);
@@ -262,8 +278,9 @@ function App() {
       };
       fetchInitialData();
 
-      const socketUrl = window.location.hostname === 'localhost'
-        ? 'http://localhost:8000'
+      const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname.startsWith('192.168.');
+      const socketUrl = isDev
+        ? `http://${window.location.hostname}:8000`
         : 'https://metagram-3.onrender.com';
 
       const socketio = io(socketUrl, {
@@ -363,7 +380,7 @@ function App() {
           ? (openChatUser?.isGroup && String(newMessage.conversationId) === String(openChatUser.conversationId))
           : (isCurrentlyViewingThisChat && (isFromMe || isToMe));
 
-        if (isCurrentlyViewingThisChat && isCorrectConversation && !isFromMe) {
+        if (isCurrentlyViewingThisChat && isCorrectConversation) {
           dispatch(addMessage(newMessage));
         }
       });
@@ -415,9 +432,9 @@ function App() {
         const isViewingThisChat = isOnChatPage && openChatUser && String(openChatUser._id) === String(targetId);
 
         if (isViewingThisChat) {
-          // If viewing on /chat page, add to messages and clear unread (Only if not from me)
+          // If viewing on /chat page, add to messages and clear unread
+          dispatch(addMessage(newMessage));
           if (!isFromMe) {
-            dispatch(addMessage(newMessage));
             dispatch(clearUnreadCount(targetId));
             api.get(`/message/seen/${targetId}`).catch(() => { });
           }

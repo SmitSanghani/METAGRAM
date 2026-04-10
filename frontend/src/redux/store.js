@@ -5,6 +5,7 @@ import chatSlice from './chatSlice.js';
 import socketSlice from './socketSlice.js';
 import notificationSlice from './notificationSlice.js';
 import reelSlice from './reelSlice.js';
+import callSlice from './callSlice.js';
 
 import {
     persistReducer,
@@ -24,7 +25,7 @@ const persistConfig = {
     key: 'root',
     version: 1,
     storage,
-    blacklist: ['socketio']
+    blacklist: ['socketio', 'call']
 }
 
 const rootReducer = combineReducers({
@@ -34,7 +35,8 @@ const rootReducer = combineReducers({
     socketio: socketSlice,
     notification: notificationSlice,
     reel: reelSlice,
-    settings: settingsSlice, // <-- ADDED
+    settings: settingsSlice,
+    call: callSlice,
 })
 
 const persistedReducer = persistReducer(persistConfig, rootReducer)
