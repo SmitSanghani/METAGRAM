@@ -21,7 +21,7 @@ export const useWebRTC = () => {
     const dispatch = useDispatch();
     const { socket } = useSelector(store => store.socketio);
     const { user } = useSelector(store => store.auth);
-    const { callType, remoteUser, offer, isIncomingCall, isOutgoingCall, startTime } = useSelector(store => store.call);
+    const { callType, remoteUser, offer, isIncomingCall, isOutgoingCall, isActiveCall, startTime } = useSelector(store => store.call);
 
     const pc = useRef(null);
     const [localStream, setLocalStream] = useState(null);
