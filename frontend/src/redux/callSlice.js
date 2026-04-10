@@ -12,8 +12,9 @@ const callSlice = createSlice({
         callType: null, // 'voice' or 'video'
         offer: null,
         answer: null,
-        remoteUser: null,
-    },
+         remoteUser: null,
+         startTime: null,
+     },
     reducers: {
         setIncomingCall: (state, action) => {
             state.isIncomingCall = action.payload.isIncoming;
@@ -39,18 +40,22 @@ const callSlice = createSlice({
                 state.receiver = null;
                 state.callType = null;
                 state.offer = null;
-                state.answer = null;
-                state.remoteUser = null;
-            }
-        },
-        setCallConnected: (state, action) => {
-            state.isCallConnected = action.payload;
-        },
-        setCallAnswer: (state, action) => {
-            state.answer = action.payload;
-        }
-    }
-});
-
-export const { setIncomingCall, setOutgoingCall, setActiveCall, setCallAnswer, setCallConnected } = callSlice.actions;
+                 state.answer = null;
+                 state.remoteUser = null;
+                 state.startTime = null;
+             }
+         },
+         setCallConnected: (state, action) => {
+             state.isCallConnected = action.payload;
+         },
+         setCallAnswer: (state, action) => {
+             state.answer = action.payload;
+         },
+         setStartTime: (state, action) => {
+             state.startTime = action.payload;
+         }
+     }
+ });
+ 
+ export const { setIncomingCall, setOutgoingCall, setActiveCall, setCallAnswer, setCallConnected, setStartTime } = callSlice.actions;
 export default callSlice.reducer;

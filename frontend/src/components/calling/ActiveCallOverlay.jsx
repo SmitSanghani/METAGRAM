@@ -5,7 +5,7 @@ import { Mic, MicOff, Video, VideoOff, PhoneOff, Maximize2, Minimize2 } from 'lu
 import { cn, getAvatarColor } from '@/lib/utils';
 
 const ActiveCallOverlay = ({ localStream, remoteStream, onEndCall, isConnecting }) => {
-    const { remoteUser, callType } = useSelector(store => store.call);
+    const { remoteUser, callType, startTime } = useSelector(store => store.call);
     const [isMuted, setIsMuted] = useState(false);
     const [isVideoOff, setIsVideoOff] = useState(false);
     const [callDuration, setCallDuration] = useState(0);
@@ -28,13 +28,17 @@ const ActiveCallOverlay = ({ localStream, remoteStream, onEndCall, isConnecting 
     }, [remoteStream]);
 
     useEffect(() => {
-        if (!isConnecting) {
-            const timer = setInterval(() => {
-                setCallDuration(prev => prev + 1);
-            }, 1000);
+        if (!isConnecting && startTime) {
+            const updateTimer = () => {
+                const duration = Math.floor((Date.now() - startTime) / 1000);
+                setCallDuration(duration > 0 ? duration : 0);
+            };
+            
+            updateTimer(); // Initial call
+            const timer = setInterval(updateTimer, 1000);
             return () => clearInterval(timer);
         }
-    }, [isConnecting]);
+    }, [isConnecting, startTime]);
 
     const formatDuration = (seconds) => {
         const mins = Math.floor(seconds / 60);

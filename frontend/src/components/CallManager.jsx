@@ -39,6 +39,21 @@ const CallManager = () => {
 
         const handleIncomingCall = ({ from, offer, type }) => {
             latestCallId.current = from;
+
+            // RECONNECTION LOGIC: If already in call with this person, auto-accept their new offer
+            if (isActiveCall && remoteUser?._id === from) {
+                console.log("[CallManager] Seamlessly reconnecting with same user...");
+                dispatch(setIncomingCall({
+                    isIncoming: false,
+                    caller: from,
+                    type,
+                    offer,
+                    remoteUser: remoteUser
+                }));
+                acceptCall();
+                return;
+            }
+
             dispatch(setIncomingCall({
                 isIncoming: true,
                 caller: from,
@@ -90,7 +105,7 @@ const CallManager = () => {
                 <OutgoingCallModal onCancel={handleEndCall} />
             )}
             {isActiveCall && (isCallConnected || isOutgoingCall || !isIncomingCall) && (
-                <ActiveCallOverlay 
+                <ActiveCallOverlay
                     localStream={localStream}
                     remoteStream={remoteStream}
                     onEndCall={handleEndCall}

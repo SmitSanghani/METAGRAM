@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { setIncomingCall, setOutgoingCall, setActiveCall, setCallAnswer, setCallConnected } from '../redux/callSlice';
+import { setIncomingCall, setOutgoingCall, setActiveCall, setCallAnswer, setCallConnected, setStartTime } from '../redux/callSlice';
 import { toast } from 'sonner';
 
 const servers = {
@@ -21,7 +21,7 @@ export const useWebRTC = () => {
     const dispatch = useDispatch();
     const { socket } = useSelector(store => store.socketio);
     const { user } = useSelector(store => store.auth);
-    const { callType, remoteUser, offer, isIncomingCall, isOutgoingCall } = useSelector(store => store.call);
+    const { callType, remoteUser, offer, isIncomingCall, isOutgoingCall, startTime } = useSelector(store => store.call);
 
     const pc = useRef(null);
     const [localStream, setLocalStream] = useState(null);
@@ -29,7 +29,6 @@ export const useWebRTC = () => {
     const localStreamRef = useRef(null); // Keep ref for cleanup
     const remoteStreamRef = useRef(null); // Keep ref for accumulation
     const incomingIceCandidates = useRef([]); // ICE Buffer
-    const startTime = useRef(null);
 
     const cleanup = useCallback(() => {
         if (pc.current) {
@@ -47,16 +46,16 @@ export const useWebRTC = () => {
     }, []);
 
     const endCall = useCallback((remoteId) => {
-        const duration = startTime.current ? Math.floor((Date.now() - startTime.current) / 1000) : 0;
+        const duration = startTime ? Math.floor((Date.now() - startTime) / 1000) : 0;
         socket.emit("end-call", {
             to: remoteId,
             duration,
             type: callType,
-            startTime: startTime.current
+            startTime: startTime
         });
         cleanup();
         dispatch(setActiveCall(false));
-    }, [socket, callType, cleanup, dispatch]);
+    }, [socket, callType, cleanup, dispatch, startTime]);
 
     // Initialize WebRTC
     const setupPeerConnection = useCallback(async (remoteId, type) => {
@@ -111,7 +110,10 @@ export const useWebRTC = () => {
             console.log("[WebRTC] CONNECTION STATE:", pc.current.connectionState);
             if (pc.current.connectionState === 'connected') {
                 console.log("[WebRTC] CALL FULLY CONNECTED");
-                startTime.current = Date.now();
+                const now = Date.now();
+                if (!startTime) {
+                    dispatch(setStartTime(now));
+                }
                 dispatch(setCallConnected(true));
             } else if (pc.current.connectionState === 'failed' || pc.current.connectionState === 'disconnected') {
                 console.warn("[WebRTC] Connection failed or disconnected, state:", pc.current.connectionState);
@@ -282,17 +284,44 @@ export const useWebRTC = () => {
         socket.on("call-rejected", handleCallRejected);
         socket.on("call-ended", handleCallEnded);
         socket.on("peer-busy", handlePeerBusy);
-
-        return () => {
-            socket.off("call-accepted", handleCallAccepted);
-            socket.off("ice-candidate", handleIceCandidate);
-            socket.off("call-rejected", handleCallRejected);
-            socket.off("call-ended", handleCallEnded);
-            socket.off("peer-busy", handlePeerBusy);
-        };
-    }, [socket, cleanup, dispatch]);
-
-    return {
+ 
+         return () => {
+             socket.off("call-accepted", handleCallAccepted);
+             socket.off("ice-candidate", handleIceCandidate);
+             socket.off("call-rejected", handleCallRejected);
+             socket.off("call-ended", handleCallEnded);
+             socket.off("peer-busy", handlePeerBusy);
+         };
+     }, [socket, cleanup, dispatch]);
+ 
+     // Automatic reconnection logic on mount
+     useEffect(() => {
+         if (!socket || !user) return;
+ 
+         const handleReconnection = async () => {
+             // If we have an active call flag but no peer connection, we likely refreshed
+             if (isActiveCall && !pc.current && remoteUser) {
+                 console.log("[WebRTC] DETECTED ACTIVE SESSION ON RELOAD, ATTEMPTING RECONNECTION...");
+                 
+                 if (isOutgoingCall) {
+                     // We were the caller, try to re-initiate
+                     startCall(remoteUser, callType);
+                 } else if (offer) {
+                     // We were the receiver, try to re-accept
+                     acceptCall();
+                 } else {
+                     // Fallback: If we were active but no clear state, try to re-dial
+                     startCall(remoteUser, callType);
+                 }
+             }
+         };
+ 
+         // Delay slightly to ensure socket is ready and hydrated
+         const timer = setTimeout(handleReconnection, 1200);
+         return () => clearTimeout(timer);
+     }, [socket, user, isActiveCall, remoteUser, isOutgoingCall, offer, callType, startCall, acceptCall]);
+ 
+     return {
         startCall,
         acceptCall,
         endCall,
