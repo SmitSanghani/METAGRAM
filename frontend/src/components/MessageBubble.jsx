@@ -17,54 +17,64 @@ const formatTime = (time) => {
 const AudioPlayer = ({ url, isDark }) => {
     const [isPlaying, setIsPlaying] = useState(false);
     const [progress, setProgress] = useState(0);
+    const [duration, setDuration] = useState(0);
+    const [currentTime, setCurrentTime] = useState(0);
     const audioRef = useRef(null);
 
     const togglePlay = () => {
+        if (!audioRef.current) return;
         if (isPlaying) {
             audioRef.current.pause();
         } else {
-            audioRef.current.play();
+            audioRef.current.play().catch(e => console.error("Audio play failed:", e));
         }
         setIsPlaying(!isPlaying);
     };
 
     const handleTimeUpdate = () => {
         const current = audioRef.current.currentTime;
-        const duration = audioRef.current.duration;
-        setProgress((current / duration) * 100);
+        const dur = audioRef.current.duration;
+        setCurrentTime(current);
+        if (dur) setProgress((current / dur) * 100);
+    };
+
+    const handleLoadedMetadata = () => {
+        setDuration(audioRef.current.duration);
     };
 
     const handleSeek = (e) => {
-        const seekTime = (e.target.value / 100) * audioRef.current.duration;
+        const val = parseFloat(e.target.value);
+        const seekTime = (val / 100) * audioRef.current.duration;
         audioRef.current.currentTime = seekTime;
-        setProgress(e.target.value);
+        setProgress(val);
     };
 
     return (
-        <div className={`flex items-center gap-3 p-2 rounded-2xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
+        <div className={`flex items-center gap-3 p-2 rounded-2xl ${isDark ? 'bg-white/5' : 'bg-gray-50 border border-black/5 shadow-sm'} animate-in fade-in duration-500`}>
             <audio 
                 ref={audioRef} 
                 src={url} 
                 onTimeUpdate={handleTimeUpdate} 
+                onLoadedMetadata={handleLoadedMetadata}
                 onEnded={() => setIsPlaying(false)}
                 className="hidden" 
             />
             <button 
                 onClick={togglePlay}
-                className="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-lg shadow-indigo-500/20"
+                className="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-lg shadow-indigo-500/30 shrink-0"
             >
                 {isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" className="ml-0.5" />}
             </button>
-            <div className="flex-1 flex flex-col gap-1 pr-2">
+            <div className="flex-1 flex flex-col gap-1 pr-1 min-w-0">
                 <input 
                     type="range" 
                     value={progress || 0} 
                     onChange={handleSeek}
                     className="w-full h-1.5 bg-indigo-200 dark:bg-indigo-900/40 rounded-full appearance-none cursor-pointer accent-indigo-600"
                 />
-                <div className="flex justify-between text-[8px] font-black text-gray-400 uppercase tracking-tighter">
-                   <span>{formatTime(audioRef.current?.currentTime || 0)}</span>
-                   <span>{formatTime(audioRef.current?.duration || 0)}</span>
+                <div className="flex justify-between text-[9px] font-bold text-gray-400 font-mono tracking-tight">
+                   <span>{formatTime(currentTime)}</span>
+                   <span>{formatTime(duration)}</span>
                 </div>
             </div>
         </div>

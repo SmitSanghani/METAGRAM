@@ -11,7 +11,11 @@ export const handleCallEvents = (io, socket, userSocketMap) => {
                     from: socket.userId,
                     offer,
                     type,
-                    callerInfo
+                    callerInfo: callerInfo || {
+                        _id: socket.userId,
+                        username: "User",
+                        profilePicture: ""
+                    }
                 });
             });
         } else {

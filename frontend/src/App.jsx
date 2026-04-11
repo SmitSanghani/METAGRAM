@@ -158,6 +158,8 @@ import { setPlatformSettings } from "./redux/settingsSlice";
 import useTheme from "./hooks/useTheme";
 import { audioGenerator } from "./utils/audioGenerator";
 
+import { WebRTCProvider } from "./context/WebRTCContext";
+
 function App() {
   useTheme(); // Initialize theme sync
   
@@ -740,9 +742,9 @@ function App() {
   }, [user?._id, dispatch]);
 
   return (
-    <>
+    <WebRTCProvider>
       <RouterProvider router={browserRouter} />
-    </>
+    </WebRTCProvider>
   )
 }
 

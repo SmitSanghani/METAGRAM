@@ -28,19 +28,15 @@ const CallManager = () => {
             // Use provided caller info for instant display
             const remoteUserData = callerInfo || { _id: from, username: "Incoming Call..." };
 
-            // RECONNECTION LOGIC: If already in call with this person, auto-accept their new offer
-            if (isActiveCall && remoteUser?._id === from) {
-                console.log("[CallManager] Seamlessly reconnecting with same user...", from);
-                dispatch(setIncomingCall({
-                    isIncoming: false,
-                    caller: from,
-                    type,
-                    offer,
-                    remoteUser: remoteUserData
-                }));
-                acceptCall(offer, remoteUserData);
+            // If we are already in an active call with SOMEONE ELSE, send busy signal
+            if (isActiveCall && remoteUser?._id !== from) {
+                console.log("[CallManager] Busy, already in call with", remoteUser?.username);
+                socket.emit("peer-busy", { to: from });
                 return;
             }
+
+            // If it's the same user and we are already active, WebRTCContext handles it silently
+            if (isActiveCall && remoteUser?._id === from) return;
 
             dispatch(setIncomingCall({
                 isIncoming: true,

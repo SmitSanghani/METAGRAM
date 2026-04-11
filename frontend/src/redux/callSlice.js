@@ -53,9 +53,15 @@ const callSlice = createSlice({
          },
          setStartTime: (state, action) => {
              state.startTime = action.payload;
+         },
+         setRemoteUser: (state, action) => {
+             state.remoteUser = action.payload;
+         },
+         setCallType: (state, action) => {
+             state.callType = action.payload;
          }
      }
  });
  
- export const { setIncomingCall, setOutgoingCall, setActiveCall, setCallAnswer, setCallConnected, setStartTime } = callSlice.actions;
+ export const { setIncomingCall, setOutgoingCall, setActiveCall, setCallAnswer, setCallConnected, setStartTime, setRemoteUser, setCallType } = callSlice.actions;
 export default callSlice.reducer;
