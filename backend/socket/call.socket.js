@@ -3,7 +3,7 @@ import { Call } from "../models/call.model.js";
 export const handleCallEvents = (io, socket, userSocketMap) => {
     
     // 1. Initial Call Request
-    socket.on("call-user", ({ to, offer, type }) => {
+    socket.on("call-user", ({ to, offer, type, callerInfo }) => {
         const receiverSockets = userSocketMap[to];
         if (receiverSockets && receiverSockets.length > 0) {
             receiverSockets.forEach(socketId => {
