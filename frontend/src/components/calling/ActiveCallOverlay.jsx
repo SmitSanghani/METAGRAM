@@ -5,14 +5,32 @@ import { Mic, MicOff, Video, VideoOff, PhoneOff, Maximize2, Minimize2 } from 'lu
 import { cn, getAvatarColor } from '@/lib/utils';
 
 const ActiveCallOverlay = ({ localStream, remoteStream, onEndCall, isConnecting }) => {
+    const { socket } = useSelector(store => store.socketio);
     const { remoteUser, callType, startTime } = useSelector(store => store.call);
     const [isMuted, setIsMuted] = useState(false);
     const [isVideoOff, setIsVideoOff] = useState(false);
+    const [remoteVideoOff, setRemoteVideoOff] = useState(false);
+    const [remoteAudioOff, setRemoteAudioOff] = useState(false);
     const [callDuration, setCallDuration] = useState(0);
 
     const localVideoRef = useRef(null);
     const remoteVideoRef = useRef(null);
     const remoteAudioRef = useRef(null);
+
+    // Track remote media state changes from socket
+    useEffect(() => {
+        if (!socket) return;
+        
+        const handleMediaUpdate = ({ from, videoOff, audioOff }) => {
+            if (from === remoteUser?._id) {
+                if (videoOff !== undefined) setRemoteVideoOff(videoOff);
+                if (audioOff !== undefined) setRemoteAudioOff(audioOff);
+            }
+        };
+
+        socket.on("call-media-update", handleMediaUpdate);
+        return () => socket.off("call-media-update", handleMediaUpdate);
+    }, [socket, remoteUser?._id]);
 
     useEffect(() => {
         if (localVideoRef.current && localStream) {
@@ -71,19 +89,23 @@ const ActiveCallOverlay = ({ localStream, remoteStream, onEndCall, isConnecting 
 
     const toggleMute = () => {
         if (localStream) {
+            const newState = !isMuted;
             localStream.getAudioTracks().forEach(track => {
-                track.enabled = !track.enabled;
+                track.enabled = !newState;
             });
-            setIsMuted(!isMuted);
+            setIsMuted(newState);
+            socket?.emit("call-media-update", { to: remoteUser?._id, audioOff: newState });
         }
     };
 
     const toggleVideo = () => {
         if (localStream) {
+            const newState = !isVideoOff;
             localStream.getVideoTracks().forEach(track => {
-                track.enabled = !track.enabled;
+                track.enabled = !newState;
             });
-            setIsVideoOff(!isVideoOff);
+            setIsVideoOff(newState);
+            socket?.emit("call-media-update", { to: remoteUser?._id, videoOff: newState });
         }
     };
 
@@ -102,12 +124,12 @@ const ActiveCallOverlay = ({ localStream, remoteStream, onEndCall, isConnecting 
                         playsInline
                         className={cn(
                             "w-full h-full object-cover animate-in fade-in duration-1000",
-                            !remoteStream && "hidden"
+                            (!remoteStream || remoteVideoOff) && "hidden"
                         )}
                     />
                     
-                    {!remoteStream && (
-                        <div className="w-full h-full flex items-center justify-center bg-black/40">
+                    {(!remoteStream || remoteVideoOff) && (
+                        <div className="w-full h-full flex items-center justify-center bg-black/40 backdrop-blur-sm">
                              <div className="flex flex-col items-center">
                                 <div className="relative mb-8">
                                     <div className="absolute inset-0 rounded-full bg-indigo-500/10 animate-[ping_3s_infinite]"></div>
@@ -117,9 +139,15 @@ const ActiveCallOverlay = ({ localStream, remoteStream, onEndCall, isConnecting 
                                             {remoteUser?.username?.charAt(0)}
                                         </AvatarFallback>
                                     </Avatar>
+                                    
+                                    {remoteAudioOff && (
+                                        <div className="absolute -bottom-2 -right-2 w-12 h-12 bg-red-500 rounded-full flex items-center justify-center border-4 border-[#0a0a14] z-20 shadow-lg">
+                                            <MicOff size={20} className="text-white" />
+                                        </div>
+                                    )}
                                 </div>
                                 <p className="text-white/60 font-bold tracking-[0.3em] uppercase animate-pulse">
-                                    Waiting for Video...
+                                    {remoteVideoOff ? "Video is Off" : "Waiting for Video..."}
                                 </p>
                             </div>
                         </div>

@@ -100,4 +100,18 @@ export const handleCallEvents = (io, socket, userSocketMap) => {
             });
         }
     });
+
+    // 7. Media State Sync (Video/Audio Toggle)
+    socket.on("call-media-update", ({ to, videoOff, audioOff }) => {
+        const targetSockets = userSocketMap[to];
+        if (targetSockets) {
+            targetSockets.forEach(socketId => {
+                io.to(socketId).emit("call-media-update", { 
+                    from: socket.userId, 
+                    videoOff, 
+                    audioOff 
+                });
+            });
+        }
+    });
 };
