@@ -30,6 +30,9 @@ const callSchema = new mongoose.Schema({
     duration: {
         type: Number, // in seconds
         default: 0
+    },
+    recordingUrl: {
+        type: String
     }
 }, { timestamps: true });
 

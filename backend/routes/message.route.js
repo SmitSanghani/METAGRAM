@@ -5,12 +5,13 @@ import {
     addReaction, deleteMessage, getMessages, markAsSeen, 
     sendMessage, getUnreadCounts, deleteConversation,
     createGroup, addGroupMembers, removeGroupMember, updateGroup,
-    updateChatTheme
+    updateChatTheme, saveCallLog
 } from '../controllers/message.controller.js';
 
 const router = express.Router();
 
 router.route("/send/:id").post(isAuthenticated, upload.single('media'), sendMessage);
+router.route("/save-call-log").post(isAuthenticated, upload.single('recording'), saveCallLog);
 router.route("/all/:id").get(isAuthenticated, getMessages);
 router.route("/seen/:id").get(isAuthenticated, markAsSeen);
 router.route("/delete/:id").delete(isAuthenticated, deleteMessage);

@@ -879,3 +879,76 @@ export const updateChatTheme = async (req, res) => {
         res.status(500).json({ success: false, message: "Internal server error" });
     }
 };
+
+export const saveCallLog = async (req, res) => {
+    try {
+        const senderId = req.id;
+        const { receiverId, callType, status, duration } = req.body;
+        const file = req.file;
+
+        let recordingUrl = null;
+
+        if (file) {
+            const uploadRecording = () => {
+                return new Promise((resolve, reject) => {
+                    const stream = cloudinary.uploader.upload_stream({
+                        resource_type: "video",
+                        folder: "metagram/recordings",
+                        format: "mp4"
+                    }, (error, result) => {
+                        if (error) reject(error);
+                        else resolve(result);
+                    });
+                    stream.end(file.buffer);
+                });
+            };
+            const cloudResponse = await uploadRecording();
+            recordingUrl = cloudResponse.secure_url;
+        }
+
+        let conversation = await Conversation.findOne({
+            isGroup: false,
+            participants: { $all: [senderId, receiverId], $size: 2 }
+        });
+
+        if (!conversation) {
+            conversation = await Conversation.create({
+                participants: [senderId, receiverId],
+                messages: []
+            });
+        }
+
+        const newMessageData = {
+            senderId,
+            receiverId,
+            messageType: 'call_log',
+            callLog: {
+                callType,
+                status,
+                duration: parseInt(duration),
+                recordingUrl
+            }
+        };
+
+        conversation.messages.push(newMessageData);
+        await conversation.save();
+
+        const savedMessage = conversation.messages[conversation.messages.length - 1];
+        await conversation.populate([
+            { path: 'participants', select: 'username profilePicture' },
+            { path: 'messages.senderId', select: 'username profilePicture' }
+        ]);
+
+        const newMessage = conversation.messages.id(savedMessage._id);
+        const messageObj = newMessage.toObject();
+        messageObj.conversationId = conversation._id.toString();
+
+        broadcastToUser(senderId, "receive_message", messageObj);
+        broadcastToUser(receiverId, "receive_message", messageObj);
+
+        return res.status(201).json({ success: true, message: messageObj });
+    } catch (error) {
+        console.error("SaveCallLog Error:", error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};

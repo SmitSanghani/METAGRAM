@@ -17,8 +17,14 @@ const messageschema = new mongoose.Schema({
     },
     messageType: {
         type: String,
-        enum: ['text', 'image', 'video', 'gif', 'story_reply', 'story_reaction', 'reel', 'post', 'file'],
+        enum: ['text', 'image', 'video', 'gif', 'story_reply', 'story_reaction', 'reel', 'post', 'file', 'call_log'],
         default: 'text'
+    },
+    callLog: {
+        callType: { type: String, enum: ['audio', 'video'] },
+        status: { type: String, enum: ['completed', 'missed', 'rejected', 'busy'] },
+        duration: { type: Number }, // in seconds
+        recordingUrl: { type: String }
     },
     mediaUrl: {
         type: String,

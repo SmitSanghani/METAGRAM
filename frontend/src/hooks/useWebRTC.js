@@ -30,6 +30,75 @@ export const useWebRTC = () => {
     const remoteStreamRef = useRef(null); // Keep ref for accumulation
     const incomingIceCandidates = useRef([]); // ICE Buffer
 
+    // Recording State
+    const mediaRecorder = useRef(null);
+    const audioChunks = useRef([]);
+    const mixedStreamRef = useRef(null);
+
+    const startRecording = useCallback((lStream, rStream) => {
+        if (!lStream || !rStream) return;
+        try {
+            console.log("[WebRTC] STARTING RECORDING");
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const dest = audioCtx.createMediaStreamDestination();
+
+            const localSource = audioCtx.createMediaStreamSource(lStream);
+            const remoteSource = audioCtx.createMediaStreamSource(rStream);
+
+            localSource.connect(dest);
+            remoteSource.connect(dest);
+
+            mixedStreamRef.current = dest.stream;
+            mediaRecorder.current = new MediaRecorder(dest.stream);
+            audioChunks.current = [];
+
+            mediaRecorder.current.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    audioChunks.current.push(event.data);
+                }
+            };
+
+            mediaRecorder.current.start();
+        } catch (err) {
+            console.error("[WebRTC] Error starting recorder:", err);
+        }
+    }, []);
+
+    const stopAndUploadRecording = useCallback(async (remoteId, finalDuration, type) => {
+        if (!mediaRecorder.current || mediaRecorder.current.state === "inactive") return;
+
+        console.log("[WebRTC] STOPPING AND UPLOADING RECORDING");
+        
+        return new Promise((resolve) => {
+            mediaRecorder.current.onstop = async () => {
+                const audioBlob = new Blob(audioChunks.current, { type: 'audio/webm' });
+                const formData = new FormData();
+                formData.append('recording', audioBlob, `call_recording_${Date.now()}.webm`);
+                formData.append('receiverId', remoteId);
+                formData.append('callType', type);
+                formData.append('status', 'completed');
+                formData.append('duration', finalDuration);
+
+                try {
+                    // We need to import axios or use fetch here. Assuming axios is available in the project context or using standard fetch.
+                    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1'}/message/save-call-log`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${localStorage.getItem('token')}` // Basic auth assumption
+                        },
+                        body: formData
+                    });
+                    const result = await response.json();
+                    console.log("[WebRTC] Call log saved:", result);
+                } catch (err) {
+                    console.error("[WebRTC] Error uploading recording:", err);
+                }
+                resolve();
+            };
+            mediaRecorder.current.stop();
+        });
+    }, []);
+
     const cleanup = useCallback(() => {
         if (pc.current) {
             pc.current.close();
@@ -45,8 +114,14 @@ export const useWebRTC = () => {
         incomingIceCandidates.current = [];
     }, []);
 
-    const endCall = useCallback((remoteId) => {
+    const endCall = useCallback(async (remoteId) => {
         const duration = startTime ? Math.floor((Date.now() - startTime) / 1000) : 0;
+        
+        // Stop recording and upload before emitting socket event to ensure data is captured
+        if (mediaRecorder.current) {
+            await stopAndUploadRecording(remoteId, duration, callType);
+        }
+
         socket.emit("end-call", {
             to: remoteId,
             duration,
@@ -55,7 +130,7 @@ export const useWebRTC = () => {
         });
         cleanup();
         dispatch(setActiveCall(false));
-    }, [socket, callType, cleanup, dispatch, startTime]);
+    }, [socket, callType, cleanup, dispatch, startTime, stopAndUploadRecording]);
 
     // Initialize WebRTC
     const setupPeerConnection = useCallback(async (remoteId, type) => {
@@ -70,41 +145,35 @@ export const useWebRTC = () => {
 
         pc.current.onicecandidate = (event) => {
             if (event.candidate) {
-                console.log("[WebRTC] ICE CANDIDATE SENT");
                 socket.emit("ice-candidate", { to: remoteId, candidate: event.candidate });
             }
         };
 
-        pc.current.ontrack = (event) => {
-            console.log("[WebRTC] REMOTE TRACK RECEIVED:", event.track.kind, event.streams);
-            
-            if (event.streams && event.streams[0]) {
-                console.log("[WebRTC] Using provided stream from event");
-                setRemoteStream(event.streams[0]);
-                remoteStreamRef.current = event.streams[0];
-            } else {
-                console.log("[WebRTC] No stream provided, creating from track");
-                if (!remoteStreamRef.current) {
-                    remoteStreamRef.current = new MediaStream();
-                }
-                
-                // Avoid adding duplicate tracks
-                const existingTracks = remoteStreamRef.current.getTracks();
-                if (!existingTracks.find(t => t.id === event.track.id)) {
-                    remoteStreamRef.current.addTrack(event.track);
-                    // Force a new MediaStream object to trigger React re-render
-                    setRemoteStream(new MediaStream(remoteStreamRef.current.getTracks()));
-                }
-            }
-        };
-
         pc.current.oniceconnectionstatechange = () => {
-            console.log("[WebRTC] ICE STATE:", pc.current.iceConnectionState);
+            console.log("ICE STATE:", pc.current.iceConnectionState);
             if (pc.current.iceConnectionState === 'failed') {
-                console.error("[WebRTC] ICE CONNECTION FAILED");
+                console.warn("[WebRTC] ICE CONNECTION FAILED, RESTARTING ICE");
                 pc.current.restartIce();
             }
         };
+
+        pc.current.ontrack = (event) => {
+            console.log("REMOTE TRACK RECEIVED");
+            
+            if (!remoteStreamRef.current) {
+                remoteStreamRef.current = new MediaStream();
+            }
+
+            // Sync with existing tracks
+            if (!remoteStreamRef.current.getTracks().find(t => t.id === event.track.id)) {
+                remoteStreamRef.current.addTrack(event.track);
+                console.log(`[WebRTC] Added ${event.track.kind} track to remote stream`);
+            }
+
+            // Always update state to trigger re-renders with the latest stream reference
+            setRemoteStream(new MediaStream(remoteStreamRef.current.getTracks()));
+        };
+
 
         pc.current.onconnectionstatechange = () => {
             console.log("[WebRTC] CONNECTION STATE:", pc.current.connectionState);
@@ -115,6 +184,11 @@ export const useWebRTC = () => {
                     dispatch(setStartTime(now));
                 }
                 dispatch(setCallConnected(true));
+
+                // Start recording when connected
+                if (localStreamRef.current && remoteStreamRef.current) {
+                    startRecording(localStreamRef.current, remoteStreamRef.current);
+                }
             } else if (pc.current.connectionState === 'failed' || pc.current.connectionState === 'disconnected') {
                 console.warn("[WebRTC] Connection failed or disconnected, state:", pc.current.connectionState);
                 // Try to recover or wait before ending
@@ -131,7 +205,15 @@ export const useWebRTC = () => {
         try {
             console.log("[WebRTC] REQUESTING LOCAL MEDIA");
             const constraints = {
-                audio: { echoCancellation: true, noiseSuppression: true },
+                audio: { 
+                    echoCancellation: { ideal: true },
+                    noiseSuppression: { ideal: true },
+                    autoGainControl: { ideal: true },
+                    googEchoCancellation: { ideal: true },
+                    googAutoGainControl: { ideal: true },
+                    googNoiseSuppression: { ideal: true },
+                    googHighpassFilter: { ideal: true },
+                },
                 video: (type === 'video' || callType === 'video') ? { 
                     facingMode: "user",
                     width: { ideal: 1280 },
@@ -154,11 +236,12 @@ export const useWebRTC = () => {
 
             localStreamRef.current = stream;
             setLocalStream(stream);
+            console.log("LOCAL STREAM CREATED");
             
             stream.getTracks().forEach(track => {
+                console.log("ADDING LOCAL TRACK");
                 pc.current.addTrack(track, stream);
             });
-            console.log("[WebRTC] Local tracks added to PeerConnection");
         } catch (err) {
             console.error("[WebRTC] FATAL: Could not access ANY media devices:", err);
             toast.error("Permissions denied. Could not access your camera/microphone.");
@@ -181,13 +264,22 @@ export const useWebRTC = () => {
 
         try {
             console.log("[WebRTC] SETTING REMOTE OFFER");
+            if (pc.current.signalingState !== "stable") {
+                console.warn("[WebRTC] Signaling state is not stable, clearing existing state");
+                // This shouldn't normally happen on first offer, but good for safety
+            }
+            
             await pc.current.setRemoteDescription(new RTCSessionDescription(offer));
 
-            // Add any buffered ICE candidates that arrived early
+            // Flush buffered candidates
             if (incomingIceCandidates.current.length > 0) {
                 console.log(`[WebRTC] FLUSHING ${incomingIceCandidates.current.length} BUFFERED ICE CANDIDATES`);
                 for (const candidate of incomingIceCandidates.current) {
-                    await pc.current.addIceCandidate(new RTCIceCandidate(candidate));
+                    try {
+                        await pc.current.addIceCandidate(new RTCIceCandidate(candidate));
+                    } catch (e) {
+                         console.error("[WebRTC] Error adding buffered candidate:", e);
+                    }
                 }
                 incomingIceCandidates.current = [];
             }
@@ -213,7 +305,7 @@ export const useWebRTC = () => {
         await setupPeerConnection(targetUser._id, type);
 
         try {
-            console.log("[WebRTC] CREATING OFFER");
+            console.log("OFFER CREATED");
             const offer = await pc.current.createOffer();
             await pc.current.setLocalDescription(offer);
 
@@ -230,8 +322,13 @@ export const useWebRTC = () => {
         if (!socket) return;
 
         const handleCallAccepted = async ({ from, answer }) => {
-            console.log("[WebRTC] ANSWER RECEIVED");
+            console.log("ANSWER RECEIVED");
             if (pc.current) {
+                if (pc.current.signalingState !== "have-local-offer") {
+                    console.warn("[WebRTC] Ignoring call-accepted because signaling state is", pc.current.signalingState);
+                    return;
+                }
+
                 await pc.current.setRemoteDescription(new RTCSessionDescription(answer));
 
                 // Flush buffered candidates for the caller

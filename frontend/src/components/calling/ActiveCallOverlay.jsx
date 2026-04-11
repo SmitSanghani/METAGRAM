@@ -12,18 +12,41 @@ const ActiveCallOverlay = ({ localStream, remoteStream, onEndCall, isConnecting 
 
     const localVideoRef = useRef(null);
     const remoteVideoRef = useRef(null);
+    const remoteAudioRef = useRef(null);
 
     useEffect(() => {
         if (localVideoRef.current && localStream) {
-            localVideoRef.current.srcObject = localStream;
-            localVideoRef.current.play().catch(e => console.error("Local video play failed:", e));
+            console.log("[ActiveCallOverlay] SETTING LOCAL STREAM");
+            if (localVideoRef.current.srcObject !== localStream) {
+                localVideoRef.current.srcObject = localStream;
+            }
+            localVideoRef.current.play().catch(e => {
+                if (e.name !== "AbortError") console.error("Local video play failed:", e);
+            });
         }
     }, [localStream]);
 
     useEffect(() => {
         if (remoteVideoRef.current && remoteStream) {
-            remoteVideoRef.current.srcObject = remoteStream;
-            remoteVideoRef.current.play().catch(e => console.error("Remote video play failed:", e));
+            console.log("[ActiveCallOverlay] SETTING REMOTE STREAM (VIDEO)");
+            if (remoteVideoRef.current.srcObject !== remoteStream) {
+                remoteVideoRef.current.srcObject = remoteStream;
+            }
+            remoteVideoRef.current.play().catch(e => {
+                if (e.name !== "AbortError") console.error("Remote video play failed:", e);
+            });
+        }
+    }, [remoteStream]);
+
+    useEffect(() => {
+        if (remoteAudioRef.current && remoteStream) {
+            console.log("[ActiveCallOverlay] SETTING REMOTE STREAM (AUDIO)");
+            if (remoteAudioRef.current.srcObject !== remoteStream) {
+                remoteAudioRef.current.srcObject = remoteStream;
+            }
+            remoteAudioRef.current.play().catch(e => {
+                if (e.name !== "AbortError") console.error("Remote audio play failed:", e);
+            });
         }
     }, [remoteStream]);
 
@@ -66,17 +89,24 @@ const ActiveCallOverlay = ({ localStream, remoteStream, onEndCall, isConnecting 
 
     return (
         <div className="fixed inset-0 z-[1100] bg-[#0a0a14] flex flex-col items-center justify-center animate-in fade-in duration-500 overflow-hidden">
+            {/* Dedicated Remote Audio (Hidden) - Ensures audio plays even if video is off or during audio-only calls */}
+            <audio ref={remoteAudioRef} autoPlay playsInline className="hidden" />
+
             {/* Remote Video (Full Screen) */}
             {callType === 'video' ? (
                 <div className="relative w-full h-full">
-                    {remoteStream ? (
-                        <video
-                            ref={remoteVideoRef}
-                            autoPlay
-                            playsInline
-                            className="w-full h-full object-cover animate-in fade-in duration-1000"
-                        />
-                    ) : (
+                    <video
+                        ref={remoteVideoRef}
+                        autoPlay
+                        muted // Multi-track audio handled by <audio> tag for better stability
+                        playsInline
+                        className={cn(
+                            "w-full h-full object-cover animate-in fade-in duration-1000",
+                            !remoteStream && "hidden"
+                        )}
+                    />
+                    
+                    {!remoteStream && (
                         <div className="w-full h-full flex items-center justify-center bg-black/40">
                              <div className="flex flex-col items-center">
                                 <div className="relative mb-8">

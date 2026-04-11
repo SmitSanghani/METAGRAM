@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, useMotionValue, useTransform } from 'framer-motion';
-import { Reply, Trash2, Heart, Smile, X, Loader2, Play, FileText, Download } from 'lucide-react';
+import { Reply, Trash2, Heart, Smile, X, Loader2, Play, FileText, Download, Pause, Phone, PhoneOff, Video, VideoOff } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { useNavigate } from 'react-router-dom';
@@ -61,6 +61,120 @@ const MessageBubble = ({ msg, isSender, onReply, onDelete, onReact, onScrollTo, 
             </div>
         );
     }
+
+    if (msg.messageType === 'call_log') {
+        const { callType, status, duration, recordingUrl } = msg.callLog || {};
+        const isMissed = status === 'missed' || status === 'rejected';
+        const isAudio = callType === 'audio' || !callType;
+        
+        return (
+            <div className={`flex flex-col mb-4 w-full ${isSender ? 'items-end pr-2' : 'items-start pl-2'}`}>
+                <div className={`relative group max-w-[280px] p-4 rounded-[24px] shadow-sm border transition-all hover:shadow-md ${
+                    themeConfig.isDark ? 'bg-[#1a1a2e] border-white/10' : 'bg-white border-gray-100'
+                }`}>
+                    <div className="flex items-center gap-3.5">
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${
+                            isMissed ? 'bg-red-500/10 text-red-500' : 'bg-indigo-500/10 text-indigo-500'
+                        }`}>
+                            {callType === 'video' ? (
+                                isMissed ? <VideoOff size={22} /> : <Video size={22} />
+                            ) : (
+                                isMissed ? <PhoneOff size={22} /> : <Phone size={22} />
+                            )}
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                            <h4 className={`text-[15px] font-black truncate ${themeConfig.isDark ? 'text-white' : 'text-gray-900'}`}>
+                                {isAudio ? 'Audio Call' : 'Video Call'} {isMissed ? 'Missed' : 'Ended'}
+                            </h4>
+                            <p className="text-[11px] text-gray-500 font-bold tracking-tight uppercase opacity-70">
+                                {isMissed ? 'No Answer' : (
+                                    <>
+                                        {Math.floor(duration / 60)}:{(duration % 60).toString().padStart(2, '0')} 
+                                        <span className="mx-1.5 opacity-30">•</span>
+                                        {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </>
+                                )}
+                            </p>
+                        </div>
+                    </div>
+
+                    {recordingUrl && (
+                        <div className="mt-4 pt-4 border-t border-black/5 dark:border-white/5">
+                             <div className="flex flex-col gap-3">
+                                 <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500 mb-1">Call Recording</p>
+                                 <AudioPlayer url={recordingUrl} isDark={themeConfig.isDark} />
+                             </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
+// Simple Audio Player Component
+const AudioPlayer = ({ url, isDark }) => {
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [progress, setProgress] = useState(0);
+    const audioRef = useRef(null);
+
+    const togglePlay = () => {
+        if (isPlaying) {
+            audioRef.current.pause();
+        } else {
+            audioRef.current.play();
+        }
+        setIsPlaying(!isPlaying);
+    };
+
+    const handleTimeUpdate = () => {
+        const current = audioRef.current.currentTime;
+        const duration = audioRef.current.duration;
+        setProgress((current / duration) * 100);
+    };
+
+    const handleSeek = (e) => {
+        const seekTime = (e.target.value / 100) * audioRef.current.duration;
+        audioRef.current.currentTime = seekTime;
+        setProgress(e.target.value);
+    };
+
+    return (
+        <div className={`flex items-center gap-3 p-2 rounded-2xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
+            <audio 
+                ref={audioRef} 
+                src={url} 
+                onTimeUpdate={handleTimeUpdate} 
+                onEnded={() => setIsPlaying(false)}
+                className="hidden" 
+            />
+            <button 
+                onClick={togglePlay}
+                className="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-lg shadow-indigo-500/20"
+            >
+                {isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" className="ml-0.5" />}
+            </button>
+            <div className="flex-1 flex flex-col gap-1 pr-2">
+                <input 
+                    type="range" 
+                    value={progress || 0} 
+                    onChange={handleSeek}
+                    className="w-full h-1.5 bg-indigo-200 dark:bg-indigo-900/40 rounded-full appearance-none cursor-pointer accent-indigo-600"
+                />
+                <div className="flex justify-between text-[8px] font-black text-gray-400 uppercase tracking-tighter">
+                   <span>{formatTime(audioRef.current?.currentTime || 0)}</span>
+                   <span>{formatTime(audioRef.current?.duration || 0)}</span>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const formatTime = (time) => {
+    if (isNaN(time)) return "0:00";
+    const mins = Math.floor(time / 60);
+    const secs = Math.floor(time % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
 
     // Hide story_reaction messages from the SENDER's view — only the story owner should see it
     // Note: Re-enabled after user feedback "message hi nahi show ho raha he"
