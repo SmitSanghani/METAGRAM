@@ -332,8 +332,15 @@ export const useWebRTC = () => {
 
     // Start outgoing call
     const startCall = useCallback(async (targetUser, type) => {
+        if (isActiveCall) return; // Prevent multiple clicks
+
         console.log("[WebRTC] CALL REQUEST INITIATED to", targetUser._id);
-        dispatch(setOutgoingCall({ isOutgoing: true, receiver: targetUser._id, type, remoteUser: targetUser }));
+        dispatch(setOutgoingCall({ 
+            isOutgoing: true, 
+            receiver: targetUser._id, 
+            type, 
+            remoteUser: targetUser 
+        }));
         dispatch(setActiveCall(true)); // Show UI instantly
 
         await setupPeerConnection(targetUser._id, type);
@@ -344,7 +351,16 @@ export const useWebRTC = () => {
             await pc.current.setLocalDescription(offer);
 
             console.log("[WebRTC] OFFER SENT");
-            socket.emit("call-user", { to: targetUser._id, offer, type });
+            socket.emit("call-user", { 
+                to: targetUser._id, 
+                offer, 
+                type,
+                callerInfo: {
+                    _id: user?._id,
+                    username: user?.username,
+                    profilePicture: user?.profilePicture
+                }
+            });
 
             // Log call start in chat
             saveCallLog({

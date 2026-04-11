@@ -10,7 +10,8 @@ export const handleCallEvents = (io, socket, userSocketMap) => {
                 io.to(socketId).emit("incoming-call", {
                     from: socket.userId,
                     offer,
-                    type
+                    type,
+                    callerInfo
                 });
             });
         } else {

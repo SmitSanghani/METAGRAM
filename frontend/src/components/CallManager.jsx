@@ -20,37 +20,25 @@ const CallManager = () => {
     useEffect(() => {
         if (!socket) return;
 
-        const fetchUserData = async (userId, callOffer, cType) => {
-            try {
-                const res = await api.get(`/user/${userId}/profile`);
-                if (res.data.success && latestCallId.current === userId) {
-                    dispatch(setIncomingCall({
-                        isIncoming: true,
-                        caller: userId,
-                        type: cType,
-                        offer: callOffer,
-                        remoteUser: res.data.user
-                    }));
-                }
-            } catch (err) {
-                console.error("Error fetching caller profile", err);
-            }
-        };
+        // User data fetch no longer needed as it is passed via socket for instant display
 
-        const handleIncomingCall = ({ from, offer, type }) => {
+        const handleIncomingCall = ({ from, offer, type, callerInfo }) => {
             latestCallId.current = from;
+            
+            // Use provided caller info for instant display
+            const remoteUserData = callerInfo || { _id: from, username: "Incoming Call..." };
 
             // RECONNECTION LOGIC: If already in call with this person, auto-accept their new offer
             if (isActiveCall && remoteUser?._id === from) {
-                console.log("[CallManager] Seamlessly reconnecting with same user...");
+                console.log("[CallManager] Seamlessly reconnecting with same user...", from);
                 dispatch(setIncomingCall({
                     isIncoming: false,
                     caller: from,
                     type,
                     offer,
-                    remoteUser: remoteUser
+                    remoteUser: remoteUserData
                 }));
-                acceptCall(offer, remoteUser);
+                acceptCall(offer, remoteUserData);
                 return;
             }
 
@@ -59,9 +47,8 @@ const CallManager = () => {
                 caller: from,
                 type,
                 offer,
-                remoteUser: { _id: from, username: "Incoming Call..." }
+                remoteUser: remoteUserData
             }));
-            fetchUserData(from, offer, type);
         };
 
         const handleCallEndedLocally = () => {
@@ -77,7 +64,7 @@ const CallManager = () => {
             socket.off("call-ended", handleCallEndedLocally);
             socket.off("call-rejected", handleCallEndedLocally);
         };
-    }, [socket, dispatch]);
+    }, [socket, dispatch, isActiveCall, remoteUser, acceptCall]);
 
     const handleAccept = () => {
         dispatch(setIncomingCall({ isIncoming: false }));
