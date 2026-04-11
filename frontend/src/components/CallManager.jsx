@@ -15,7 +15,7 @@ const CallManager = () => {
     const latestCallId = useRef(null);
 
     // Initialize WebRTC hook
-    const { acceptCall, endCall, localStream, remoteStream } = useWebRTC();
+    const { acceptCall, endCall, saveCallLog, localStream, remoteStream } = useWebRTC();
 
     useEffect(() => {
         if (!socket) return;
@@ -85,8 +85,19 @@ const CallManager = () => {
     };
 
     const handleReject = () => {
+        const targetId = remoteUser?._id;
         dispatch(setIncomingCall({ isIncoming: false }));
-        socket.emit("reject-call", { to: remoteUser?._id });
+        socket.emit("reject-call", { to: targetId });
+        
+        // Log rejected call to chat
+        if (targetId) {
+            saveCallLog({
+                remoteId: targetId,
+                duration: 0,
+                type: callType,
+                status: 'rejected'
+            });
+        }
     };
 
     const handleEndCall = (remoteId) => {

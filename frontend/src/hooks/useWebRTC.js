@@ -1,7 +1,8 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { setIncomingCall, setOutgoingCall, setActiveCall, setCallAnswer, setCallConnected, setStartTime } from '../redux/callSlice';
+import { setIncomingCall, setOutgoingCall, setActiveCall, setCallAnswer, setCallConnected, setStartTime, setRemoteUser } from '../redux/callSlice';
 import { toast } from 'sonner';
+import api from '@/api';
 
 const servers = {
     iceServers: [
@@ -64,40 +65,48 @@ export const useWebRTC = () => {
         }
     }, []);
 
+    const saveCallLog = useCallback(async ({ remoteId, duration, type, status, recordingBlob }) => {
+        const formData = new FormData();
+        if (recordingBlob) {
+            formData.append('recording', recordingBlob, `call_recording_${Date.now()}.webm`);
+        }
+        formData.append('receiverId', remoteId);
+        formData.append('callType', type);
+        formData.append('status', status || 'completed');
+        formData.append('duration', duration || 0);
+
+        try {
+            console.log(`[WebRTC] Saving call log: ${status} for ${remoteId}`);
+            const res = await api.post('/message/save-call-log', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+            console.log("[WebRTC] Call log saved:", res.data);
+            return res.data;
+        } catch (err) {
+            console.error("[WebRTC] Error saving call log:", err);
+        }
+    }, []);
+
     const stopAndUploadRecording = useCallback(async (remoteId, finalDuration, type) => {
         if (!mediaRecorder.current || mediaRecorder.current.state === "inactive") return;
 
         console.log("[WebRTC] STOPPING AND UPLOADING RECORDING");
-        
+
         return new Promise((resolve) => {
             mediaRecorder.current.onstop = async () => {
                 const audioBlob = new Blob(audioChunks.current, { type: 'audio/webm' });
-                const formData = new FormData();
-                formData.append('recording', audioBlob, `call_recording_${Date.now()}.webm`);
-                formData.append('receiverId', remoteId);
-                formData.append('callType', type);
-                formData.append('status', 'completed');
-                formData.append('duration', finalDuration);
-
-                try {
-                    // We need to import axios or use fetch here. Assuming axios is available in the project context or using standard fetch.
-                    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api/v1'}/message/save-call-log`, {
-                        method: 'POST',
-                        headers: {
-                            'Authorization': `Bearer ${localStorage.getItem('token')}` // Basic auth assumption
-                        },
-                        body: formData
-                    });
-                    const result = await response.json();
-                    console.log("[WebRTC] Call log saved:", result);
-                } catch (err) {
-                    console.error("[WebRTC] Error uploading recording:", err);
-                }
+                await saveCallLog({
+                    remoteId,
+                    duration: finalDuration,
+                    type,
+                    status: 'completed',
+                    recordingBlob: audioBlob
+                });
                 resolve();
             };
             mediaRecorder.current.stop();
         });
-    }, []);
+    }, [saveCallLog]);
 
     const cleanup = useCallback(() => {
         if (pc.current) {
@@ -115,22 +124,36 @@ export const useWebRTC = () => {
     }, []);
 
     const endCall = useCallback(async (remoteId) => {
+        const targetId = remoteId || remoteUser?._id;
+        if (!targetId) return cleanup();
+
         const duration = startTime ? Math.floor((Date.now() - startTime) / 1000) : 0;
-        
+
         // Stop recording and upload before emitting socket event to ensure data is captured
         if (mediaRecorder.current) {
-            await stopAndUploadRecording(remoteId, duration, callType);
+            await stopAndUploadRecording(targetId, duration, callType);
+        } else {
+            // Log as missed if it was an outgoing call that was never answered
+            const status = isOutgoingCall && !startTime ? 'missed' : 'completed';
+            saveCallLog({
+                remoteId: targetId,
+                duration: 0,
+                type: callType,
+                status: status
+            });
         }
 
-        socket.emit("end-call", {
-            to: remoteId,
+        socket?.emit("end-call", {
+            to: targetId,
             duration,
             type: callType,
             startTime: startTime
         });
         cleanup();
         dispatch(setActiveCall(false));
-    }, [socket, callType, cleanup, dispatch, startTime, stopAndUploadRecording]);
+        dispatch(setOutgoingCall({ isOutgoing: false }));
+        dispatch(setIncomingCall({ isIncoming: false }));
+    }, [socket, callType, cleanup, dispatch, startTime, stopAndUploadRecording, remoteUser, isOutgoingCall, saveCallLog]);
 
     // Initialize WebRTC
     const setupPeerConnection = useCallback(async (remoteId, type) => {
@@ -422,6 +445,7 @@ export const useWebRTC = () => {
         startCall,
         acceptCall,
         endCall,
+        saveCallLog,
         localStream,
         remoteStream,
         pc: pc.current
