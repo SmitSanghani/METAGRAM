@@ -226,6 +226,14 @@ export const WebRTCProvider = ({ children }) => {
             }
         };
 
+        pc.current.oniceconnectionstatechange = () => {
+            console.log("[WebRTC] ICE CONNECTION STATE:", pc.current.iceConnectionState);
+            if (pc.current.iceConnectionState === 'connected' || pc.current.iceConnectionState === 'completed') {
+                dispatch(setCallConnected(true));
+                if (!startTime) dispatch(setStartTime(Date.now()));
+            }
+        };
+
         pc.current.onconnectionstatechange = () => {
             console.log("[WebRTC] CONNECTION STATE CHANGED TO:", pc.current.connectionState);
             if (pc.current.connectionState === 'connected') {
@@ -237,12 +245,13 @@ export const WebRTCProvider = ({ children }) => {
                     startRecording(localStreamRef.current, remoteStreamRef.current);
                 }
             } else if (pc.current.connectionState === 'failed' || pc.current.connectionState === 'disconnected') {
-                console.warn("[WebRTC] Connection failed/disconnected, will timeout end soon.");
+                console.warn("[WebRTC] Connection failed/disconnected, will timeout end soon (RECONNECTION WINDOW).");
                 setTimeout(() => {
                     if (pc.current && (pc.current.connectionState === 'failed' || pc.current.connectionState === 'disconnected')) {
+                         console.log("[WebRTC] TIMEOUT: Ending call after failure.");
                          endCall(remoteId);
                     }
-                }, 5000);
+                }, 10000); // 10s window for page refreshes
             }
         };
 
@@ -261,18 +270,26 @@ export const WebRTCProvider = ({ children }) => {
                 if (localStreamRef.current) {
                     localStreamRef.current.getTracks().forEach(t => t.stop());
                 }
-                stream = await navigator.mediaDevices.getUserMedia({
-                    audio: {
-                        echoCancellation: true,
-                        noiseSuppression: true,
-                        autoGainControl: true
-                    },
+                
+                const constraints = {
+                    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
                     video: needsVideo ? { 
                         width: { ideal: 1280 },
                         height: { ideal: 720 },
                         facingMode: "user" 
                     } : false
-                });
+                };
+
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia(constraints);
+                } catch (resErr) {
+                    console.warn("[WebRTC] High-res camera failed, falling back to basic video.", resErr);
+                    // Fallback to basic video if high-res constraints cause issues (common on some laptops/browsers)
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        audio: true,
+                        video: needsVideo
+                    });
+                }
             }
 
             localStreamRef.current = stream;
@@ -291,7 +308,7 @@ export const WebRTCProvider = ({ children }) => {
             });
         } catch (err) {
             console.error("[WebRTC] FATAL: Could not access media:", err);
-            toast.error("Camera/Microphone access denied.");
+            toast.error("Camera/Microphone access denied. Please check your browser permissions.");
             endCall(remoteId);
         }
     }, [socket, dispatch, startTime, startRecording]);
