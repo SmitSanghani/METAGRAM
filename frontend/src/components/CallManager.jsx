@@ -50,7 +50,7 @@ const CallManager = () => {
                     offer,
                     remoteUser: remoteUser
                 }));
-                acceptCall();
+                acceptCall(offer, remoteUser);
                 return;
             }
 

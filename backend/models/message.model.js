@@ -22,7 +22,7 @@ const messageschema = new mongoose.Schema({
     },
     callLog: {
         callType: { type: String, enum: ['audio', 'video'] },
-        status: { type: String, enum: ['completed', 'missed', 'rejected', 'busy'] },
+        status: { type: String, enum: ['completed', 'missed', 'rejected', 'busy', 'outgoing'] },
         duration: { type: Number }, // in seconds
         recordingUrl: { type: String }
     },

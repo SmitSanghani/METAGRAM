@@ -51,6 +51,12 @@ export const useWebRTC = () => {
 
             mixedStreamRef.current = dest.stream;
             mediaRecorder.current = new MediaRecorder(dest.stream);
+            
+            // Resume AudioContext if suspended
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+
             audioChunks.current = [];
 
             mediaRecorder.current.ondataavailable = (event) => {
@@ -159,7 +165,12 @@ export const useWebRTC = () => {
         
         if (pc.current) {
             console.log("[WebRTC] Closing existing connection before new setup");
+            pc.current.onicecandidate = null;
+            pc.current.ontrack = null;
+            pc.current.oniceconnectionstatechange = null;
+            pc.current.onconnectionstatechange = null;
             pc.current.close();
+            pc.current = null;
         }
 
         pc.current = new RTCPeerConnection(servers);
@@ -224,16 +235,11 @@ export const useWebRTC = () => {
 
         // Get Local Media
         try {
-            console.log("[WebRTC] REQUESTING LOCAL MEDIA");
             const constraints = {
                 audio: { 
                     echoCancellation: { ideal: true },
                     noiseSuppression: { ideal: true },
                     autoGainControl: { ideal: true },
-                    googEchoCancellation: { ideal: true },
-                    googAutoGainControl: { ideal: true },
-                    googNoiseSuppression: { ideal: true },
-                    googHighpassFilter: { ideal: true },
                 },
                 video: (type === 'video' || callType === 'video') ? { 
                     facingMode: "user",
@@ -243,15 +249,21 @@ export const useWebRTC = () => {
             };
 
             let stream;
-            try {
-                stream = await navigator.mediaDevices.getUserMedia(constraints);
-            } catch (err) {
-                console.warn("[WebRTC] Precise constraints failed, trying basic:", err);
+            if (localStreamRef.current && localStreamRef.current.active) {
+                console.log("[WebRTC] REUSING EXISTING LOCAL STREAM");
+                stream = localStreamRef.current;
+            } else {
+                console.log("[WebRTC] REQUESTING NEW LOCAL MEDIA");
                 try {
-                    stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: (type === 'video' || callType === 'video') });
-                } catch (basicErr) {
-                    console.warn("[WebRTC] Basic media failed, trying audio only:", basicErr);
-                    stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                    stream = await navigator.mediaDevices.getUserMedia(constraints);
+                } catch (err) {
+                    console.warn("[WebRTC] Precise constraints failed, trying basic:", err);
+                    try {
+                        stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: (type === 'video' || callType === 'video') });
+                    } catch (basicErr) {
+                        console.warn("[WebRTC] Basic media failed, trying audio only:", basicErr);
+                        stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                    }
                 }
             }
 
@@ -276,21 +288,22 @@ export const useWebRTC = () => {
     }, [callType, socket, dispatch, endCall, isIncomingCall, isOutgoingCall]);
 
     // Handle incoming call accept
-    const acceptCall = useCallback(async () => {
-        if (!offer || !remoteUser) return;
+    const acceptCall = useCallback(async (reconnectOffer = null, reconnectRemoteUser = null) => {
+        const currentOffer = reconnectOffer || offer;
+        const currentRemoteUser = reconnectRemoteUser || remoteUser;
+        
+        if (!currentOffer || !currentRemoteUser) {
+            console.error("[WebRTC] Missing offer or remote user for acceptCall");
+            return;
+        }
 
-        console.log("[WebRTC] CALL ACCEPTED");
+        console.log("[WebRTC] CALL ACCEPTED", reconnectOffer ? "(Reconnection)" : "");
         dispatch(setActiveCall(true)); // Show UI instantly
-        await setupPeerConnection(remoteUser._id, callType);
+        await setupPeerConnection(currentRemoteUser._id, callType);
 
         try {
             console.log("[WebRTC] SETTING REMOTE OFFER");
-            if (pc.current.signalingState !== "stable") {
-                console.warn("[WebRTC] Signaling state is not stable, clearing existing state");
-                // This shouldn't normally happen on first offer, but good for safety
-            }
-            
-            await pc.current.setRemoteDescription(new RTCSessionDescription(offer));
+            await pc.current.setRemoteDescription(new RTCSessionDescription(currentOffer));
 
             // Flush buffered candidates
             if (incomingIceCandidates.current.length > 0) {
