@@ -7,6 +7,70 @@ import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { THEMES } from '@/utils/themes';
 
+const formatTime = (time) => {
+    if (isNaN(time)) return "0:00";
+    const mins = Math.floor(time / 60);
+    const secs = Math.floor(time % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
+
+const AudioPlayer = ({ url, isDark }) => {
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [progress, setProgress] = useState(0);
+    const audioRef = useRef(null);
+
+    const togglePlay = () => {
+        if (isPlaying) {
+            audioRef.current.pause();
+        } else {
+            audioRef.current.play();
+        }
+        setIsPlaying(!isPlaying);
+    };
+
+    const handleTimeUpdate = () => {
+        const current = audioRef.current.currentTime;
+        const duration = audioRef.current.duration;
+        setProgress((current / duration) * 100);
+    };
+
+    const handleSeek = (e) => {
+        const seekTime = (e.target.value / 100) * audioRef.current.duration;
+        audioRef.current.currentTime = seekTime;
+        setProgress(e.target.value);
+    };
+
+    return (
+        <div className={`flex items-center gap-3 p-2 rounded-2xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
+            <audio 
+                ref={audioRef} 
+                src={url} 
+                onTimeUpdate={handleTimeUpdate} 
+                onEnded={() => setIsPlaying(false)}
+                className="hidden" 
+            />
+            <button 
+                onClick={togglePlay}
+                className="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-lg shadow-indigo-500/20"
+            >
+                {isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" className="ml-0.5" />}
+            </button>
+            <div className="flex-1 flex flex-col gap-1 pr-2">
+                <input 
+                    type="range" 
+                    value={progress || 0} 
+                    onChange={handleSeek}
+                    className="w-full h-1.5 bg-indigo-200 dark:bg-indigo-900/40 rounded-full appearance-none cursor-pointer accent-indigo-600"
+                />
+                <div className="flex justify-between text-[8px] font-black text-gray-400 uppercase tracking-tighter">
+                   <span>{formatTime(audioRef.current?.currentTime || 0)}</span>
+                   <span>{formatTime(audioRef.current?.duration || 0)}</span>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const MessageBubble = ({ msg, isSender, onReply, onDelete, onReact, onScrollTo, onStoryClick, onPostClick, isHighlighted, currentUser, otherUser }) => {
     const navigate = useNavigate();
     const [showReactions, setShowReactions] = useState(false);
@@ -83,17 +147,17 @@ const MessageBubble = ({ msg, isSender, onReply, onDelete, onReact, onScrollTo, 
                             )}
                         </div>
                         <div className="flex flex-col min-w-0">
-                            <h4 className={`text-[15px] font-black truncate ${themeConfig.isDark ? 'text-white' : 'text-gray-900'}`}>
-                                {isAudio ? 'Audio Call' : 'Video Call'} {isMissed ? 'Missed' : 'Ended'}
+                             <h4 className={`text-[15px] font-black truncate ${themeConfig.isDark ? 'text-white' : 'text-gray-900'}`}>
+                                {isAudio ? 'Audio Call' : 'Video Call'} {status === 'outgoing' ? '' : (isMissed ? 'Missed' : 'Ended')}
                             </h4>
                             <p className="text-[11px] text-gray-500 font-bold tracking-tight uppercase opacity-70">
-                                {isMissed ? 'No Answer' : (
+                                {status === 'outgoing' ? (isSender ? 'Outgoing' : 'Incoming') : (isMissed ? 'No Answer' : (
                                     <>
                                         {Math.floor(duration / 60)}:{(duration % 60).toString().padStart(2, '0')} 
                                         <span className="mx-1.5 opacity-30">•</span>
                                         {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                     </>
-                                )}
+                                ))}
                             </p>
                         </div>
                     </div>
@@ -111,70 +175,7 @@ const MessageBubble = ({ msg, isSender, onReply, onDelete, onReact, onScrollTo, 
         );
     }
 
-// Simple Audio Player Component
-const AudioPlayer = ({ url, isDark }) => {
-    const [isPlaying, setIsPlaying] = useState(false);
-    const [progress, setProgress] = useState(0);
-    const audioRef = useRef(null);
 
-    const togglePlay = () => {
-        if (isPlaying) {
-            audioRef.current.pause();
-        } else {
-            audioRef.current.play();
-        }
-        setIsPlaying(!isPlaying);
-    };
-
-    const handleTimeUpdate = () => {
-        const current = audioRef.current.currentTime;
-        const duration = audioRef.current.duration;
-        setProgress((current / duration) * 100);
-    };
-
-    const handleSeek = (e) => {
-        const seekTime = (e.target.value / 100) * audioRef.current.duration;
-        audioRef.current.currentTime = seekTime;
-        setProgress(e.target.value);
-    };
-
-    return (
-        <div className={`flex items-center gap-3 p-2 rounded-2xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
-            <audio 
-                ref={audioRef} 
-                src={url} 
-                onTimeUpdate={handleTimeUpdate} 
-                onEnded={() => setIsPlaying(false)}
-                className="hidden" 
-            />
-            <button 
-                onClick={togglePlay}
-                className="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-lg shadow-indigo-500/20"
-            >
-                {isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" className="ml-0.5" />}
-            </button>
-            <div className="flex-1 flex flex-col gap-1 pr-2">
-                <input 
-                    type="range" 
-                    value={progress || 0} 
-                    onChange={handleSeek}
-                    className="w-full h-1.5 bg-indigo-200 dark:bg-indigo-900/40 rounded-full appearance-none cursor-pointer accent-indigo-600"
-                />
-                <div className="flex justify-between text-[8px] font-black text-gray-400 uppercase tracking-tighter">
-                   <span>{formatTime(audioRef.current?.currentTime || 0)}</span>
-                   <span>{formatTime(audioRef.current?.duration || 0)}</span>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-const formatTime = (time) => {
-    if (isNaN(time)) return "0:00";
-    const mins = Math.floor(time / 60);
-    const secs = Math.floor(time % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-};
 
     // Hide story_reaction messages from the SENDER's view — only the story owner should see it
     // Note: Re-enabled after user feedback "message hi nahi show ho raha he"

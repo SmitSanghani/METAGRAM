@@ -77,9 +77,7 @@ export const useWebRTC = () => {
 
         try {
             console.log(`[WebRTC] Saving call log: ${status} for ${remoteId}`);
-            const res = await api.post('/message/save-call-log', formData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
-            });
+            const res = await api.post('/message/save-call-log', formData);
             console.log("[WebRTC] Call log saved:", res.data);
             return res.data;
         } catch (err) {
@@ -334,6 +332,14 @@ export const useWebRTC = () => {
 
             console.log("[WebRTC] OFFER SENT");
             socket.emit("call-user", { to: targetUser._id, offer, type });
+
+            // Log call start in chat
+            saveCallLog({
+                remoteId: targetUser._id,
+                duration: 0,
+                type: type,
+                status: 'outgoing'
+            });
         } catch (err) {
             console.error("[WebRTC] Error starting call:", err);
             endCall(targetUser._id);
