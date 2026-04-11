@@ -126,54 +126,7 @@ const MessageBubble = ({ msg, isSender, onReply, onDelete, onReact, onScrollTo, 
         );
     }
 
-    if (msg.messageType === 'call_log') {
-        const { callType, status, duration, recordingUrl } = msg.callLog || {};
-        const isMissed = status === 'missed' || status === 'rejected';
-        const isAudio = callType === 'audio' || !callType;
-        
-        return (
-            <div className={`flex flex-col mb-4 w-full ${isSender ? 'items-end pr-2' : 'items-start pl-2'}`}>
-                <div className={`relative group max-w-[280px] p-4 rounded-[24px] shadow-sm border transition-all hover:shadow-md ${
-                    themeConfig.isDark ? 'bg-[#1a1a2e] border-white/10' : 'bg-white border-gray-100'
-                }`}>
-                    <div className="flex items-center gap-3.5">
-                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${
-                            isMissed ? 'bg-red-500/10 text-red-500' : 'bg-indigo-500/10 text-indigo-500'
-                        }`}>
-                            {callType === 'video' ? (
-                                isMissed ? <VideoOff size={22} /> : <Video size={22} />
-                            ) : (
-                                isMissed ? <PhoneOff size={22} /> : <Phone size={22} />
-                            )}
-                        </div>
-                        <div className="flex flex-col min-w-0">
-                             <h4 className={`text-[15px] font-black truncate ${themeConfig.isDark ? 'text-white' : 'text-gray-900'}`}>
-                                {isAudio ? 'Audio Call' : 'Video Call'} {status === 'outgoing' ? '' : (isMissed ? 'Missed' : 'Ended')}
-                            </h4>
-                            <p className="text-[11px] text-gray-500 font-bold tracking-tight uppercase opacity-70">
-                                {status === 'outgoing' ? (isSender ? 'Outgoing' : 'Incoming') : (isMissed ? 'No Answer' : (
-                                    <>
-                                        {Math.floor(duration / 60)}:{(duration % 60).toString().padStart(2, '0')} 
-                                        <span className="mx-1.5 opacity-30">•</span>
-                                        {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                    </>
-                                ))}
-                            </p>
-                        </div>
-                    </div>
 
-                    {recordingUrl && (
-                        <div className="mt-4 pt-4 border-t border-black/5 dark:border-white/5">
-                             <div className="flex flex-col gap-3">
-                                 <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500 mb-1">Call Recording</p>
-                                 <AudioPlayer url={recordingUrl} isDark={themeConfig.isDark} />
-                             </div>
-                        </div>
-                    )}
-                </div>
-            </div>
-        );
-    }
 
 
 
@@ -242,7 +195,7 @@ const MessageBubble = ({ msg, isSender, onReply, onDelete, onReact, onScrollTo, 
 
                     {/* Draggable Bubble with Highlight Motion */}
                     <motion.div
-                        drag="x"
+                        drag={msg.messageType === 'call_log' ? false : "x"}
                         dragConstraints={{ left: 0, right: 0 }}
                         dragElastic={0.8}
                         onDragEnd={handleDragEnd}
@@ -254,12 +207,48 @@ const MessageBubble = ({ msg, isSender, onReply, onDelete, onReact, onScrollTo, 
                             boxShadow: isHighlighted ? "0 0 25px rgba(79,70,229,0.5)" : "none"
                         } : {}}
                         transition={{ duration: 0.8, ease: "easeInOut" }}
-                        className={`relative z-10 px-4 py-2.5 rounded-[20px] text-[14.5px] leading-[1.4] shadow-sm cursor-grab active:cursor-grabbing transition-all duration-300 ${isSender
-                            ? `${themeConfig.bubbleColor} ${themeConfig.textColor} rounded-br-sm backdrop-blur-sm`
-                            : `${themeConfig.receivedColor} ${themeConfig.receivedTextColor} rounded-bl-sm font-medium shadow-[0_1px_2px_rgba(0,0,0,0.05)] backdrop-blur-sm border border-[#efefef]/10`
-                            } ${isHighlighted ? 'ring-2 ring-indigo-400 ring-offset-2' : ''}`}
+                        className={`relative z-10 ${msg.messageType === 'call_log' ? 'p-4 rounded-[24px]' : 'px-4 py-2.5 rounded-[20px]'} text-[14.5px] leading-[1.4] transition-all duration-300 ${isSender
+                            ? `${msg.messageType === 'call_log' ? (themeConfig.isDark ? 'bg-[#1a1a2e] border border-white/10' : 'bg-white border border-gray-100 shadow-sm') : `${themeConfig.bubbleColor} ${themeConfig.textColor} rounded-br-sm shadow-sm`} backdrop-blur-sm`
+                            : `${msg.messageType === 'call_log' ? (themeConfig.isDark ? 'bg-[#1a1a2e] border border-white/10' : 'bg-white border border-gray-100 shadow-sm') : `${themeConfig.receivedColor} ${themeConfig.receivedTextColor} rounded-bl-sm font-medium shadow-[0_1px_2px_rgba(0,0,0,0.05)] border border-[#efefef]/10`} backdrop-blur-sm`
+                            } ${isHighlighted ? 'ring-2 ring-indigo-400 ring-offset-2' : ''} ${msg.messageType !== 'call_log' ? 'cursor-grab active:cursor-grabbing' : ''}`}
                     >
-                        {msg.messageType === 'image' ? (
+                        {msg.messageType === 'call_log' ? (
+                            <div className="min-w-[200px]">
+                                <div className="flex items-center gap-3.5">
+                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${
+                                        (msg.callLog?.status === 'missed' || msg.callLog?.status === 'rejected') ? 'bg-red-500/10 text-red-500' : 'bg-indigo-500/10 text-indigo-500'
+                                    }`}>
+                                        {msg.callLog?.callType === 'video' ? (
+                                            (msg.callLog?.status === 'missed' || msg.callLog?.status === 'rejected') ? <VideoOff size={22} /> : <Video size={22} />
+                                        ) : (
+                                            (msg.callLog?.status === 'missed' || msg.callLog?.status === 'rejected') ? <PhoneOff size={22} /> : <Phone size={22} />
+                                        )}
+                                    </div>
+                                    <div className="flex flex-col min-w-0">
+                                        <h4 className={`text-[15px] font-black truncate ${themeConfig.isDark ? 'text-white' : 'text-gray-900'}`}>
+                                            {(msg.callLog?.callType === 'audio' || !msg.callLog?.callType) ? 'Audio Call' : 'Video Call'} {msg.callLog?.status === 'outgoing' ? '' : ((msg.callLog?.status === 'missed' || msg.callLog?.status === 'rejected') ? 'Missed' : 'Ended')}
+                                        </h4>
+                                        <p className="text-[11px] text-gray-500 font-bold tracking-tight uppercase opacity-70">
+                                            {msg.callLog?.status === 'outgoing' ? (isSender ? 'Outgoing' : 'Incoming') : ((msg.callLog?.status === 'missed' || msg.callLog?.status === 'rejected') ? 'No Answer' : (
+                                                <>
+                                                    {Math.floor(msg.callLog?.duration / 60)}:{(msg.callLog?.duration % 60).toString().padStart(2, '0')} 
+                                                    <span className="mx-1.5 opacity-30">•</span>
+                                                    {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                </>
+                                            ))}
+                                        </p>
+                                    </div>
+                                </div>
+                                {msg.callLog?.recordingUrl && (
+                                    <div className="mt-4 pt-4 border-t border-black/5 dark:border-white/5">
+                                        <div className="flex flex-col gap-3">
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500 mb-1">Call Recording</p>
+                                            <AudioPlayer url={msg.callLog.recordingUrl} isDark={themeConfig.isDark} />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        ) : msg.messageType === 'image' ? (
                             <div className="relative -mx-4 -my-2.5 overflow-hidden rounded-[20px]">
                                 <img
                                     src={msg.mediaUrl}
