@@ -58,13 +58,22 @@ const ActiveCallOverlay = ({ localStream, remoteStream, onEndCall, isConnecting 
 
     useEffect(() => {
         if (remoteAudioRef.current && remoteStream) {
-            console.log("[ActiveCallOverlay] SETTING REMOTE STREAM (AUDIO)");
-            if (remoteAudioRef.current.srcObject !== remoteStream) {
-                remoteAudioRef.current.srcObject = remoteStream;
+            const audioTracks = remoteStream.getAudioTracks();
+            console.log(`[ActiveCallOverlay] Remote stream has ${audioTracks.length} audio tracks. State: ${audioTracks[0]?.readyState}`);
+            
+            if (audioTracks.length > 0) {
+                if (remoteAudioRef.current.srcObject !== remoteStream) {
+                    console.log("[ActiveCallOverlay] Assigning remote stream to audio element");
+                    remoteAudioRef.current.srcObject = remoteStream;
+                }
+                
+                remoteAudioRef.current.play().catch(e => {
+                    console.error("[ActiveCallOverlay] Remote audio playback failed:", e);
+                    // Try to play again on user interaction if needed
+                });
+            } else {
+                console.warn("[ActiveCallOverlay] Remote stream has NO audio tracks yet.");
             }
-            remoteAudioRef.current.play().catch(e => {
-                if (e.name !== "AbortError") console.error("Remote audio play failed:", e);
-            });
         }
     }, [remoteStream]);
 
@@ -111,8 +120,8 @@ const ActiveCallOverlay = ({ localStream, remoteStream, onEndCall, isConnecting 
 
     return (
         <div className="fixed inset-0 z-[1100] bg-[#0a0a14] flex flex-col items-center justify-center animate-in fade-in duration-500 overflow-hidden">
-            {/* Dedicated Remote Audio (Hidden) - Ensures audio plays even if video is off or during audio-only calls */}
-            <audio ref={remoteAudioRef} autoPlay playsInline className="hidden" />
+            {/* Dedicated Remote Audio - Ensuring it stays in the rendering tree to avoid browser playback restrictions */}
+            <audio ref={remoteAudioRef} autoPlay playsInline className="fixed -top-10 -left-10 w-1 h-1 opacity-0 pointer-events-none" />
 
             {/* Remote Video (Full Screen) */}
             {callType === 'video' ? (

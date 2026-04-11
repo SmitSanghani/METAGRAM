@@ -114,4 +114,14 @@ export const handleCallEvents = (io, socket, userSocketMap) => {
             });
         }
     });
+
+    // 8. Request Re-offer (for reconnection after refresh)
+    socket.on("request-reoffer", ({ to }) => {
+        const targetSockets = userSocketMap[to];
+        if (targetSockets) {
+            targetSockets.forEach(socketId => {
+                io.to(socketId).emit("request-reoffer", { from: socket.userId });
+            });
+        }
+    });
 };

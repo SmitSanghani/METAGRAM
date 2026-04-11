@@ -262,7 +262,11 @@ export const WebRTCProvider = ({ children }) => {
                     localStreamRef.current.getTracks().forEach(t => t.stop());
                 }
                 stream = await navigator.mediaDevices.getUserMedia({
-                    audio: true,
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    },
                     video: needsVideo ? { 
                         width: { ideal: 1280 },
                         height: { ideal: 720 },
@@ -273,9 +277,16 @@ export const WebRTCProvider = ({ children }) => {
 
             localStreamRef.current = stream;
             setLocalStream(stream);
+
+            const audioTracks = stream.getAudioTracks();
+            if (audioTracks.length > 0) {
+                console.log(`[WebRTC] Local audio track acquired: ${audioTracks[0].label}. Enabled: ${audioTracks[0].enabled}`);
+            } else {
+                console.error("[WebRTC] NO LOCAL AUDIO TRACK ACQUIRED!");
+            }
             
             stream.getTracks().forEach(track => {
-                console.log("[WebRTC] ADDING LOCAL TRACK TO PC:", track.kind);
+                console.log("[WebRTC] ADDING LOCAL TRACK TO PC:", track.kind, "Enabled:", track.enabled);
                 pc.current.addTrack(track, stream);
             });
         } catch (err) {
@@ -367,7 +378,19 @@ export const WebRTCProvider = ({ children }) => {
         // RECONNECTION LOGIC: Detect if we were in a call and the page refreshed
         if (isActiveCall && !pc.current && remoteUser) {
             console.log("[WebRTC] DETECTED ACTIVE SESSION ON RELOAD, ATTEMPTING RECONNECTION...");
-            setupPeerConnection(remoteUser._id, callType);
+            const initiateReconnection = async () => {
+                await setupPeerConnection(remoteUser._id, callType);
+                if (isOutgoingCall) {
+                    console.log("[WebRTC] (RELOAD) I was caller, sending new offer.");
+                    const offer = await pc.current.createOffer();
+                    await pc.current.setLocalDescription(offer);
+                    socket.emit("call-user", { to: remoteUser._id, offer, type: callType });
+                } else {
+                    console.log("[WebRTC] (RELOAD) I was receiver, requesting re-offer.");
+                    socket.emit("request-reoffer", { to: remoteUser._id });
+                }
+            };
+            initiateReconnection();
         }
 
         const handleIncomingCall = async ({ from, offer: newOffer, type }) => {
@@ -382,6 +405,25 @@ export const WebRTCProvider = ({ children }) => {
                     socket.emit("answer-call", { to: from, answer });
                 } catch (err) {
                     console.error("[WebRTC] Reconnection failed:", err);
+                }
+            }
+        };
+
+        const handleRequestReoffer = async ({ from }) => {
+            if (isActiveCall && remoteUser?._id === from) {
+                console.log("[WebRTC] Peer requested re-offer after reload. Re-negotiating...");
+                await setupPeerConnection(from, callType);
+                try {
+                    const offer = await pc.current.createOffer();
+                    await pc.current.setLocalDescription(offer);
+                    socket.emit("call-user", { 
+                        to: from, 
+                        offer, 
+                        type: callType,
+                        callerInfo: { _id: user?._id, username: user?.username, profilePicture: user?.profilePicture }
+                    });
+                } catch (err) {
+                    console.error("[WebRTC] Re-offering failed:", err);
                 }
             }
         };
@@ -421,6 +463,7 @@ export const WebRTCProvider = ({ children }) => {
         socket.on("call-rejected", handleCallRejected);
         socket.on("call-ended", handleCallEnded);
         socket.on("peer-busy", handlePeerBusy);
+        socket.on("request-reoffer", handleRequestReoffer);
 
         return () => {
             socket.off("incoming-call", handleIncomingCall);
@@ -429,8 +472,9 @@ export const WebRTCProvider = ({ children }) => {
             socket.off("call-rejected", handleCallRejected);
             socket.off("call-ended", handleCallEnded);
             socket.off("peer-busy", handlePeerBusy);
+            socket.off("request-reoffer", handleRequestReoffer);
         };
-    }, [socket, cleanup, dispatch, isActiveCall, remoteUser, callType, setupPeerConnection]);
+    }, [socket, cleanup, dispatch, isActiveCall, remoteUser, callType, setupPeerConnection, isOutgoingCall, isIncomingCall, user]);
 
     const value = {
         startCall,
