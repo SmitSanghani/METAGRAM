@@ -923,7 +923,7 @@ export const saveCallLog = async (req, res) => {
             receiverId,
             messageType: 'call_log',
             callLog: {
-                callType: callType || 'audio', // Ensure not null
+                callType: callType || 'voice', // Ensure not null
                 status: status || 'completed',
                 duration: parseInt(duration) || 0,
                 recordingUrl: recordingUrl || null

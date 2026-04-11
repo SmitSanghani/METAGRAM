@@ -21,7 +21,7 @@ const messageschema = new mongoose.Schema({
         default: 'text'
     },
     callLog: {
-        callType: { type: String, enum: ['audio', 'video'] },
+        callType: { type: String, enum: ['audio', 'video', 'voice'] },
         status: { type: String, enum: ['completed', 'missed', 'rejected', 'busy', 'outgoing'] },
         duration: { type: Number }, // in seconds
         recordingUrl: { type: String }

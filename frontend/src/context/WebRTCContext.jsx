@@ -40,6 +40,21 @@ export const WebRTCProvider = ({ children }) => {
 
     const cleanup = useCallback(() => {
         console.log("[WebRTC] CLEANUP - Closing PC and stopping tracks");
+        
+        // Stop MediaRecorder
+        if (mediaRecorder.current && mediaRecorder.current.state !== 'inactive') {
+            try { mediaRecorder.current.stop(); } catch (e) {}
+        }
+
+        // Close AudioContext nodes
+        if (localSourceRef.current) { localSourceRef.current.disconnect(); localSourceRef.current = null; }
+        if (remoteSourceRef.current) { remoteSourceRef.current.disconnect(); remoteSourceRef.current = null; }
+        if (destRef.current) { destRef.current.disconnect(); destRef.current = null; }
+        if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
+            audioCtxRef.current.close().catch(() => {});
+            audioCtxRef.current = null;
+        }
+
         if (pc.current) {
             pc.current.close();
             pc.current = null;
@@ -55,23 +70,69 @@ export const WebRTCProvider = ({ children }) => {
         remoteStreamRef.current = null;
         setRemoteStream(null);
         incomingIceCandidates.current = [];
+        mixedStreamRef.current = null;
     }, []);
+
+    const audioCtxRef = useRef(null);
+    const localSourceRef = useRef(null);
+    const remoteSourceRef = useRef(null);
+    const destRef = useRef(null);
 
     const startRecording = useCallback((lStream, rStream) => {
         if (!lStream || !rStream) return;
+        
+        // Ensure streams have audio tracks before starting
+        if (lStream.getAudioTracks().length === 0 || rStream.getAudioTracks().length === 0) {
+            console.log("[WebRTC] Delaying recording - waiting for audio tracks");
+            return;
+        }
+
+        if (mediaRecorder.current && mediaRecorder.current.state === 'recording') return;
+
         try {
-            console.log("[WebRTC] STARTING RECORDING");
-            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            const dest = audioCtx.createMediaStreamDestination();
+            console.log("[WebRTC] STARTING RECORDING - Mixing Audio Streams");
+            
+            if (!audioCtxRef.current) {
+                audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)({
+                    latencyHint: 'interactive',
+                    sampleRate: 48000,
+                });
+            }
+            const audioCtx = audioCtxRef.current;
+            
+            if (!destRef.current) {
+                destRef.current = audioCtx.createMediaStreamDestination();
+            }
+            const dest = destRef.current;
 
-            const localSource = audioCtx.createMediaStreamSource(lStream);
-            const remoteSource = audioCtx.createMediaStreamSource(rStream);
+            // Cleanup old sources if any
+            if (localSourceRef.current) {
+                try { localSourceRef.current.disconnect(); } catch (e) {}
+            }
+            if (remoteSourceRef.current) {
+                try { remoteSourceRef.current.disconnect(); } catch (e) {}
+            }
 
-            localSource.connect(dest);
-            remoteSource.connect(dest);
+            localSourceRef.current = audioCtx.createMediaStreamSource(lStream);
+            remoteSourceRef.current = audioCtx.createMediaStreamSource(rStream);
+
+            localSourceRef.current.connect(dest);
+            remoteSourceRef.current.connect(dest);
 
             mixedStreamRef.current = dest.stream;
-            mediaRecorder.current = new MediaRecorder(dest.stream);
+            
+            // Use standard audio/webm;codecs=opus (highest quality for web)
+            const options = { 
+                mimeType: 'audio/webm;codecs=opus',
+                audioBitsPerSecond: 128000
+            };
+            
+            if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                console.warn("[WebRTC] opus not supported, falling back to default");
+                delete options.mimeType;
+            }
+
+            mediaRecorder.current = new MediaRecorder(dest.stream, options);
             
             if (audioCtx.state === 'suspended') {
                 audioCtx.resume();
@@ -85,7 +146,8 @@ export const WebRTCProvider = ({ children }) => {
                 }
             };
 
-            mediaRecorder.current.start();
+            mediaRecorder.current.start(1000); // 1s chunks
+            console.log("[WebRTC] MediaRecorder started with quality:", options.audioBitsPerSecond);
         } catch (err) {
             console.error("[WebRTC] Error starting recorder:", err);
         }
@@ -97,7 +159,7 @@ export const WebRTCProvider = ({ children }) => {
             formData.append('recording', recordingBlob, `call_recording_${Date.now()}.webm`);
         }
         formData.append('receiverId', remoteId);
-        formData.append('callType', type || 'audio');
+        formData.append('callType', type || 'voice');
         formData.append('status', status || 'completed');
         formData.append('duration', duration || 0);
 
@@ -147,18 +209,25 @@ export const WebRTCProvider = ({ children }) => {
         };
 
         pc.current.ontrack = (event) => {
-            console.log("[WebRTC] REMOTE TRACK RECEIVED:", event.track.kind);
+            console.log("[WebRTC] REMOTE TRACK RECEIVED:", event.track.kind, "ID:", event.track.id);
             if (!remoteStreamRef.current) {
                 remoteStreamRef.current = new MediaStream();
             }
             if (!remoteStreamRef.current.getTracks().find(t => t.id === event.track.id)) {
                 remoteStreamRef.current.addTrack(event.track);
             }
-            setRemoteStream(new MediaStream(remoteStreamRef.current.getTracks()));
+            
+            const newStream = new MediaStream(remoteStreamRef.current.getTracks());
+            setRemoteStream(newStream);
+
+            // Attempt to start recording as soon as both streams have audio tracks
+            if (pc.current.connectionState === 'connected' && localStreamRef.current) {
+                startRecording(localStreamRef.current, remoteStreamRef.current);
+            }
         };
 
         pc.current.onconnectionstatechange = () => {
-            console.log("[WebRTC] CONNECTION STATE:", pc.current.connectionState);
+            console.log("[WebRTC] CONNECTION STATE CHANGED TO:", pc.current.connectionState);
             if (pc.current.connectionState === 'connected') {
                 const now = Date.now();
                 if (!startTime) dispatch(setStartTime(now));
@@ -168,6 +237,7 @@ export const WebRTCProvider = ({ children }) => {
                     startRecording(localStreamRef.current, remoteStreamRef.current);
                 }
             } else if (pc.current.connectionState === 'failed' || pc.current.connectionState === 'disconnected') {
+                console.warn("[WebRTC] Connection failed/disconnected, will timeout end soon.");
                 setTimeout(() => {
                     if (pc.current && (pc.current.connectionState === 'failed' || pc.current.connectionState === 'disconnected')) {
                          endCall(remoteId);
@@ -193,7 +263,11 @@ export const WebRTCProvider = ({ children }) => {
                 }
                 stream = await navigator.mediaDevices.getUserMedia({
                     audio: true,
-                    video: needsVideo ? { facingMode: "user" } : false
+                    video: needsVideo ? { 
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        facingMode: "user" 
+                    } : false
                 });
             }
 
@@ -201,6 +275,7 @@ export const WebRTCProvider = ({ children }) => {
             setLocalStream(stream);
             
             stream.getTracks().forEach(track => {
+                console.log("[WebRTC] ADDING LOCAL TRACK TO PC:", track.kind);
                 pc.current.addTrack(track, stream);
             });
         } catch (err) {

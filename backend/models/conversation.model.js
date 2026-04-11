@@ -6,7 +6,7 @@ const messageSchema = new mongoose.Schema({
     message: { type: String, default: "" },
     messageType: { type: String, enum: ['text', 'image', 'video', 'gif', 'story_reply', 'story_reaction', 'reel', 'post', 'file', 'call_log', 'system'], default: 'text' },
     callLog: {
-        callType: { type: String, enum: ['audio', 'video'] },
+        callType: { type: String, enum: ['audio', 'video', 'voice'] },
         status: { type: String, enum: ['completed', 'missed', 'rejected', 'busy', 'outgoing'] },
         duration: { type: Number },
         recordingUrl: { type: String }

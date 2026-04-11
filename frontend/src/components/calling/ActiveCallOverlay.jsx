@@ -124,11 +124,11 @@ const ActiveCallOverlay = ({ localStream, remoteStream, onEndCall, isConnecting 
                         playsInline
                         className={cn(
                             "w-full h-full object-cover animate-in fade-in duration-1000",
-                            (!remoteStream || remoteVideoOff) && "hidden"
+                            (!remoteStream || remoteStream.getVideoTracks().length === 0 || remoteVideoOff) && "hidden"
                         )}
                     />
                     
-                    {(!remoteStream || remoteVideoOff) && (
+                    {(!remoteStream || remoteStream.getVideoTracks().length === 0 || remoteVideoOff) && (
                         <div className="w-full h-full flex items-center justify-center bg-black/40 backdrop-blur-sm">
                              <div className="flex flex-col items-center">
                                 <div className="relative mb-8">
@@ -163,7 +163,20 @@ const ActiveCallOverlay = ({ localStream, remoteStream, onEndCall, isConnecting 
                                 {remoteUser?.username?.charAt(0)}
                             </AvatarFallback>
                         </Avatar>
+                        
+                        {remoteAudioOff && (
+                            <div className="absolute -bottom-2 -right-2 w-12 h-12 bg-red-500 rounded-full flex items-center justify-center border-4 border-[#0a0a14] z-20 shadow-lg">
+                                <MicOff size={20} className="text-white" />
+                            </div>
+                        )}
                     </div>
+                </div>
+            )}
+
+            {/* Remote Mic Indicator for Video Calls (Top Left) */}
+            {callType === 'video' && remoteAudioOff && !remoteVideoOff && (
+                <div className="absolute top-8 left-8 bg-red-500/80 backdrop-blur-md p-3 rounded-full border border-white/20 z-40 shadow-xl animate-in zoom-in duration-300">
+                    <MicOff size={24} className="text-white" />
                 </div>
             )}
 
