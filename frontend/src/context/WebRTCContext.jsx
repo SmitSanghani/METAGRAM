@@ -440,7 +440,7 @@ export const WebRTCProvider = ({ children }) => {
             await pc.current.setLocalDescription(localOffer);
             socket.emit("call-user", {
                 to: targetUser._id,
-                offer,
+                offer: localOffer,
                 type,
                 callerInfo: {
                     _id: user?._id,

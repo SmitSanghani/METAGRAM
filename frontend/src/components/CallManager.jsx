@@ -100,17 +100,29 @@ const CallManager = () => {
         };
     }, [socket, dispatch, isActiveCall, remoteUser, acceptCall]);
 
+    // Shared immediate audio stop — called directly, no state delays
+    const stopAudioNow = () => {
+        if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current.src = "";
+            try { audioRef.current.load(); } catch(e) {}
+            audioRef.current = null;
+        }
+        audioGenerator.stop();
+    };
+
     const handleAccept = () => {
+        stopAudioNow(); // Stop immediately, don't wait for state
         dispatch(setIncomingCall({ isIncoming: false }));
         acceptCall();
     };
 
     const handleReject = () => {
+        stopAudioNow(); // Stop immediately
         const targetId = remoteUser?._id;
         dispatch(setIncomingCall({ isIncoming: false }));
         socket.emit("reject-call", { to: targetId });
         
-        // Log rejected call to chat
         if (targetId) {
             saveCallLog({
                 remoteId: targetId,
