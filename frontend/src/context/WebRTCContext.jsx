@@ -8,16 +8,47 @@ const WebRTCContext = createContext();
 
 const servers = {
     iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' },
+        { urls: 'stun:stun.metered.ca:80' },
         {
-            urls: [
-                "stun:stun1.l.google.com:19302",
-                "stun:stun2.l.google.com:19302",
-                "stun:stun3.l.google.com:19302",
-                "stun:stun4.l.google.com:19302",
-            ],
+            urls: 'turn:openrelay.metered.ca:80',
+            username: 'openrelayproject',
+            credential: 'openrelayproject'
         },
+        {
+            urls: 'turn:openrelay.metered.ca:443',
+            username: 'openrelayproject',
+            credential: 'openrelayproject'
+        },
+        {
+            urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+            username: 'openrelayproject',
+            credential: 'openrelayproject'
+        }
     ],
     iceCandidatePoolSize: 10,
+    bundlePolicy: 'max-bundle',
+    rtcpMuxPolicy: 'require'
+};
+
+// Prioritize Opus audio codec for crystal clear audio
+const preferOpus = (sdp) => {
+    const lines = sdp.split('\r\n');
+    const audioIndex = lines.findIndex(l => l.startsWith('m=audio'));
+    if (audioIndex === -1) return sdp;
+    
+    const mLine = lines[audioIndex].split(' ');
+    const opusPayloads = lines
+        .filter(l => l.startsWith('a=rtpmap') && l.includes('opus/48000'))
+        .map(l => l.split(':')[1].split(' ')[0]);
+    
+    if (opusPayloads.length === 0) return sdp;
+    
+    const otherPayloads = mLine.slice(3).filter(p => !opusPayloads.includes(p));
+    lines[audioIndex] = [...mLine.slice(0, 3), ...opusPayloads, ...otherPayloads].join(' ');
+    return lines.join('\r\n');
 };
 
 export const WebRTCProvider = ({ children }) => {
@@ -223,20 +254,34 @@ export const WebRTCProvider = ({ children }) => {
         };
 
         currentPc.ontrack = (event) => {
-            console.log("[WebRTC] REMOTE TRACK RECEIVED:", event.track.kind, "ID:", event.track.id);
-            if (!remoteStreamRef.current) {
-                remoteStreamRef.current = new MediaStream();
+            console.log("[WebRTC] REMOTE TRACK RECEIVED:", event.track.kind, "id:", event.track.id);
+
+            // Use event.streams[0] directly — most reliable, matches ng-ThinkCode approach
+            if (event.streams && event.streams[0]) {
+                remoteStreamRef.current = event.streams[0];
+                console.log("[WebRTC] Using event.streams[0] directly as remoteStream");
+            } else {
+                // Fallback: build manually
+                if (!remoteStreamRef.current) remoteStreamRef.current = new MediaStream();
+                const exists = remoteStreamRef.current.getTracks().find(t => t.id === event.track.id);
+                if (!exists) {
+                    remoteStreamRef.current.addTrack(event.track);
+                    console.log("[WebRTC] Manually added track to remoteStream");
+                }
             }
-            
-            const existingTracks = remoteStreamRef.current.getTracks();
-            if (!existingTracks.find(t => t.id === event.track.id)) {
-                remoteStreamRef.current.addTrack(event.track);
-            }
-            
-            // Trigger state update with a new MediaStream instance
+
             setRemoteStream(new MediaStream(remoteStreamRef.current.getTracks()));
 
-            // Start recording if both streams are ready
+            // Ensure track is enabled for audio
+            if (event.track.kind === 'audio') {
+                event.track.enabled = true;
+                event.track.onunmute = () => {
+                    console.log('[WebRTC] Remote audio track unmuted - refreshing stream');
+                    setRemoteStream(new MediaStream(remoteStreamRef.current.getTracks()));
+                };
+            }
+
+            // Start recording if connected
             if (currentPc.connectionState === 'connected' && localStreamRef.current) {
                 startRecording(localStreamRef.current, remoteStreamRef.current);
             }
@@ -383,11 +428,16 @@ export const WebRTCProvider = ({ children }) => {
         await setupPeerConnection(targetUser._id, type);
 
         try {
-            const offer = await pc.current.createOffer({
+            const offerOptions = {
+                iceRestart: false,
                 offerToReceiveAudio: true,
                 offerToReceiveVideo: type === 'video'
-            });
-            await pc.current.setLocalDescription(offer);
+            };
+            const offer = await pc.current.createOffer(offerOptions);
+            // Apply Opus codec prioritization (same as ng-ThinkCode)
+            const mungedSdp = preferOpus(offer.sdp);
+            const localOffer = new RTCSessionDescription({ type: 'offer', sdp: mungedSdp });
+            await pc.current.setLocalDescription(localOffer);
             socket.emit("call-user", {
                 to: targetUser._id,
                 offer,
@@ -431,10 +481,13 @@ export const WebRTCProvider = ({ children }) => {
                 offerToReceiveAudio: true,
                 offerToReceiveVideo: callType === 'video'
             });
-            await pc.current.setLocalDescription(answer);
+            // Apply Opus codec prioritization (same as ng-ThinkCode)
+            const mungedSdp = preferOpus(answer.sdp);
+            const localAnswer = new RTCSessionDescription({ type: 'answer', sdp: mungedSdp });
+            await pc.current.setLocalDescription(localAnswer);
             
             console.log("[WebRTC] ACCEPTING CALL: Sending answer...");
-            socket.emit("answer-call", { to: currentRemoteUser._id, answer });
+            socket.emit("answer-call", { to: currentRemoteUser._id, answer: localAnswer });
 
             // Process any ICE candidates that arrived before we had a remote description
             if (incomingIceCandidates.current.length > 0) {
