@@ -60,6 +60,7 @@ const ActiveCallOverlay = ({ localStream, remoteStream, onEndCall, isConnecting 
             }
             // ALWAYS mute local stream to prevent echo (hearing your own voice back)
             localVideoRef.current.muted = true;
+            localVideoRef.current.volume = 0; // Guard against browser quirks
             localVideoRef.current.play().catch(e => {
                 if (e.name !== "AbortError") console.error("Local video play failed:", e);
             });
@@ -72,6 +73,9 @@ const ActiveCallOverlay = ({ localStream, remoteStream, onEndCall, isConnecting 
             if (remoteVideoRef.current.srcObject !== remoteStream) {
                 remoteVideoRef.current.srcObject = remoteStream;
             }
+            // Mute video element so ALL audio routing strictly passes through our dedicated audio element
+            remoteVideoRef.current.muted = true;
+            remoteVideoRef.current.volume = 0; 
             remoteVideoRef.current.play().catch(e => {
                 if (e.name !== "AbortError") console.error("Remote video play failed:", e);
             });

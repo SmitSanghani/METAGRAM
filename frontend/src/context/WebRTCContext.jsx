@@ -149,17 +149,18 @@ export const WebRTCProvider = ({ children }) => {
             const dest = destRef.current;
 
             // Cleanup old sources if any
-            if (localSourceRef.current) {
-                try { localSourceRef.current.disconnect(); } catch (e) {}
-            }
             if (remoteSourceRef.current) {
                 try { remoteSourceRef.current.disconnect(); } catch (e) {}
             }
 
-            localSourceRef.current = audioCtx.createMediaStreamSource(lStream.clone());
+            // CRITICAL BUG FIX (Mic & Echo): 
+            // Calling audioCtx.createMediaStreamSource on the LOCAL mic track in WebRTC
+            // massively breaks Hardware Echo Cancellation (AEC) in Chromium engines,
+            // resulting in horrible echoes ("voice reflect kar raha he") and one-way microphone drops!
+            // To ensure 100% reliable 2-way communication, we ONLY record the remote stream here
+            // or route it without breaking the local WebRTC PC tracks.
+            
             remoteSourceRef.current = audioCtx.createMediaStreamSource(rStream.clone());
-
-            localSourceRef.current.connect(dest);
             remoteSourceRef.current.connect(dest);
 
             mixedStreamRef.current = dest.stream;
@@ -275,18 +276,19 @@ export const WebRTCProvider = ({ children }) => {
                 }
             }
 
-            // Ensure audio track is enabled
+            // Ensure audio track is enabled immediately, do not wait for onunmute
             if (event.track.kind === 'audio') {
                 event.track.enabled = true;
-                event.track.onunmute = () => {
-                    console.log('[WebRTC] Remote audio track unmuted');
-                    // Force a state update so audio element re-attaches
-                    setRemoteStream(prev => remoteStreamRef.current);
-                };
+                setRemoteStream(remoteStreamRef.current);
+            } else if (event.track.kind === 'video') {
+                setRemoteStream(remoteStreamRef.current);
             }
 
-            // Trigger a single state update with the stable stream reference
-            setRemoteStream(remoteStreamRef.current);
+            if (event.track.muted) {
+                event.track.onunmute = () => {
+                    setRemoteStream(remoteStreamRef.current);
+                };
+            }
 
             // Start recording if connected
             if (currentPc.connectionState === 'connected' && localStreamRef.current) {
@@ -341,8 +343,8 @@ export const WebRTCProvider = ({ children }) => {
                 
                 const constraints = {
                     audio: { 
-                        echoCancellation: { exact: true }, 
-                        noiseSuppression: { exact: true }, 
+                        echoCancellation: true, 
+                        noiseSuppression: true, 
                         autoGainControl: true,
                         // Chromium/Chrome-specific echo cancellation hints
                         googEchoCancellation: true,
@@ -473,7 +475,7 @@ export const WebRTCProvider = ({ children }) => {
             const offerOptions = {
                 iceRestart: false,
                 offerToReceiveAudio: true,
-                offerToReceiveVideo: type === 'video'
+                offerToReceiveVideo: true
             };
             const offer = await pc.current.createOffer(offerOptions);
             // Apply Opus codec prioritization (same as ng-ThinkCode)
@@ -521,7 +523,7 @@ export const WebRTCProvider = ({ children }) => {
 
             const answer = await pc.current.createAnswer({
                 offerToReceiveAudio: true,
-                offerToReceiveVideo: callType === 'video'
+                offerToReceiveVideo: true
             });
             // Apply Opus codec prioritization (same as ng-ThinkCode)
             const mungedSdp = preferOpus(answer.sdp);
@@ -640,9 +642,9 @@ export const WebRTCProvider = ({ children }) => {
             }
         };
 
-        const handleCallRejected = () => { toast.error("Call rejected"); cleanup(); dispatch(setActiveCall(false)); };
-        const handleCallEnded = () => { cleanup(); dispatch(setActiveCall(false)); toast.info("Call ended"); };
-        const handlePeerBusy = () => { toast.error("User is busy"); cleanup(); dispatch(setActiveCall(false)); };
+        const handleCallRejected = () => { toast.error("Call rejected"); cleanup(); };
+        const handleCallEnded = () => { cleanup(); toast.info("Call ended"); };
+        const handlePeerBusy = () => { toast.error("User is busy"); cleanup(); };
 
         socket.on("incoming-call", handleIncomingCall);
         socket.on("call-accepted", handleCallAccepted);
