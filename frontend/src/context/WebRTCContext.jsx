@@ -63,6 +63,11 @@ export const WebRTCProvider = ({ children }) => {
     const localStreamRef = useRef(null); 
     const remoteStreamRef = useRef(null); 
     const incomingIceCandidates = useRef([]); 
+    // Bug #6 fix: A ref that always points to the latest endCall, used inside
+    // setupPeerConnection's onconnectionstatechange timeout to avoid both
+    // stale closures AND the circular dep that adding endCall to setupPeerConnection's
+    // dep array would introduce.
+    const endCallRef = useRef(null);
 
     // Recording State
     const mediaRecorder = useRef(null);
@@ -313,7 +318,9 @@ export const WebRTCProvider = ({ children }) => {
                     // Check if it's still disconnected or failed
                     if (pc.current === currentPc && (currentPc.connectionState === 'failed' || currentPc.connectionState === 'disconnected')) {
                          console.log("[WebRTC] TIMEOUT: Ending call after 15s failure.");
-                         endCall(remoteId);
+                         // Bug #6 fix: use the ref so we always get the latest endCall
+                         // without adding it to setupPeerConnection's deps (avoids circular dep)
+                         endCallRef.current?.(remoteId);
                     }
                 }, 15000); // 15s window for page refreshes
             }
@@ -448,9 +455,13 @@ export const WebRTCProvider = ({ children }) => {
         }
 
         socket?.emit("end-call", { to: targetId, duration, type: callType, startTime });
+        // Bug #5 fix: cleanup() already calls dispatch(setActiveCall(false)) internally.
+        // Calling it again here caused a redundant double-dispatch → Redux state flicker.
         cleanup();
-        dispatch(setActiveCall(false));
     }, [socket, callType, cleanup, dispatch, startTime, stopAndUploadRecording, remoteUser, isOutgoingCall, saveCallLog]);
+
+    // Bug #6 fix: Keep the ref in sync with the latest endCall on every render
+    endCallRef.current = endCall;
 
     const startCall = useCallback(async (targetUser, type) => {
         if (isActiveCall) return;

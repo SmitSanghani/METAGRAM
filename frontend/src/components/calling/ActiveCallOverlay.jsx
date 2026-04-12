@@ -16,6 +16,10 @@ const ActiveCallOverlay = ({ localStream, remoteStream, onEndCall, isConnecting 
     const localVideoRef = useRef(null);
     const remoteVideoRef = useRef(null);
     const remoteAudioRef = useRef(null);
+    // Guard: track which stream is already attached to the audio element
+    // to avoid redundant srcObject re-assignments (which cancel in-flight play() and cause AbortError loops)
+    const lastAttachedStreamRef = useRef(null);
+    const retryTimersRef = useRef([]);
 
     // React has a known bug: muted={false} prop on <audio> is IGNORED by the browser.
     // We must set it imperatively on mount to ensure audio is never muted.
@@ -78,31 +82,56 @@ const ActiveCallOverlay = ({ localStream, remoteStream, onEndCall, isConnecting 
         const audioEl = remoteAudioRef.current;
         if (!audioEl || !remoteStream) return;
 
+        // Bug #1 fix: Only re-attach if this is genuinely a new stream object.
+        // Skipping re-attachment prevents cancelling an already-playing play() call
+        // (which causes AbortError and silences audio) on every isConnecting toggle.
+        if (lastAttachedStreamRef.current === remoteStream) {
+            console.log("[ActiveCallOverlay] remoteStream unchanged — skipping re-attach");
+            return;
+        }
+
+        // Cancel any pending retry timers from a previous stream
+        retryTimersRef.current.forEach(id => clearTimeout(id));
+        retryTimersRef.current = [];
+
         const audioTracks = remoteStream.getAudioTracks();
-        console.log(`[ActiveCallOverlay] Remote stream received. Audio tracks: ${audioTracks.length}`);
+        console.log(`[ActiveCallOverlay] New remote stream. Audio tracks: ${audioTracks.length}`);
 
         // Force track enabled state
         audioTracks.forEach(t => { t.enabled = true; });
-        
+
         // Imperatively set audio element props (JSX muted={false} is a React bug — doesn't work)
+        audioEl.pause();
         audioEl.srcObject = remoteStream;
         audioEl.volume = 1.0;
         audioEl.muted = false;
+        lastAttachedStreamRef.current = remoteStream;
 
+        // Bug #4 fix: tryPlay retries are tracked so they can be cancelled if
+        // the component unmounts or the stream changes before all retries finish.
         const tryPlay = (attempt = 1) => {
             audioEl.play()
                 .then(() => console.log(`[ActiveCallOverlay] ✅ Remote audio playing (attempt ${attempt})`))
                 .catch(e => {
                     console.warn(`[ActiveCallOverlay] Audio play blocked (attempt ${attempt}):`, e.name);
                     if (attempt < 5) {
-                        // Mobile browsers (Safari/Chrome) may need a few retries
-                        setTimeout(() => tryPlay(attempt + 1), attempt * 300);
+                        const timerId = setTimeout(() => tryPlay(attempt + 1), attempt * 300);
+                        retryTimersRef.current.push(timerId);
                     }
                 });
         };
 
         tryPlay();
-    }, [remoteStream, isConnecting]);
+
+        return () => {
+            // Cleanup retry timers when stream changes or component unmounts
+            retryTimersRef.current.forEach(id => clearTimeout(id));
+            retryTimersRef.current = [];
+        };
+        // Bug #3 fix: isConnecting REMOVED from deps — audio re-attach must only
+        // fire when the MediaStream object itself changes, NOT on every connecting
+        // state flip (which would cancel the playing audio via AbortError).
+    }, [remoteStream]);
 
 
     useEffect(() => {
