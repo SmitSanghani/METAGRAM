@@ -285,9 +285,9 @@ export const WebRTCProvider = ({ children }) => {
                 const constraints = {
                     audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
                     video: needsVideo ? { 
-                        width: { ideal: 640 }, // Lower ideal for faster connection, can scale up
-                        height: { ideal: 480 },
-                        facingMode: "user" 
+                        width: { min: 320, ideal: 640 }, 
+                        height: { min: 240, ideal: 480 }
+                        // Removed facingMode to avoid issues with some laptop drivers
                     } : false
                 };
 
@@ -295,10 +295,18 @@ export const WebRTCProvider = ({ children }) => {
                     stream = await navigator.mediaDevices.getUserMedia(constraints);
                 } catch (resErr) {
                     console.warn("[WebRTC] Preferred camera settings failed, trying generic.", resErr);
-                    stream = await navigator.mediaDevices.getUserMedia({
-                        audio: true,
-                        video: needsVideo
-                    });
+                    try {
+                        stream = await navigator.mediaDevices.getUserMedia({
+                            audio: true,
+                            video: needsVideo
+                        });
+                    } catch (fatalErr) {
+                        // Better explanation if camera is locked by another app
+                        if (fatalErr.name === 'NotReadableError' || fatalErr.name === 'TrackStartError') {
+                             throw new Error("Camera is already being used by another application or tab.");
+                        }
+                        throw fatalErr;
+                    }
                 }
             }
 
@@ -323,7 +331,10 @@ export const WebRTCProvider = ({ children }) => {
             });
         } catch (err) {
             console.error("[WebRTC] FATAL: Could not access media:", err);
-            toast.error("Camera/Microphone access denied. Please check your browser permissions.");
+            const errorMsg = err.message.includes("used by another") 
+                ? "Camera already in use. Please close other apps using camera." 
+                : "Camera/Microphone access denied. Please check permissions.";
+            toast.error(errorMsg);
             endCall(remoteId);
         }
     }, [socket, dispatch, startTime, startRecording]);
