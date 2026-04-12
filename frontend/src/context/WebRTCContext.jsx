@@ -75,7 +75,10 @@ export const WebRTCProvider = ({ children }) => {
         setRemoteStream(null);
         incomingIceCandidates.current = [];
         mixedStreamRef.current = null;
-    }, []);
+        
+        // Reset ALL call states in Redux (closes all modals/stops audio)
+        dispatch(setActiveCall(false));
+    }, [dispatch]);
 
     const audioCtxRef = useRef(null);
     const localSourceRef = useRef(null);
@@ -283,11 +286,17 @@ export const WebRTCProvider = ({ children }) => {
                 console.log("[WebRTC] REQUESTING NEW LOCAL MEDIA (Video:", needsVideo, ")");
                 
                 const constraints = {
-                    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+                    audio: { 
+                        echoCancellation: true, 
+                        noiseSuppression: true, 
+                        autoGainControl: true,
+                        channelCount: 1,
+                        sampleRate: 48000
+                    },
                     video: needsVideo ? { 
-                        width: { min: 320, ideal: 640 }, 
-                        height: { min: 240, ideal: 480 }
-                        // Removed facingMode to avoid issues with some laptop drivers
+                        width: { ideal: 640 }, 
+                        height: { ideal: 480 },
+                        frameRate: { max: 30 }
                     } : false
                 };
 

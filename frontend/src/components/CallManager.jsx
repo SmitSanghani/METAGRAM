@@ -49,6 +49,8 @@ const CallManager = () => {
 
         const handleCallEndedLocally = () => {
             latestCallId.current = null;
+            dispatch(setIncomingCall({ isIncoming: false }));
+            dispatch(setOutgoingCall({ isOutgoing: false }));
         };
 
         socket.on("incoming-call", handleIncomingCall);

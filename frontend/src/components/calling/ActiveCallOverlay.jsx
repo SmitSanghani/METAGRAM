@@ -59,23 +59,26 @@ const ActiveCallOverlay = ({ localStream, remoteStream, onEndCall, isConnecting 
     useEffect(() => {
         if (remoteAudioRef.current && remoteStream) {
             const audioTracks = remoteStream.getAudioTracks();
-            console.log(`[ActiveCallOverlay] Remote stream has ${audioTracks.length} audio tracks. State: ${audioTracks[0]?.readyState}`);
+            console.log(`[ActiveCallOverlay] Remote stream check: ${audioTracks.length} tracks. IDs: ${audioTracks.map(t => t.id).join(', ')}`);
             
             if (audioTracks.length > 0) {
+                // Ensure tracks are enabled
+                audioTracks.forEach(t => t.enabled = true);
+                
                 if (remoteAudioRef.current.srcObject !== remoteStream) {
-                    console.log("[ActiveCallOverlay] Assigning remote stream to audio element");
+                    console.log("[ActiveCallOverlay] Linking remote stream to audio element");
                     remoteAudioRef.current.srcObject = remoteStream;
+                    remoteAudioRef.current.volume = 1;
                 }
                 
-                remoteAudioRef.current.play().catch(e => {
-                    console.error("[ActiveCallOverlay] Remote audio playback failed:", e);
-                    // Try to play again on user interaction if needed
+                remoteAudioRef.current.play().then(() => {
+                    console.log("[ActiveCallOverlay] Remote audio playing successfully");
+                }).catch(e => {
+                    console.error("[ActiveCallOverlay] Audio play failed, will retry on next update:", e);
                 });
-            } else {
-                console.warn("[ActiveCallOverlay] Remote stream has NO audio tracks yet.");
             }
         }
-    }, [remoteStream]);
+    }, [remoteStream, isConnecting]);
 
     useEffect(() => {
         if (!isConnecting && startTime) {
