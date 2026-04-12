@@ -8,41 +8,6 @@ import { audioGenerator } from '@/utils/audioGenerator';
 
 const IncomingCallModal = ({ onAccept, onReject }) => {
     const { remoteUser, callType } = useSelector(store => store.call);
-    const ringtoneRef = useRef(null);
-
-    useEffect(() => {
-        // Play ringtone when component mounts
-        const audio = new Audio('/ringtone.mp3'); // Try ringtone.mp3
-        audio.loop = true;
-        ringtoneRef.current = audio;
-
-        // Auto-fallback timeout if file doesn't play in 1.5s
-        const fallbackTimeout = setTimeout(() => {
-            console.log("Audio file loading too slow, switching to generator");
-            audioGenerator.startRingTone();
-        }, 1500);
-
-        audio.play().then(() => {
-            clearTimeout(fallbackTimeout);
-        }).catch(e => {
-            clearTimeout(fallbackTimeout);
-            console.log("Ringtone file missing or blocked, using generated ring tone");
-            audioGenerator.startRingTone();
-        });
-
-        return () => {
-            clearTimeout(fallbackTimeout);
-            if (ringtoneRef.current) {
-                const audio = ringtoneRef.current;
-                audio.pause();
-                audio.src = ""; // Stop buffering
-                try { audio.load(); } catch (e) {} // Force stop
-                ringtoneRef.current = null;
-            }
-            audioGenerator.stop();
-        };
-    }, []);
-
     if (!remoteUser) return null;
 
     return (

@@ -7,40 +7,6 @@ import { audioGenerator } from '@/utils/audioGenerator';
 
 const OutgoingCallModal = ({ onCancel }) => {
     const { remoteUser, callType } = useSelector(store => store.call);
-    const audioRef = useRef(null);
-
-    useEffect(() => {
-        // Play dial tone
-        const audio = new Audio('/dialtone.mp3');
-        audio.loop = true;
-        audioRef.current = audio;
-
-        const fallbackTimeout = setTimeout(() => {
-            console.log("Dialtone file loading slow, switching to generator");
-            audioGenerator.startDialTone();
-        }, 1500);
-
-        audio.play().then(() => {
-            clearTimeout(fallbackTimeout);
-        }).catch(e => {
-            clearTimeout(fallbackTimeout);
-            console.log("Dialtone file missing or blocked, using generated dial tone");
-            audioGenerator.startDialTone();
-        });
-
-        return () => {
-            clearTimeout(fallbackTimeout);
-            if (audioRef.current) {
-                const audio = audioRef.current;
-                audio.pause();
-                audio.src = ""; // Stop buffering
-                try { audio.load(); } catch (e) {} // Force stop
-                audioRef.current = null;
-            }
-            audioGenerator.stop();
-        };
-    }, []);
-
     if (!remoteUser) return null;
 
     return (

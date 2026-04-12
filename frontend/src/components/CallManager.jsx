@@ -13,6 +13,41 @@ const CallManager = () => {
     const { isIncomingCall, isOutgoingCall, isActiveCall, isCallConnected, remoteUser, offer, callType } = useSelector(store => store.call);
 
     const latestCallId = useRef(null);
+    const audioRef = useRef(null);
+
+    // Global Sound Management
+    useEffect(() => {
+        const stopAudio = () => {
+            if (audioRef.current) {
+                audioRef.current.pause();
+                audioRef.current.src = "";
+                try { audioRef.current.load(); } catch(e) {}
+                audioRef.current = null;
+            }
+            audioGenerator.stop();
+        };
+
+        if (isIncomingCall && !isActiveCall) {
+            stopAudio();
+            const audio = new Audio('/ringtone.mp3');
+            audio.loop = true;
+            audioRef.current = audio;
+            audio.play().catch(() => audioGenerator.startRingTone());
+        } 
+        else if (isOutgoingCall && !isCallConnected) {
+            stopAudio();
+            const audio = new Audio('/dialtone.mp3');
+            audio.loop = true;
+            audioRef.current = audio;
+            audio.play().catch(() => audioGenerator.startDialTone());
+        }
+        else {
+            stopAudio();
+        }
+
+        return () => stopAudio();
+    }, [isIncomingCall, isOutgoingCall, isActiveCall, isCallConnected]);
+
 
     // Initialize WebRTC hook
     const { acceptCall, endCall, saveCallLog, localStream, remoteStream } = useWebRTC();

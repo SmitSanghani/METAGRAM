@@ -120,8 +120,8 @@ export const WebRTCProvider = ({ children }) => {
                 try { remoteSourceRef.current.disconnect(); } catch (e) {}
             }
 
-            localSourceRef.current = audioCtx.createMediaStreamSource(lStream);
-            remoteSourceRef.current = audioCtx.createMediaStreamSource(rStream);
+            localSourceRef.current = audioCtx.createMediaStreamSource(lStream.clone());
+            remoteSourceRef.current = audioCtx.createMediaStreamSource(rStream.clone());
 
             localSourceRef.current.connect(dest);
             remoteSourceRef.current.connect(dest);
@@ -405,14 +405,22 @@ export const WebRTCProvider = ({ children }) => {
         if (!currentOffer || !currentRemoteUser) return;
 
         dispatch(setActiveCall(true));
-
-        // Start PeerConnection setup (this will wait for media)
+        
+        // Ensure PeerConnection and Local Media are READY before doing ANYTHING with signaling
         await setupPeerConnection(currentRemoteUser._id, callType);
 
         try {
             console.log("[WebRTC] ACCEPTING CALL: Setting remote description...");
             await pc.current.setRemoteDescription(new RTCSessionDescription(currentOffer));
             
+            // Re-verify that tracks were added (fallback)
+            if (pc.current.getSenders().length === 0 && localStreamRef.current) {
+                console.warn("[WebRTC] NO SENDERS FOUND, re-adding tracks before answer");
+                localStreamRef.current.getTracks().forEach(track => {
+                    pc.current.addTrack(track, localStreamRef.current);
+                });
+            }
+
             const answer = await pc.current.createAnswer({
                 offerToReceiveAudio: true,
                 offerToReceiveVideo: callType === 'video'
