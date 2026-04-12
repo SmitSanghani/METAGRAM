@@ -132,7 +132,7 @@ const ActiveCallOverlay = ({ localStream, remoteStream, onEndCall, isConnecting 
                     <video
                         ref={remoteVideoRef}
                         autoPlay
-                        muted // Multi-track audio handled by <audio> tag for better stability
+                        muted={false} // Use video element's audio for better sync and priority
                         playsInline
                         className={cn(
                             "w-full h-full object-cover animate-in fade-in duration-1000",
@@ -141,7 +141,9 @@ const ActiveCallOverlay = ({ localStream, remoteStream, onEndCall, isConnecting 
                     />
                     
                     {(!remoteStream || remoteStream.getVideoTracks().length === 0 || remoteVideoOff) && (
-                        <div className="w-full h-full flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                        <div className="w-full h-full flex items-center justify-center bg-black/40 backdrop-blur-md">
+                             {/* Ensure audio is still heard even if video is off */}
+                             <audio ref={remoteAudioRef} autoPlay playsInline />
                              <div className="flex flex-col items-center">
                                 <div className="relative mb-8">
                                     <div className="absolute inset-0 rounded-full bg-indigo-500/10 animate-[ping_3s_infinite]"></div>

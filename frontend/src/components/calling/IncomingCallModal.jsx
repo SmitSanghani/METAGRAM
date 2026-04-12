@@ -33,8 +33,10 @@ const IncomingCallModal = ({ onAccept, onReject }) => {
         return () => {
             clearTimeout(fallbackTimeout);
             if (ringtoneRef.current) {
-                ringtoneRef.current.pause();
-                ringtoneRef.current.src = "";
+                const audio = ringtoneRef.current;
+                audio.pause();
+                audio.src = ""; // Stop buffering
+                try { audio.load(); } catch (e) {} // Force stop
                 ringtoneRef.current = null;
             }
             audioGenerator.stop();

@@ -55,24 +55,28 @@ class AudioGenerator {
 
             osc1.start();
             osc2.start();
+            
+            this.oscillators.push(osc1, osc2, gain);
 
-            // Ring for 2 seconds
-            setTimeout(() => {
-                osc1.stop();
-                osc2.stop();
+            // Auto-stop this specific ring after 2s if not already stopped by global stop()
+            const timeout = setTimeout(() => {
+                try { osc1.stop(); osc2.stop(); } catch(e) {}
             }, 2000);
+            this.oscillators.push({ stop: () => clearTimeout(timeout) });
         };
 
         playRing();
         const interval = setInterval(playRing, 6000); // 2s on, 4s off
-        this.oscillators = [{ stop: () => clearInterval(interval) }];
+        this.oscillators.push({ stop: () => clearInterval(interval) });
     }
 
     stop() {
         if (this.oscillators.length > 0) {
             this.oscillators.forEach(obj => {
-                if (obj.stop) obj.stop();
-                if (obj.disconnect) obj.disconnect();
+                try {
+                    if (obj.stop) obj.stop();
+                    if (obj.disconnect) obj.disconnect();
+                } catch (e) {}
             });
             this.oscillators = [];
         }

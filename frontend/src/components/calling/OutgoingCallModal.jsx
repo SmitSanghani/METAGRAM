@@ -31,8 +31,10 @@ const OutgoingCallModal = ({ onCancel }) => {
         return () => {
             clearTimeout(fallbackTimeout);
             if (audioRef.current) {
-                audioRef.current.pause();
-                audioRef.current.src = ""; // Clear src to stop loading
+                const audio = audioRef.current;
+                audio.pause();
+                audio.src = ""; // Stop buffering
+                try { audio.load(); } catch (e) {} // Force stop
                 audioRef.current = null;
             }
             audioGenerator.stop();

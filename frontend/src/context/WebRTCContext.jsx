@@ -377,7 +377,10 @@ export const WebRTCProvider = ({ children }) => {
         await setupPeerConnection(targetUser._id, type);
 
         try {
-            const offer = await pc.current.createOffer();
+            const offer = await pc.current.createOffer({
+                offerToReceiveAudio: true,
+                offerToReceiveVideo: type === 'video'
+            });
             await pc.current.setLocalDescription(offer);
             socket.emit("call-user", {
                 to: targetUser._id,
@@ -410,7 +413,10 @@ export const WebRTCProvider = ({ children }) => {
             console.log("[WebRTC] ACCEPTING CALL: Setting remote description...");
             await pc.current.setRemoteDescription(new RTCSessionDescription(currentOffer));
             
-            const answer = await pc.current.createAnswer();
+            const answer = await pc.current.createAnswer({
+                offerToReceiveAudio: true,
+                offerToReceiveVideo: callType === 'video'
+            });
             await pc.current.setLocalDescription(answer);
             
             console.log("[WebRTC] ACCEPTING CALL: Sending answer...");
