@@ -132,7 +132,7 @@ const ActiveCallOverlay = ({ localStream, remoteStream, onEndCall, isConnecting 
                     <video
                         ref={remoteVideoRef}
                         autoPlay
-                        muted={false} // Use video element's audio for better sync and priority
+                        muted // Video element MUST be muted to let the dedicated audio element handle sound independently
                         playsInline
                         className={cn(
                             "w-full h-full object-cover animate-in fade-in duration-1000",

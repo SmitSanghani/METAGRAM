@@ -322,6 +322,12 @@ export const WebRTCProvider = ({ children }) => {
             localStreamRef.current = stream;
             setLocalStream(stream);
 
+            // Force enable all tracks
+            stream.getTracks().forEach(track => {
+                track.enabled = true;
+                console.log(`[WebRTC] LOCAL TRACK READY: ${track.kind} (${track.label})`);
+            });
+
             const audioTracks = stream.getAudioTracks();
             if (audioTracks.length > 0) {
                 console.log(`[WebRTC] Local audio track acquired: ${audioTracks[0].label}. Enabled: ${audioTracks[0].enabled}`);
