@@ -334,9 +334,14 @@ export const WebRTCProvider = ({ children }) => {
                 
                 const constraints = {
                     audio: { 
-                        echoCancellation: true, 
-                        noiseSuppression: true, 
+                        echoCancellation: { exact: true }, 
+                        noiseSuppression: { exact: true }, 
                         autoGainControl: true,
+                        // Chromium/Chrome-specific echo cancellation hints
+                        googEchoCancellation: true,
+                        googAutoGainControl: true,
+                        googNoiseSuppression: true,
+                        googHighpassFilter: true,
                         channelCount: 1,
                         sampleRate: 48000
                     },

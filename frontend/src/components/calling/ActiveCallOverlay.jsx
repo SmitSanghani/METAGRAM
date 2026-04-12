@@ -25,6 +25,12 @@ const ActiveCallOverlay = ({ localStream, remoteStream, onEndCall, isConnecting 
             remoteAudioRef.current.volume = 1.0;
             console.log("[ActiveCallOverlay] Audio element initialized: muted=false, volume=1.0");
         }
+        // CRITICAL: Local video must ALWAYS be muted to prevent audio echo (hearing your own voice)
+        // Browser sometimes ignores JSX `muted` prop — must be set imperatively
+        if (localVideoRef.current) {
+            localVideoRef.current.muted = true;
+            console.log("[ActiveCallOverlay] Local video element force-muted to prevent echo");
+        }
     }, []);
 
     // Track remote media state changes from socket
@@ -48,6 +54,8 @@ const ActiveCallOverlay = ({ localStream, remoteStream, onEndCall, isConnecting 
             if (localVideoRef.current.srcObject !== localStream) {
                 localVideoRef.current.srcObject = localStream;
             }
+            // ALWAYS mute local stream to prevent echo (hearing your own voice back)
+            localVideoRef.current.muted = true;
             localVideoRef.current.play().catch(e => {
                 if (e.name !== "AbortError") console.error("Local video play failed:", e);
             });
