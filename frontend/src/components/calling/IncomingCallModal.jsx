@@ -67,16 +67,27 @@ const IncomingCallModal = ({ onAccept, onReject }) => {
 
                 <div className="flex gap-8 w-full justify-center">
                     <button
-                        onClick={onReject}
-                        className="w-16 h-16 rounded-full bg-red-500 flex items-center justify-center text-white shadow-lg shadow-red-200 hover:bg-red-600 active:scale-95 transition-all"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            onReject();
+                        }}
+                        className="w-16 h-16 rounded-full bg-red-500 flex items-center justify-center text-white shadow-lg shadow-red-200 hover:bg-red-600 active:scale-90 transition-all cursor-pointer z-20 group"
                     >
-                        <PhoneOff size={28} />
+                        <PhoneOff size={28} className="group-hover:rotate-12 transition-transform" />
                     </button>
                     <button
-                        onClick={onAccept}
-                        className="w-16 h-16 rounded-full bg-green-500 flex items-center justify-center text-white shadow-lg shadow-green-200 hover:bg-green-600 active:scale-95 transition-all"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            onAccept();
+                        }}
+                        className="w-16 h-16 rounded-full bg-green-500 flex items-center justify-center text-white shadow-lg shadow-green-200 hover:bg-green-600 active:scale-90 transition-all cursor-pointer z-20 group"
                     >
-                        {callType === 'video' ? <Video size={28} /> : <Phone size={28} />}
+                        {callType === 'video' ? 
+                            <Video size={28} className="group-hover:scale-110 transition-transform" /> : 
+                            <Phone size={28} className="group-hover:rotate-12 transition-transform" />
+                        }
                     </button>
                 </div>
             </div>
