@@ -701,7 +701,15 @@ const ChatPage = () => {
             {/* Sidebar User List */}
             <section className={`${selectedUser ? 'hidden md:flex' : 'flex'} flex-col w-full md:w-[350px] shrink-0 border-r border-[#efefef] bg-white px-2`}>
                 <div className='py-8 px-4 flex items-center justify-between'>
-                    <h1 className='font-black text-[22px] tracking-tight text-[#262626]'>{user?.username}</h1>
+                    <div className="flex items-center gap-3">
+                        <div 
+                            className="md:hidden w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center cursor-pointer hover:bg-gray-100 transition-colors"
+                            onClick={() => navigate('/')}
+                        >
+                            <ArrowLeft size={18} className="text-[#262626]" />
+                        </div>
+                        <h1 className='font-black text-[22px] tracking-tight text-[#262626]'>{user?.username}</h1>
+                    </div>
                     <div className="flex gap-2">
                         <div
                             className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center cursor-pointer hover:bg-indigo-100 transition-colors"
@@ -998,7 +1006,7 @@ const ChatPage = () => {
 
                             <ScrollToBottom
                                 className='flex-1 p-0 flex flex-col overflow-hidden relative z-10 h-full bg-transparent'
-                                scrollViewClassName="custom-scrollbar px-10 py-8 relative z-10 h-full !bg-transparent"
+                                scrollViewClassName="custom-scrollbar px-4 md:px-10 py-5 md:py-8 relative z-10 h-full !bg-transparent"
                                 followButtonClassName='hidden'
                             >
                                 <div className="flex flex-col gap-1 min-h-full pb-6 relative z-10">
@@ -1075,7 +1083,7 @@ const ChatPage = () => {
                         )}
 
                         {/* Input Section */}
-                        <div className='px-8 py-4 pb-5 bg-white border-t border-[#f3f4f6] flex flex-col gap-3 relative z-30'>
+                        <div className='px-4 md:px-8 py-3 md:py-4 pb-5 bg-white border-t border-[#f3f4f6] flex flex-col gap-3 relative z-30'>
                             {isNotAMember ? (
                                 <div className="flex items-center justify-center p-4 bg-gray-50/80 rounded-[28px] border border-gray-100 backdrop-blur-sm animate-in fade-in slide-in-from-bottom-2">
                                     <span className="text-[13px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">

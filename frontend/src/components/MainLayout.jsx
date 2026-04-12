@@ -18,7 +18,7 @@ const MainLayout = () => {
       <CallManager />
       <div className="main-content-layout sm:ml-[280px] ml-0 transition-all duration-300">
         {!hideHeader && <Header />}
-        <main className={`${!hideHeader ? 'pt-[70px]' : ''} min-h-screen px-4 sm:px-10`}>
+        <main className={`${!hideHeader ? 'pt-[70px]' : ''} min-h-screen ${isChatPage ? 'px-0 sm:px-0' : 'px-4 sm:px-10'}`}>
           <Outlet />
         </main>
       </div>

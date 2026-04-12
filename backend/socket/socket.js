@@ -12,7 +12,7 @@ const io = new Server(server, {
     cors: {
         origin: function (origin, callback) {
             if (!origin) return callback(null, true);
-            
+
             const allowedOrigins = [
                 'https://metagram-nine.vercel.app',
                 'https://www.metagram-nine.vercel.app',
@@ -20,7 +20,7 @@ const io = new Server(server, {
                 'http://localhost:3000',
                 'http://127.0.0.1:5173'
             ];
-            
+
             if (process.env.URL) {
                 allowedOrigins.push(process.env.URL);
             }
@@ -203,7 +203,7 @@ export const broadcastToRoomParticipants = (participants, event, data) => {
     }
     const participantIds = participants.map(p => p._id ? p._id.toString() : p.toString());
     console.log(`[SOCKET DBG] Broadcasting ${event} to ${participantIds.length} participants:`, participantIds);
-    
+
     participants.forEach(p => {
         const id = p._id ? p._id.toString() : p.toString();
         broadcastToUser(id, event, data);

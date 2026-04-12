@@ -39,7 +39,7 @@ if (process.env.URL) {
 const corsOptions = {
     origin: function (origin, callback) {
         if (!origin) return callback(null, true);
-        
+
         const lowerOrigin = origin.trim().toLowerCase().replace(/\/$/, "");
         const isAllowed = allowedOrigins.some(o => o.trim().toLowerCase().replace(/\/$/, "") === lowerOrigin);
         const isVercel = /\.vercel\.app$/.test(lowerOrigin);
