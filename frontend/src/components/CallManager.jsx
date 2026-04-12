@@ -6,6 +6,7 @@ import OutgoingCallModal from './calling/OutgoingCallModal';
 import ActiveCallOverlay from './calling/ActiveCallOverlay';
 import { setIncomingCall, setOutgoingCall, setActiveCall } from '@/redux/callSlice';
 import api from '@/api';
+import { audioGenerator } from '@/utils/audioGenerator';
 
 const CallManager = () => {
     const dispatch = useDispatch();
