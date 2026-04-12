@@ -17,6 +17,16 @@ const ActiveCallOverlay = ({ localStream, remoteStream, onEndCall, isConnecting 
     const remoteVideoRef = useRef(null);
     const remoteAudioRef = useRef(null);
 
+    // React has a known bug: muted={false} prop on <audio> is IGNORED by the browser.
+    // We must set it imperatively on mount to ensure audio is never muted.
+    useEffect(() => {
+        if (remoteAudioRef.current) {
+            remoteAudioRef.current.muted = false;
+            remoteAudioRef.current.volume = 1.0;
+            console.log("[ActiveCallOverlay] Audio element initialized: muted=false, volume=1.0");
+        }
+    }, []);
+
     // Track remote media state changes from socket
     useEffect(() => {
         if (!socket) return;
@@ -63,25 +73,29 @@ const ActiveCallOverlay = ({ localStream, remoteStream, onEndCall, isConnecting 
         const audioTracks = remoteStream.getAudioTracks();
         console.log(`[ActiveCallOverlay] Remote stream received. Audio tracks: ${audioTracks.length}`);
 
-        // Always re-attach — even if same stream object, srcObject must be set explicitly
+        // Force track enabled state
         audioTracks.forEach(t => { t.enabled = true; });
+        
+        // Imperatively set audio element props (JSX muted={false} is a React bug — doesn't work)
         audioEl.srcObject = remoteStream;
         audioEl.volume = 1.0;
         audioEl.muted = false;
 
-        const playPromise = audioEl.play();
-        if (playPromise !== undefined) {
-            playPromise
-                .then(() => console.log("[ActiveCallOverlay] ✅ Remote audio playing"))
+        const tryPlay = (attempt = 1) => {
+            audioEl.play()
+                .then(() => console.log(`[ActiveCallOverlay] ✅ Remote audio playing (attempt ${attempt})`))
                 .catch(e => {
-                    // Autoplay policy: retry after tiny delay (user gesture already happened via Accept)
-                    console.warn("[ActiveCallOverlay] Audio autoplay blocked, retrying in 300ms...", e.name);
-                    setTimeout(() => {
-                        audioEl.play().catch(err => console.error("[ActiveCallOverlay] Retry failed:", err));
-                    }, 300);
+                    console.warn(`[ActiveCallOverlay] Audio play blocked (attempt ${attempt}):`, e.name);
+                    if (attempt < 5) {
+                        // Mobile browsers (Safari/Chrome) may need a few retries
+                        setTimeout(() => tryPlay(attempt + 1), attempt * 300);
+                    }
                 });
-        }
+        };
+
+        tryPlay();
     }, [remoteStream, isConnecting]);
+
 
     useEffect(() => {
         if (!isConnecting && startTime) {
@@ -131,7 +145,7 @@ const ActiveCallOverlay = ({ localStream, remoteStream, onEndCall, isConnecting 
               Never conditionally render this — browser requires a stable DOM node.
               The video element is always muted; all audio goes through this element.
             */}
-            <audio ref={remoteAudioRef} autoPlay playsInline muted={false} className="fixed -top-10 -left-10 w-1 h-1 opacity-0 pointer-events-none" />
+            <audio ref={remoteAudioRef} autoPlay playsInline className="fixed -top-10 -left-10 w-1 h-1 opacity-0 pointer-events-none" />
 
             {/* Remote Video (Full Screen) */}
             {callType === 'video' ? (

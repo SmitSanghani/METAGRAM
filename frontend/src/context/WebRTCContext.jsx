@@ -366,6 +366,17 @@ export const WebRTCProvider = ({ children }) => {
                 }
             }
 
+            // ─── RACE CONDITION GUARD ───────────────────────────────────────────────
+            // getUserMedia is async (can take 1-3s). During that time, cleanup() or
+            // a second setupPeerConnection() may have closed/replaced pc.current.
+            // If that happened, stop the media tracks and bail — do NOT call addTrack.
+            if (pc.current !== currentPc || currentPc.signalingState === 'closed') {
+                console.warn("[WebRTC] PC was replaced or closed during getUserMedia. Releasing tracks and aborting.");
+                stream.getTracks().forEach(t => t.stop());
+                return;
+            }
+            // ────────────────────────────────────────────────────────────────────────
+
             localStreamRef.current = stream;
             setLocalStream(stream);
 
@@ -382,9 +393,13 @@ export const WebRTCProvider = ({ children }) => {
                 console.error("[WebRTC] NO LOCAL AUDIO TRACK ACQUIRED!");
             }
             
-            // Ensure we don't add duplicate tracks
+            // Ensure we don't add duplicate tracks, and guard against late-closed PC
             const senders = currentPc.getSenders();
             stream.getTracks().forEach(track => {
+                if (currentPc.signalingState === 'closed') {
+                    console.warn("[WebRTC] PC closed before addTrack, skipping track:", track.kind);
+                    return;
+                }
                 const alreadyAdded = senders.find(s => s.track?.id === track.id);
                 if (!alreadyAdded) {
                     console.log("[WebRTC] ADDING LOCAL TRACK TO PC:", track.kind);
@@ -393,11 +408,20 @@ export const WebRTCProvider = ({ children }) => {
             });
         } catch (err) {
             console.error("[WebRTC] FATAL: Could not access media:", err);
-            const errorMsg = err.message.includes("used by another") 
-                ? "Camera already in use. Please close other apps using camera." 
-                : "Camera/Microphone access denied. Please check permissions.";
-            toast.error(errorMsg);
-            endCall(remoteId);
+            // Only show user-facing errors for real permission/device errors
+            if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                toast.error("Camera/Microphone access denied. Please check permissions.");
+                endCall(remoteId);
+            } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+                toast.error("Camera already in use. Please close other apps using camera.");
+                endCall(remoteId);
+            } else if (err.name === 'InvalidStateError') {
+                // PC was closed mid-setup — this is a race condition, not a user error.
+                console.warn("[WebRTC] Ignoring InvalidStateError — PC closed during async setup.");
+            } else {
+                toast.error("Could not access microphone. Please check permissions.");
+                endCall(remoteId);
+            }
         }
     }, [socket, dispatch, startTime, startRecording]);
 
