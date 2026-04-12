@@ -57,26 +57,29 @@ const ActiveCallOverlay = ({ localStream, remoteStream, onEndCall, isConnecting 
     }, [remoteStream]);
 
     useEffect(() => {
-        if (remoteAudioRef.current && remoteStream) {
-            const audioTracks = remoteStream.getAudioTracks();
-            console.log(`[ActiveCallOverlay] Remote stream check: ${audioTracks.length} tracks. IDs: ${audioTracks.map(t => t.id).join(', ')}`);
-            
-            if (audioTracks.length > 0) {
-                // Ensure tracks are enabled
-                audioTracks.forEach(t => t.enabled = true);
-                
-                if (remoteAudioRef.current.srcObject !== remoteStream) {
-                    console.log("[ActiveCallOverlay] Linking remote stream to audio element");
-                    remoteAudioRef.current.srcObject = remoteStream;
-                    remoteAudioRef.current.volume = 1;
-                }
-                
-                remoteAudioRef.current.play().then(() => {
-                    console.log("[ActiveCallOverlay] Remote audio playing successfully");
-                }).catch(e => {
-                    console.error("[ActiveCallOverlay] Audio play failed, will retry on next update:", e);
+        const audioEl = remoteAudioRef.current;
+        if (!audioEl || !remoteStream) return;
+
+        const audioTracks = remoteStream.getAudioTracks();
+        console.log(`[ActiveCallOverlay] Remote stream received. Audio tracks: ${audioTracks.length}`);
+
+        // Always re-attach — even if same stream object, srcObject must be set explicitly
+        audioTracks.forEach(t => { t.enabled = true; });
+        audioEl.srcObject = remoteStream;
+        audioEl.volume = 1.0;
+        audioEl.muted = false;
+
+        const playPromise = audioEl.play();
+        if (playPromise !== undefined) {
+            playPromise
+                .then(() => console.log("[ActiveCallOverlay] ✅ Remote audio playing"))
+                .catch(e => {
+                    // Autoplay policy: retry after tiny delay (user gesture already happened via Accept)
+                    console.warn("[ActiveCallOverlay] Audio autoplay blocked, retrying in 300ms...", e.name);
+                    setTimeout(() => {
+                        audioEl.play().catch(err => console.error("[ActiveCallOverlay] Retry failed:", err));
+                    }, 300);
                 });
-            }
         }
     }, [remoteStream, isConnecting]);
 
@@ -123,8 +126,12 @@ const ActiveCallOverlay = ({ localStream, remoteStream, onEndCall, isConnecting 
 
     return (
         <div className="fixed inset-0 z-[1100] bg-[#0a0a14] flex flex-col items-center justify-center animate-in fade-in duration-500 overflow-hidden">
-            {/* Dedicated Remote Audio - Ensuring it stays in the rendering tree to avoid browser playback restrictions */}
-            <audio ref={remoteAudioRef} autoPlay playsInline className="fixed -top-10 -left-10 w-1 h-1 opacity-0 pointer-events-none" />
+            {/* 
+              CRITICAL: ONE persistent, always-mounted audio element for remote audio.
+              Never conditionally render this — browser requires a stable DOM node.
+              The video element is always muted; all audio goes through this element.
+            */}
+            <audio ref={remoteAudioRef} autoPlay playsInline muted={false} className="fixed -top-10 -left-10 w-1 h-1 opacity-0 pointer-events-none" />
 
             {/* Remote Video (Full Screen) */}
             {callType === 'video' ? (
@@ -142,8 +149,7 @@ const ActiveCallOverlay = ({ localStream, remoteStream, onEndCall, isConnecting 
                     
                     {(!remoteStream || remoteStream.getVideoTracks().length === 0 || remoteVideoOff) && (
                         <div className="w-full h-full flex items-center justify-center bg-black/40 backdrop-blur-md">
-                             {/* Ensure audio is still heard even if video is off */}
-                             <audio ref={remoteAudioRef} autoPlay playsInline />
+                             {/* Audio is handled by the single persistent <audio> element above — do NOT add another ref here */}
                              <div className="flex flex-col items-center">
                                 <div className="relative mb-8">
                                     <div className="absolute inset-0 rounded-full bg-indigo-500/10 animate-[ping_3s_infinite]"></div>

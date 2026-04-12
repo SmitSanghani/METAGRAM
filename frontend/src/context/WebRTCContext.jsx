@@ -256,12 +256,12 @@ export const WebRTCProvider = ({ children }) => {
         currentPc.ontrack = (event) => {
             console.log("[WebRTC] REMOTE TRACK RECEIVED:", event.track.kind, "id:", event.track.id);
 
-            // Use event.streams[0] directly — most reliable, matches ng-ThinkCode approach
             if (event.streams && event.streams[0]) {
+                // Use event.streams[0] directly as the stable remote stream reference
                 remoteStreamRef.current = event.streams[0];
-                console.log("[WebRTC] Using event.streams[0] directly as remoteStream");
+                console.log("[WebRTC] Assigned event.streams[0] as remoteStream. Tracks:", event.streams[0].getTracks().length);
             } else {
-                // Fallback: build manually
+                // Fallback: build manually into a persistent MediaStream
                 if (!remoteStreamRef.current) remoteStreamRef.current = new MediaStream();
                 const exists = remoteStreamRef.current.getTracks().find(t => t.id === event.track.id);
                 if (!exists) {
@@ -270,16 +270,18 @@ export const WebRTCProvider = ({ children }) => {
                 }
             }
 
-            setRemoteStream(new MediaStream(remoteStreamRef.current.getTracks()));
-
-            // Ensure track is enabled for audio
+            // Ensure audio track is enabled
             if (event.track.kind === 'audio') {
                 event.track.enabled = true;
                 event.track.onunmute = () => {
-                    console.log('[WebRTC] Remote audio track unmuted - refreshing stream');
-                    setRemoteStream(new MediaStream(remoteStreamRef.current.getTracks()));
+                    console.log('[WebRTC] Remote audio track unmuted');
+                    // Force a state update so audio element re-attaches
+                    setRemoteStream(prev => remoteStreamRef.current);
                 };
             }
+
+            // Trigger a single state update with the stable stream reference
+            setRemoteStream(remoteStreamRef.current);
 
             // Start recording if connected
             if (currentPc.connectionState === 'connected' && localStreamRef.current) {
