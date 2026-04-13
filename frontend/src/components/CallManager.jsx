@@ -51,7 +51,7 @@ const CallManager = () => {
 
 
     // Initialize WebRTC hook
-    const { acceptCall, endCall, saveCallLog, localStream, remoteStream } = useWebRTC();
+    const { acceptCall, endCall, saveCallLog, preWarmMedia, localStream, remoteStream } = useWebRTC();
 
     useEffect(() => {
         if (!socket) return;
@@ -61,6 +61,10 @@ const CallManager = () => {
         const handleIncomingCall = ({ from, offer, type, callerInfo }) => {
             latestCallId.current = from;
             
+            // Pre-warm local media (camera/mic) as soon as call arrives
+            // This makes the connection nearly instant when user clicks "Accept"
+            preWarmMedia(type);
+
             // Use provided caller info for instant display
             const remoteUserData = callerInfo || { _id: from, username: "Incoming Call..." };
 

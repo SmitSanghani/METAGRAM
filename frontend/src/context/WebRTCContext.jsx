@@ -243,6 +243,31 @@ export const WebRTCProvider = ({ children }) => {
         });
     }, [saveCallLog]);
 
+    const preWarmMedia = useCallback(async (type) => {
+        if (localStreamRef.current && localStreamRef.current.active) {
+             const hasVideo = localStreamRef.current.getVideoTracks().length > 0;
+             if (type !== 'video' || hasVideo) {
+                 console.log("[WebRTC] Media already warm.");
+                 return localStreamRef.current;
+             }
+        }
+        
+        console.log("[WebRTC] PRE-WARMING MEDIA (requested type:", type, ")");
+        try {
+            const constraints = {
+                audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+                video: type === 'video' ? { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" } : false
+            };
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+            localStreamRef.current = stream;
+            setLocalStream(stream);
+            return stream;
+        } catch (err) {
+            console.error("[WebRTC] Pre-warm failed:", err);
+            return null;
+        }
+    }, []);
+
     const setupPeerConnection = useCallback(async (remoteId, type) => {
         console.log("[WebRTC] Setting up PeerConnection for", remoteId, "Type:", type);
         
@@ -305,29 +330,18 @@ export const WebRTCProvider = ({ children }) => {
         };
 
         try {
-            const needsVideo = type === 'video';
-            const constraints = {
-                audio: { 
-                    echoCancellation: true, 
-                    noiseSuppression: true, 
-                    autoGainControl: true
-                },
-                video: needsVideo ? { 
-                    width: { ideal: 640 }, 
-                    height: { ideal: 480 },
-                    facingMode: "user"
-                } : false
-            };
+            const stream = await preWarmMedia(type);
 
-            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+            if (!stream) {
+                 toast.error("Microphone/Camera access denied.");
+                 endCall(remoteId);
+                 return;
+            }
 
             if (pc.current !== currentPc) {
                 stream.getTracks().forEach(t => t.stop());
                 return;
             }
-
-            localStreamRef.current = stream;
-            setLocalStream(stream);
 
             // Ensure local stream tracks are enabled and added to the peer connection
             stream.getTracks().forEach(track => {
@@ -340,11 +354,10 @@ export const WebRTCProvider = ({ children }) => {
                 }
             });
         } catch (err) {
-            console.error("[WebRTC] FATAL: Could not access media:", err);
-            toast.error("Microphone/Camera access denied.");
+            console.error("[WebRTC] setupPeerConnection Error:", err);
             endCall(remoteId);
         }
-    }, [socket, dispatch, startTime, startRecording]);
+    }, [socket, dispatch, startTime, startRecording, preWarmMedia]);
 
     const endCall = useCallback(async (remoteId) => {
         const targetId = remoteId || remoteUser?._id;
@@ -503,6 +516,7 @@ export const WebRTCProvider = ({ children }) => {
         startCall,
         acceptCall,
         endCall,
+        preWarmMedia,
         saveCallLog,
         localStream,
         remoteStream,
