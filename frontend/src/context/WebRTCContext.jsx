@@ -279,14 +279,15 @@ export const WebRTCProvider = ({ children }) => {
             // Ensure audio track is enabled immediately, do not wait for onunmute
             if (event.track.kind === 'audio') {
                 event.track.enabled = true;
-                setRemoteStream(remoteStreamRef.current);
+                // Force state update with NEW MediaStream reference so React components re-render
+                setRemoteStream(new MediaStream(remoteStreamRef.current.getTracks()));
             } else if (event.track.kind === 'video') {
-                setRemoteStream(remoteStreamRef.current);
+                setRemoteStream(new MediaStream(remoteStreamRef.current.getTracks()));
             }
 
             if (event.track.muted) {
                 event.track.onunmute = () => {
-                    setRemoteStream(remoteStreamRef.current);
+                    setRemoteStream(new MediaStream(remoteStreamRef.current.getTracks()));
                 };
             }
 
@@ -345,19 +346,13 @@ export const WebRTCProvider = ({ children }) => {
                     audio: { 
                         echoCancellation: true, 
                         noiseSuppression: true, 
-                        autoGainControl: true,
-                        // Chromium/Chrome-specific echo cancellation hints
-                        googEchoCancellation: true,
-                        googAutoGainControl: true,
-                        googNoiseSuppression: true,
-                        googHighpassFilter: true,
-                        channelCount: 1,
-                        sampleRate: 48000
+                        autoGainControl: true
                     },
                     video: needsVideo ? { 
                         width: { ideal: 640 }, 
                         height: { ideal: 480 },
-                        frameRate: { max: 30 }
+                        frameRate: { max: 30 },
+                        facingMode: "user"
                     } : false
                 };
 
@@ -536,12 +531,19 @@ export const WebRTCProvider = ({ children }) => {
             // Process any ICE candidates that arrived before we had a remote description
             if (incomingIceCandidates.current.length > 0) {
                 console.log(`[WebRTC] Processing ${incomingIceCandidates.current.length} queued ICE candidates`);
-                for (const candidate of incomingIceCandidates.current) {
-                    await pc.current.addIceCandidate(new RTCIceCandidate(candidate)).catch(e => {
-                        console.warn("[WebRTC] Error adding queued ICE candidate:", e);
-                    });
-                }
+                // Use a copy to avoid mutation issues during loop
+                const candidates = [...incomingIceCandidates.current];
                 incomingIceCandidates.current = [];
+                
+                for (const candidate of candidates) {
+                    if (pc.current && pc.current.remoteDescription) {
+                        try {
+                            await pc.current.addIceCandidate(new RTCIceCandidate(candidate));
+                        } catch (e) {
+                            console.warn("[WebRTC] Error adding queued ICE candidate:", e);
+                        }
+                    }
+                }
             }
         } catch (err) {
             console.error("[WebRTC] Error accepting call:", err);

@@ -86,11 +86,13 @@ const ActiveCallOverlay = ({ localStream, remoteStream, onEndCall, isConnecting 
         const audioEl = remoteAudioRef.current;
         if (!audioEl || !remoteStream) return;
 
-        // Bug #1 fix: Only re-attach if this is genuinely a new stream object.
-        // Skipping re-attachment prevents cancelling an already-playing play() call
-        // (which causes AbortError and silences audio) on every isConnecting toggle.
-        if (lastAttachedStreamRef.current === remoteStream) {
-            console.log("[ActiveCallOverlay] remoteStream unchanged — skipping re-attach");
+        // Updated guard: Only re-attach if the stream ID changed OR the track count changed.
+        // This ensures and allows for picking up audio tracks that arrive after the initial video track.
+        const currentTrackCount = remoteStream.getTracks().length;
+        const lastTrackCount = lastAttachedStreamRef.current?.getTracks().length || 0;
+
+        if (lastAttachedStreamRef.current?.id === remoteStream.id && currentTrackCount === lastTrackCount) {
+            console.log("[ActiveCallOverlay] remoteStream tracks unchanged — skipping re-attach");
             return;
         }
 

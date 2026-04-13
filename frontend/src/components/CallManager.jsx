@@ -113,8 +113,9 @@ const CallManager = () => {
 
     const handleAccept = () => {
         stopAudioNow(); // Stop immediately, don't wait for state
-        dispatch(setIncomingCall({ isIncoming: false }));
+        // acceptCall internally dispatches setActiveCall(true)
         acceptCall();
+        dispatch(setIncomingCall({ isIncoming: false }));
     };
 
     const handleReject = () => {
