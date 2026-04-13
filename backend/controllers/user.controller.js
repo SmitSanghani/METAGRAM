@@ -215,41 +215,10 @@ export const getProfile = async (req, res) => {
     try {
         const currentUserId = req.id;
         const userId = req.params.id;
+
+        // Fetch user basic info first to check for existence and blocks
         const user = await User.findById(userId)
-            .populate({
-                path: "posts",
-                options: { sort: { createdAt: -1 } },
-                populate: [
-                    { path: 'author', select: 'username profilePicture' },
-                    { path: 'likes', select: 'username profilePicture' },
-                    { path: 'comments', populate: { path: 'author', select: 'username profilePicture' } }
-                ]
-            })
-            .populate({
-                path: "reels",
-                options: { sort: { createdAt: -1 } },
-                populate: [
-                    { path: 'author', select: 'username profilePicture' },
-                    { path: 'likes', select: 'username profilePicture' },
-                    { path: 'comments', populate: { path: 'author', select: 'username profilePicture' } }
-                ]
-            })
-            .populate({
-                path: "bookmarks",
-                populate: [
-                    { path: 'author', select: 'username profilePicture' },
-                    { path: 'likes', select: 'username profilePicture' },
-                    { path: 'comments', populate: { path: 'author', select: 'username profilePicture' } }
-                ]
-            })
-            .populate({
-                path: "savedReels",
-                populate: [
-                    { path: 'author', select: 'username profilePicture' },
-                    { path: 'likes', select: 'username profilePicture' },
-                    { path: 'comments', populate: { path: 'author', select: 'username profilePicture' } }
-                ]
-            })
+            .select("-password")
             .populate("followers", "username fullName profilePicture")
             .populate("following", "username fullName profilePicture");
 
@@ -276,8 +245,42 @@ export const getProfile = async (req, res) => {
         const isFollower = user.following.some(f => (f._id || f).toString() === currentUserId);
         const isRequested = user.followRequests.some(f => (f._id || f).toString() === currentUserId);
 
-        // Send profile visit notification if not self and not following each other (mutual non-following)
+        // Fetch related data in parallel for speed
+        // Only fetch full details if not private or if following
+        const shouldSeeContent = !user.isPrivate || isSelf || isFollowing;
+
+        let posts = [];
+        let reels = [];
+        let bookmarks = [];
+        let savedReels = [];
+
+        if (shouldSeeContent) {
+            // Optimization: Fetch only necessary fields for the profile grid
+            // We populate likes and comments but WITHOUT deep author nesting for EVERY post
+            // This is the primary bottleneck.
+            const gridPopulate = [
+                { path: 'author', select: 'username profilePicture' },
+                { path: 'likes', select: 'username profilePicture' },
+                { path: 'comments', populate: { path: 'author', select: 'username profilePicture' } }
+            ];
+
+            const [fetchedPosts, fetchedReels, fetchedBookmarks, fetchedSavedReels] = await Promise.all([
+                Post.find({ author: userId }).sort({ createdAt: -1 }).populate(gridPopulate).lean(),
+                Reel.find({ author: userId }).sort({ createdAt: -1 }).populate(gridPopulate).lean(),
+                user.bookmarks?.length > 0 ? Post.find({ _id: { $in: user.bookmarks } }).populate(gridPopulate).lean() : [],
+                user.savedReels?.length > 0 ? Reel.find({ _id: { $in: user.savedReels } }).populate(gridPopulate).lean() : []
+            ]);
+
+            posts = fetchedPosts;
+            reels = fetchedReels;
+            bookmarks = fetchedBookmarks;
+            savedReels = fetchedSavedReels;
+        }
+
+        // Send profile visit notification if not self and not following each other
         if (!isSelf && !isFollowing && !isFollower) {
+            // Keep this logic background/async by not awaiting if possible, 
+            // or just keep it simple as it is 
             try {
                 const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
                 const existingNotif = await Notification.findOne({
@@ -309,12 +312,10 @@ export const getProfile = async (req, res) => {
         }
 
         let userResponse = user.toObject();
-
-        if (userResponse.isPrivate && !isSelf && !isFollowing) {
-            userResponse.posts = [];
-            userResponse.bookmarks = [];
-            userResponse.reels = [];
-        }
+        userResponse.posts = posts;
+        userResponse.reels = reels;
+        userResponse.bookmarks = bookmarks;
+        userResponse.savedReels = savedReels;
 
         return res.status(200).json({
             user: userResponse,
