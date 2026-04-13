@@ -153,15 +153,21 @@ export const WebRTCProvider = ({ children }) => {
                 try { remoteSourceRef.current.disconnect(); } catch (e) {}
             }
 
-            // CRITICAL BUG FIX (Mic & Echo): 
-            // Calling audioCtx.createMediaStreamSource on the LOCAL mic track in WebRTC
-            // massively breaks Hardware Echo Cancellation (AEC) in Chromium engines,
-            // resulting in horrible echoes ("voice reflect kar raha he") and one-way microphone drops!
-            // To ensure 100% reliable 2-way communication, we ONLY record the remote stream here
-            // or route it without breaking the local WebRTC PC tracks.
-            
-            remoteSourceRef.current = audioCtx.createMediaStreamSource(rStream.clone());
-            remoteSourceRef.current.connect(dest);
+            // MIX LOCAL STREAM (Your voice)
+            const localTracks = lStream.getAudioTracks();
+            if (localTracks.length > 0) {
+                localSourceRef.current = audioCtx.createMediaStreamSource(new MediaStream([localTracks[0]]));
+                localSourceRef.current.connect(dest);
+                console.log("[WebRTC] Local voice added to recording mix");
+            }
+
+            // MIX REMOTE STREAM (Their voice)
+            const remoteTracks = rStream.getAudioTracks();
+            if (remoteTracks.length > 0) {
+                remoteSourceRef.current = audioCtx.createMediaStreamSource(new MediaStream([remoteTracks[0]]));
+                remoteSourceRef.current.connect(dest);
+                console.log("[WebRTC] Remote voice added to recording mix");
+            }
 
             mixedStreamRef.current = dest.stream;
             
@@ -397,9 +403,13 @@ export const WebRTCProvider = ({ children }) => {
 
             const audioTracks = stream.getAudioTracks();
             if (audioTracks.length > 0) {
-                console.log(`[WebRTC] Local audio track acquired: ${audioTracks[0].label}. Enabled: ${audioTracks[0].enabled}`);
+                audioTracks.forEach(t => {
+                    t.enabled = true;
+                    console.log(`[WebRTC] Local audio track: ${t.label} | Enabled: ${t.enabled}`);
+                });
             } else {
                 console.error("[WebRTC] NO LOCAL AUDIO TRACK ACQUIRED!");
+                toast.error("Microphone not detected. Please check your settings.");
             }
             
             // Ensure we don't add duplicate tracks, and guard against late-closed PC
