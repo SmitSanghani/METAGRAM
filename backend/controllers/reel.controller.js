@@ -28,6 +28,8 @@ export const uploadReel = async (req, res) => {
                 const stream = cloudinary.uploader.upload_stream({
                     resource_type: "video",
                     folder: "metagram/reels",
+                    type: "upload", // Explicitly set as a public upload
+                    access_mode: "public" // Ensure it's publicly accessible
                 }, (error, result) => {
                     if (error) reject(error);
                     else resolve(result);
@@ -366,9 +368,14 @@ export const deleteReel = async (req, res) => {
         }
 
         // Delete from Cloudinary
-        const publicId = reel.videoUrl.split('/').pop().split('.')[0];
+        // Extracting publicId correctly: metagram/reels/filename
+        const urlParts = reel.videoUrl.split('/');
+        const fileNameWithExt = urlParts.pop();
+        const fileName = fileNameWithExt.split('.')[0];
+        const publicId = `metagram/reels/${fileName}`;
+
         try {
-            await cloudinary.uploader.destroy(`metagram/reels/${publicId}`, { resource_type: "video" });
+            await cloudinary.uploader.destroy(publicId, { resource_type: "video" });
         } catch (err) {
             console.log("Cloudinary destroy failed:", err);
         }

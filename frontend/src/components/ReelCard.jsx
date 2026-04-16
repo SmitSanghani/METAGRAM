@@ -174,6 +174,7 @@ const ReelCard = ({ reel, isActive, isGlobalMuted, setIsGlobalMuted, onVideoEnd 
                 onClick={handleVideoClick}
                 onEnded={onVideoEnd}
                 playsInline
+                crossOrigin="anonymous"
             />
 
             {/* Double Tap Heart Animation */}
