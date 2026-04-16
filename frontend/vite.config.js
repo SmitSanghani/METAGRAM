@@ -8,10 +8,10 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
-    basicSsl(), // Critical for WebRTC media access on non-localhost IPs
+    // basicSsl(), // Critical for WebRTC media access on non-localhost IPs
   ],
   server: {
-    https: true, // Required for getDisplayMedia and getUserMedia on cross-device tests
+    https: false, // Required for getDisplayMedia and getUserMedia on cross-device tests
     host: true, // Allow access from local network
     proxy: {
       '/api': {
