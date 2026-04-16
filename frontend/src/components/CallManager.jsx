@@ -56,53 +56,20 @@ const CallManager = () => {
     useEffect(() => {
         if (!socket) return;
 
-        // User data fetch no longer needed as it is passed via socket for instant display
-
-        const handleIncomingCall = ({ from, offer, type, callerInfo }) => {
-            latestCallId.current = from;
-            
-            // Pre-warm local media (camera/mic) as soon as call arrives
-            // This makes the connection nearly instant when user clicks "Accept"
-            preWarmMedia(type);
-
-            // Use provided caller info for instant display
-            const remoteUserData = callerInfo || { _id: from, username: "Incoming Call..." };
-
-            // If we are already in an active call with SOMEONE ELSE, send busy signal
-            if (isActiveCall && remoteUser?._id !== from) {
-                console.log("[CallManager] Busy, already in call with", remoteUser?.username);
-                socket.emit("peer-busy", { to: from });
-                return;
-            }
-
-            // If it's the same user and we are already active, WebRTCContext handles it silently
-            if (isActiveCall && remoteUser?._id === from) return;
-
-            dispatch(setIncomingCall({
-                isIncoming: true,
-                caller: from,
-                type,
-                offer,
-                remoteUser: remoteUserData
-            }));
-        };
-
         const handleCallEndedLocally = () => {
             latestCallId.current = null;
             dispatch(setIncomingCall({ isIncoming: false }));
             dispatch(setOutgoingCall({ isOutgoing: false }));
         };
 
-        socket.on("incoming-call", handleIncomingCall);
         socket.on("call-ended", handleCallEndedLocally);
         socket.on("call-rejected", handleCallEndedLocally);
 
         return () => {
-            socket.off("incoming-call", handleIncomingCall);
             socket.off("call-ended", handleCallEndedLocally);
             socket.off("call-rejected", handleCallEndedLocally);
         };
-    }, [socket, dispatch, isActiveCall, remoteUser, acceptCall]);
+    }, [socket, dispatch]);
 
     // Shared immediate audio stop — called directly, no state delays
     const stopAudioNow = () => {
