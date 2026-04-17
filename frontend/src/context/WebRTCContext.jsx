@@ -54,7 +54,7 @@ const preferOpus = (sdp) => {
         if (mLine.length < 4) return sdp; // Port, proto, payloads...
 
         const opusPayloads = lines
-            .filter(l => l.startsWith('a=rtpmap') && l.includes('opus/48000'))
+            .filter(l => l.startsWith('a=rtpmap') && /opus\/48000/i.test(l))
             .map(l => {
                 const match = l.match(/a=rtpmap:(\d+)/);
                 return match ? match[1] : null;
@@ -269,12 +269,18 @@ export const WebRTCProvider = ({ children }) => {
         try {
             const constraints = {
                 audio: { 
-                    echoCancellation: true, 
-                    noiseSuppression: true, 
-                    autoGainControl: true,
-                    sampleRate: 48000
+                    echoCancellation: { ideal: true }, 
+                    noiseSuppression: { ideal: true }, 
+                    autoGainControl: { ideal: true },
+                    // Using 'ideal' instead of strict value to prevent failure on some mobile hardware
+                    sampleRate: { ideal: 48000 },
+                    deviceId: 'default'
                 },
-                video: type === 'video' ? { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" } : false
+                video: type === 'video' ? { 
+                    width: { ideal: 640 }, 
+                    height: { ideal: 480 }, 
+                    facingMode: "user" 
+                } : false
             };
             
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -415,7 +421,7 @@ export const WebRTCProvider = ({ children }) => {
             stream.getTracks().forEach(track => {
                 track.enabled = true;
                 currentPc.addTrack(track, stream);
-                console.log(`[WebRTC] Added local ${track.kind} track to PC`);
+                console.log(`[WebRTC] Added local ${track.kind} track to PC. Label: ${track.label}, Enabled: ${track.enabled}, Muted: ${track.muted}`);
             });
         } catch (err) {
             console.error("[WebRTC] PeerConnection setup FAILED:", err);
