@@ -37,7 +37,7 @@ import { setOnlineUsers, incrementUnreadCount, setBulkUnreadCounts, updateLastMe
 import { addNotification, setNotifications } from "./redux/notificationSlice";
 import { updateReelLikes, addReelComment, deleteReelComment, editReelComment, updateReelViews, updateReelCommentLikes } from "./redux/reelSlice";
 import { setPosts, updatePostCommentLikes, deletePostComment, addPostComment, updatePostLikes } from "./redux/postSlice";
-import { setAuthUser, setSuggestedUsers, setUserProfile, updateUserProfileReelStats, updateUserProfilePostStats } from './redux/authSlice';
+import { setAuthUser, setSuggestedUsers, setUserProfile, updateUserProfileReelStats, updateUserProfilePostStats, removeUserProfileReelComment, editUserProfileReelComment, updateUserProfileReelCommentLikes } from './redux/authSlice';
 import { useLocation } from "react-router-dom";
 import api from '@/api';
 import ErrorBoundary from "./components/ErrorBoundary"

@@ -62,7 +62,8 @@ const Comment = ({ comment, onReply, allComments = [], depth = 0, isReel = false
 
     const handleDelete = async () => {
         try {
-            const res = await api.delete(`/post/comment/delete/${comment._id}`);
+            const endpoint = isReel ? `/reels/comment/${comment._id}` : `/post/comment/delete/${comment._id}`;
+            const res = await api.delete(endpoint);
             if (res.data.success) {
                 toast.success("Comment deleted");
                 // We'll let Socket.io handle the UI removal if it's connected, 
@@ -79,7 +80,8 @@ const Comment = ({ comment, onReply, allComments = [], depth = 0, isReel = false
             return;
         }
         try {
-            const res = await api.put(`/post/comment/edit/${comment._id}`, { text: editValue });
+            const endpoint = isReel ? `/reels/comment/${comment._id}` : `/post/comment/edit/${comment._id}`;
+            const res = await api.put(endpoint, { text: editValue });
             if (res.data.success) {
                 toast.success("Comment updated");
                 setIsEditing(false);

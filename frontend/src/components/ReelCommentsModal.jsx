@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import api from '@/api';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { addReelComment, deleteReelComment, editReelComment } from '@/redux/reelSlice';
+import { addReelComment, deleteReelComment, editReelComment, updateReelCommentLikes } from '@/redux/reelSlice';
 
 const getRelativeTime = (dateStr) => {
     const now = new Date();
@@ -51,7 +51,7 @@ const ReelCommentsModal = ({ reelId, comments: initialComments = [], open, setOp
 
         const handleUpdateCommentLikes = ({ commentId, reelId: cReelId, likes }) => {
             if (cReelId === reelId) {
-                dispatch({ type: 'reel/updateReelCommentLikes', payload: { reelId, commentId, likes } });
+                dispatch(updateReelCommentLikes({ reelId, commentId, likes }));
             }
         };
 

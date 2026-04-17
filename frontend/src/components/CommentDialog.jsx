@@ -9,8 +9,8 @@ import { useDispatch, useSelector } from 'react-redux'
 import Comment from './Comment.jsx'
 import api from '@/api';
 import { toast } from 'sonner'
-import { setPosts, setSelectedPost } from '@/redux/postSlice'
-import { updateReelLikes, addReelComment } from '@/redux/reelSlice'
+import { updateReelLikes, addReelComment, deleteReelComment, editReelComment, updateReelCommentLikes } from '@/redux/reelSlice'
+import { setPosts, setSelectedPost, updatePostCommentLikes, deletePostComment, addPostComment, updatePostLikes } from '@/redux/postSlice'
 import { FaHeart, FaRegHeart } from "react-icons/fa";
 import { setAuthUser, setUserProfile } from '@/redux/authSlice';
 import { Send, Heart } from 'lucide-react';
