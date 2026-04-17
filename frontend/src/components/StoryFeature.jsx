@@ -100,12 +100,12 @@ const StoryFeature = () => {
     return (
         <div className="w-full max-w-full px-0">
             <Swiper
-                spaceBetween={12}
+                spaceBetween={14}
                 slidesPerView="auto"
-                className="w-full pb-2"
+                className="w-full pb-2 px-4"
             >
                 {/* Your Story Bubble */}
-                <SwiperSlide className="w-[60px] sm:w-[72px] !w-auto flex flex-col items-center gap-1.5 cursor-pointer mt-1 first:pl-2">
+                <SwiperSlide className="w-[60px] sm:w-[72px] !w-auto flex flex-col items-center gap-1.5 cursor-pointer mt-1">
                     <div
                         className="relative group transition-all"
                         onClick={() => myStoryGroup ? openStoryViewer(user._id) : setIsUploadModalOpen(true)}

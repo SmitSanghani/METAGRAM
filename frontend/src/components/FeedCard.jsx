@@ -263,8 +263,8 @@ const FeedCard = ({ item, type = 'post', onDelete }) => {
                 </div>
 
                 {/* Info Area - Single Row (As per reference image) */}
-                <div className='p-2.5 sm:p-3.5 bg-white info-area'>
-                    <div className='flex items-center justify-between gap-2'>
+                <div className='p-2 sm:p-3.5 bg-white info-area'>
+                    <div className='flex items-center justify-between gap-1.5'>
                         <div className='flex items-center gap-2 overflow-hidden flex-1'>
                             <Avatar className='w-6 h-6 sm:w-7 sm:h-7 ring-1 ring-gray-100'>
                                 <AvatarImage src={author?.profilePicture} className="object-cover" />
@@ -278,20 +278,20 @@ const FeedCard = ({ item, type = 'post', onDelete }) => {
                         </div>
 
                         {/* Engagement Info on the right */}
-                        <div className='flex items-center gap-3'>
-                            <div onClick={handleLike} className='flex items-center gap-1 cursor-pointer hover:scale-110 active:scale-90 transition-transform'>
-                                {liked ? <FaHeart size={14} className='text-red-500' /> : <FaRegHeart size={14} className='text-gray-400' />}
-                                <span className='text-[12px] font-bold text-gray-600'>{likeCount.toLocaleString()}</span>
+                        <div className='flex items-center gap-2.5'>
+                            <div onClick={handleLike} className='flex items-center gap-0.5 cursor-pointer hover:scale-110 active:scale-90 transition-transform'>
+                                {liked ? <FaHeart size={13} className='text-red-500' /> : <FaRegHeart size={13} className='text-gray-400' />}
+                                <span className='text-[11px] font-bold text-gray-600'>{likeCount.toLocaleString()}</span>
                             </div>
-                            <div className='flex items-center gap-1 text-gray-400'>
-                                <MessageCircle size={14} />
-                                <span className='text-[12px] font-bold text-gray-600'>{commentCount.toLocaleString()}</span>
+                            <div className='flex items-center gap-0.5 text-gray-400'>
+                                <MessageCircle size={13} />
+                                <span className='text-[11px] font-bold text-gray-600'>{commentCount.toLocaleString()}</span>
                             </div>
                             <div
                                 onClick={(e) => { e.stopPropagation(); setOpenShare(true); }}
                                 className='flex items-center gap-1 text-gray-400 hover:text-indigo-600 transition-colors'
                             >
-                                <Send size={16} className="-rotate-12" />
+                                <Send size={14} className="-rotate-12" />
                             </div>
                             {isReel && (
                                 <div className='hidden sm:flex items-center gap-1 text-gray-400'>

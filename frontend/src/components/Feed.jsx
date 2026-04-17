@@ -18,30 +18,34 @@ const Feed = () => {
     return (
         <div className='flex-1 flex flex-col w-full animate-soft-in'>
             {/* Feed Header Section */}
-            <div className='flex flex-col sm:flex-row sm:items-center justify-between mb-2 sm:mb-8 gap-3 sm:gap-4 px-0'>
+            <div className='flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-8 gap-3 sm:gap-4 px-0'>
                 <h1 className='hidden sm:flex text-3xl font-extrabold text-gray-900 tracking-tight items-center gap-2'>
                     Feed
                     <div className='w-2 h-2 bg-indigo-500 rounded-full animate-pulse'></div>
                 </h1>
 
                 {/* Modern Tab System - Horizontally Scrollable on Mobile */}
-                <div className='flex items-center bg-white p-1.5 rounded-xl shadow-sm border border-gray-100 overflow-x-auto no-scrollbar w-full'>
-                    <div className='flex items-center gap-1 sm:gap-2 min-w-max pr-6'>
-                        {tabs.map((tab) => (
-                            <button
-                                key={tab.id}
-                                onClick={() => setActiveTab(tab.id)}
-                                className={`flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-bold transition-all duration-300 whitespace-nowrap ${
-                                    activeTab === tab.id
-                                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-100 scale-105'
-                                        : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
-                                }`}
-                            >
-                                {tab.icon}
-                                {tab.label}
-                            </button>
-                        ))}
+                <div className='relative w-full max-w-full group'>
+                    <div className='flex items-center bg-white/50 backdrop-blur-sm p-1.5 rounded-xl shadow-sm border border-gray-100 overflow-x-auto no-scrollbar scroll-smooth'>
+                        <div className='flex items-center gap-1.5 sm:gap-2 min-w-max pr-8'>
+                            {tabs.map((tab) => (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setActiveTab(tab.id)}
+                                    className={`flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-bold transition-all duration-300 whitespace-nowrap ${
+                                        activeTab === tab.id
+                                            ? 'bg-indigo-600 text-white shadow-md shadow-indigo-100 scale-[1.02]'
+                                            : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100/50'
+                                    }`}
+                                >
+                                    {tab.icon}
+                                    {tab.label}
+                                </button>
+                            ))}
+                        </div>
                     </div>
+                    {/* Fading indicators for scroll */}
+                    <div className='absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white/80 to-transparent pointer-events-none rounded-r-xl sm:hidden' />
                 </div>
             </div>
 

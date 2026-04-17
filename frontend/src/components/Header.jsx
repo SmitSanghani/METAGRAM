@@ -53,8 +53,8 @@ const Header = () => {
     };
 
     return (
-        <header className='main-header-layout fixed top-0 right-0 left-0 sm:left-[280px] z-40 h-[70px] bg-white/80 backdrop-blur-md border-b border-gray-100 px-4 sm:px-10 transition-all duration-300'>
-            <div className='h-full w-full max-w-[1200px] mx-auto flex items-center justify-between gap-4'>
+        <header className='main-header-layout fixed top-0 right-0 left-0 sm:left-[280px] z-40 h-[70px] bg-white/80 backdrop-blur-md border-b border-gray-100 px-3 sm:px-10 transition-all duration-300'>
+            <div className='h-full w-full max-w-[1200px] mx-auto flex items-center justify-between gap-2 sm:gap-4'>
                 
                 {/* Logo - Visible only correctly on mobile Header */}
                 <div onClick={() => navigate('/')} className='flex sm:hidden items-center gap-2 cursor-pointer shrink-0'>
@@ -63,18 +63,18 @@ const Header = () => {
                 </div>
 
                 {/* Search Bar Container */}
-                <div className={`relative transition-all duration-300 w-[55%] sm:flex-1 max-w-[400px] ${isSearchFocused ? 'scale-[1.02]' : ''}`}>
+                <div className={`relative transition-all duration-300 w-[50%] sm:flex-1 max-w-[400px] ${isSearchFocused ? 'scale-[1.02]' : ''}`}>
                     <div className='absolute left-3 top-1/2 -translate-y-1/2 text-gray-400'>
-                        {loading ? <Loader2 size={16} className='animate-spin' /> : <SearchIcon size={16} />}
+                        {loading ? <Loader2 size={16} className='animate-spin' /> : <SearchIcon size={14} />}
                     </div>
                     <input 
                         type="text" 
-                        placeholder="Search..."
+                        placeholder={window.innerWidth < 350 ? "Search..." : "Search Metagram..."}
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
                         onFocus={() => setIsSearchFocused(true)}
                         onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
-                        className='w-full bg-[#f1f3f6] border-transparent focus:border-indigo-400 border py-2 pl-10 pr-4 rounded-xl outline-none transition-all placeholder:text-gray-400 font-medium text-sm'
+                        className='w-full bg-gray-100/80 border-transparent focus:bg-white focus:border-indigo-400 border py-1.5 pl-9 pr-3 rounded-xl outline-none transition-all placeholder:text-gray-400 font-medium text-[13px] sm:text-sm'
                     />
 
                     {/* Search Results Dropdown */}
@@ -130,7 +130,7 @@ const Header = () => {
                     </div>
                     {/* Compact Profile for Mobile Header - Icon only */}
                     {/* Notifications and Profile for Mobile Header */}
-                    <div className="flex sm:hidden items-center gap-3">
+                    <div className="flex sm:hidden items-center gap-2">
                         <button 
                             onClick={() => setNotificationOpen(true)}
                             className='relative p-1 text-gray-700 active:scale-90 transition-transform'
