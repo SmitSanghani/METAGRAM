@@ -57,11 +57,9 @@ const Login = () => {
                 const token = res.data.token || res.data.account?.token;
 
                 // For normal login, update dispatch. For linking, we stay as the primary user but save details.
-                if (!isLinkFlow) {
-                    dispatch(setAuthUser(loggedInUser));
-                    if (token) {
-                        dispatch(setToken(token));
-                    }
+                dispatch(setAuthUser(loggedInUser));
+                if (token) {
+                    dispatch(setToken(token));
                 }
 
                 // Persist account metadata for quick switching (Metadata always in LocalStorage, Relationships in DB)
