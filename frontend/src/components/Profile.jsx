@@ -6,7 +6,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
-import { AtSign, Heart, MessageCircle, UserPlus, MoreHorizontal, Grid, PlaySquare, Contact, Link, ChevronDown, Trash2, Bookmark, Plus, Settings, Search, CheckCircle2, Mic, Lightbulb } from 'lucide-react'
+import { AtSign, Heart, MessageCircle, UserPlus, MoreHorizontal, Grid, PlaySquare, Contact, Link, ChevronDown, Trash2, Bookmark, Plus, Settings, Search, CheckCircle2, Mic, Lightbulb, LogOut } from 'lucide-react'
 import api from '@/api';
 import { cn, getAvatarColor } from '@/lib/utils';
 import StoryViewer from './StoryViewer'
@@ -21,7 +21,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import ReelCommentsModal from './ReelCommentsModal'
 import CommentDialog from './CommentDialog'
 import PostModal from './PostModal'
-import { setSelectedPost } from '@/redux/postSlice'
+import { setSelectedPost, setPosts } from '@/redux/postSlice'
 import { setSelectedUser, addChatUser } from '@/redux/chatSlice'
 import Swal from 'sweetalert2';
 
@@ -150,6 +150,22 @@ const Profile = () => {
     // Redirect to chat
     navigate('/chat');
   };
+
+  const logoutHandler = async () => {
+    try {
+      const res = await api.get('/user/logout');
+      if (res.data.success) {
+        dispatch(setAuthUser(null));
+        dispatch(setSelectedPost(null));
+        dispatch(setPosts([]));
+
+        navigate("/login");
+        toast.success(res.data.message);
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Logout failed");
+    }
+  }
 
   const confirmUnfollow = () => {
     followAndUnfollowHandler();
@@ -392,19 +408,35 @@ const Profile = () => {
                     </div>
                     <div className='flex gap-2 items-center w-full sm:w-auto justify-center'>
                       {isLoggedInUserProfile ? (
-                        <div className="flex flex-col items-center gap-4 w-full sm:w-auto">
-                          <Button
-                            onClick={() => setEditProfileOpen(true)}
-                            className='bg-[#F0EDFF] hover:bg-[#E5E0FF] text-[#5849FF] h-10 px-10 text-[14px] font-bold shadow-none rounded-full transition-all border-0 w-max'
-                          >
-                            Edit profile
-                          </Button>
-                          <div 
-                             onClick={() => navigate('/settings')}
-                             className='sm:hidden w-12 h-12 rounded-full bg-[#f8f6ff] flex items-center justify-center cursor-pointer hover:scale-105 active:scale-95 transition-all text-[#5849FF] border border-[#eee]'
-                          >
-                             <Settings size={22} strokeWidth={2.5} />
+                        <div className="flex flex-col items-center gap-3 w-full sm:w-auto">
+                          <div className="flex items-center gap-3 w-full justify-center">
+                            <Button
+                              onClick={() => setEditProfileOpen(true)}
+                              className='bg-[#F0EDFF] hover:bg-[#E5E0FF] text-[#5849FF] h-10 px-8 sm:px-10 text-[14px] font-bold shadow-none rounded-full transition-all border-0 w-max'
+                            >
+                              Edit profile
+                            </Button>
+                            <div 
+                               onClick={() => navigate('/settings')}
+                               className='sm:hidden w-10 h-10 rounded-full bg-[#f8f6ff] flex items-center justify-center cursor-pointer hover:scale-105 active:scale-95 transition-all text-[#5849FF] border border-[#eee]'
+                            >
+                               <Settings size={20} strokeWidth={2.5} />
+                            </div>
+                            <div 
+                               onClick={logoutHandler}
+                               className='sm:hidden w-10 h-10 rounded-full bg-red-50 flex items-center justify-center cursor-pointer hover:scale-105 active:scale-95 transition-all text-red-500 border border-red-100'
+                            >
+                               <LogOut size={20} strokeWidth={2.5} />
+                            </div>
                           </div>
+                          
+                          <Button
+                            onClick={logoutHandler}
+                            className='hidden sm:flex bg-red-50 hover:bg-red-100 text-red-500 h-9 px-6 text-[13px] font-bold shadow-none rounded-full transition-all border-0 w-max'
+                          >
+                            <LogOut size={16} className="mr-2" />
+                            Logout
+                          </Button>
                         </div>
                       ) : (
                         <>
