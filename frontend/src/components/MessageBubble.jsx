@@ -236,7 +236,7 @@ const MessageBubble = ({ msg, isSender, onReply, onDelete, onReact, onScrollTo, 
                                     </div>
                                     <div className="flex flex-col min-w-0">
                                         <h4 className={`text-[15px] font-black truncate ${themeConfig.isDark ? 'text-white' : 'text-gray-900'}`}>
-                                            {(msg.callLog?.callType === 'audio' || !msg.callLog?.callType) ? 'Audio Call' : 'Video Call'} {msg.callLog?.status === 'outgoing' ? '' : ((msg.callLog?.status === 'missed' || msg.callLog?.status === 'rejected') ? 'Missed' : 'Ended')}
+                                            {(msg.callLog?.callType === 'video') ? 'Video Call' : 'Voice Call'} {msg.callLog?.status === 'outgoing' ? '' : ((msg.callLog?.status === 'missed' || msg.callLog?.status === 'rejected') ? 'Missed' : 'Ended')}
                                         </h4>
                                         <p className="text-[11px] text-gray-500 font-bold tracking-tight uppercase opacity-70">
                                             {msg.callLog?.status === 'outgoing' ? (isSender ? 'Outgoing' : 'Incoming') : ((msg.callLog?.status === 'missed' || msg.callLog?.status === 'rejected') ? 'No Answer' : (
