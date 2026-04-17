@@ -100,11 +100,11 @@ export const likeOrUnlikeReel = async (req, res) => {
         if (!reel) return res.status(404).json({ message: "Reel not found", success: false });
 
         const author = await User.findById(reel.author);
-        if (author.blockedUsers.includes(userId) || author.blockedBy.includes(userId)) {
+        if (author.blockedUsers.some(id => id.toString() === userId.toString()) || author.blockedBy.some(id => id.toString() === userId.toString())) {
             return res.status(403).json({ message: "Action not allowed due to a block", success: false });
         }
 
-        const isLiked = reel.likes.includes(userId);
+        const isLiked = reel.likes.some(id => id.toString() === userId.toString());
         let updatedLikes;
         if (isLiked) {
             await reel.updateOne({ $pull: { likes: userId } });
@@ -149,7 +149,7 @@ export const addCommentToReel = async (req, res) => {
         if (!reel) return res.status(404).json({ message: "Reel not found", success: false });
 
         const author = await User.findById(reel.author);
-        if (author.blockedUsers.includes(userId) || author.blockedBy.includes(userId)) {
+        if (author.blockedUsers.some(id => id.toString() === userId.toString()) || author.blockedBy.some(id => id.toString() === userId.toString())) {
             return res.status(403).json({ message: "Action not allowed due to a block", success: false });
         }
 
@@ -231,7 +231,7 @@ export const toggleSaveReel = async (req, res) => {
 
         if (!reel) return res.status(404).json({ message: "Reel not found", success: false });
 
-        const isSaved = reel.savedBy.includes(userId);
+        const isSaved = reel.savedBy.some(id => id.toString() === userId.toString());
         if (isSaved) {
             await Promise.all([
                 reel.updateOne({ $pull: { savedBy: userId } }),
@@ -316,7 +316,7 @@ export const likeOrUnlikeComment = async (req, res) => {
 
         if (!comment) return res.status(404).json({ message: "Comment not found", success: false });
 
-        const isLiked = comment.likes.includes(userId);
+        const isLiked = comment.likes.some(id => id.toString() === userId.toString());
         if (isLiked) {
             await comment.updateOne({ $pull: { likes: userId } });
 

@@ -313,7 +313,7 @@ export const likeStory = async (req, res) => {
         const story = await Story.findById(storyId);
         if (!story) return res.status(404).json({ message: 'Story not found', success: false });
 
-        const isLiked = story.likes.includes(userId);
+        const isLiked = story.likes.some(id => id.toString() === userId.toString());
         if (isLiked) {
             // unlike
             story.likes = story.likes.filter(id => id.toString() !== userId);

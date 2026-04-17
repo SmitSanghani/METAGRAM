@@ -156,7 +156,7 @@ export const likePost = async (req, res) => {
         }
 
         const author = await User.findById(post.author);
-        if (author.blockedUsers.includes(likekrneWalaUserKiId) || author.blockedBy.includes(likekrneWalaUserKiId)) {
+        if (author.blockedUsers.some(id => id.toString() === likekrneWalaUserKiId.toString()) || author.blockedBy.some(id => id.toString() === likekrneWalaUserKiId.toString())) {
             return res.status(403).json({ message: "Action not allowed due to a block", success: false });
         }
 
@@ -239,7 +239,7 @@ export const addComment = async (req, res) => {
         if (!post) return res.status(404).json({ message: "Post not found", success: false });
 
         const author = await User.findById(post.author);
-        if (author.blockedUsers.includes(commentkrneWalaUserKiId) || author.blockedBy.includes(commentkrneWalaUserKiId)) {
+        if (author.blockedUsers.some(id => id.toString() === commentkrneWalaUserKiId.toString()) || author.blockedBy.some(id => id.toString() === commentkrneWalaUserKiId.toString())) {
             return res.status(403).json({ message: "Action not allowed due to a block", success: false });
         }
 
@@ -385,7 +385,7 @@ export const toggleLikeComment = async (req, res) => {
         const comment = await Comment.findById(commentId);
         if (!comment) return res.status(404).json({ message: "Comment not found", success: false });
 
-        const isLiked = comment.likes.includes(userId);
+        const isLiked = comment.likes.some(id => id.toString() === userId.toString());
         if (isLiked) {
             await comment.updateOne({ $pull: { likes: userId } });
 
@@ -503,7 +503,7 @@ export const bookmarkPost = async (req, res) => {
         }
 
         const user = await User.findById(authorId);
-        if (user.bookmarks.includes(post._id)) {
+        if (user.bookmarks.some(id => id.toString() === post._id.toString())) {
             // already bookmarked -> remove from the bookmarks :
             await user.updateOne({ $pull: { bookmarks: post._id } });
             await user.save();

@@ -36,7 +36,7 @@ export const sendMessage = async (req, res) => {
 
             // BLOCK CHECK (Only for 1v1):
             const senderUser = await User.findById(senderId);
-            if (senderUser.blockedUsers.includes(targetId) || senderUser.blockedBy.includes(targetId)) {
+            if (senderUser.blockedUsers.some(id => id.toString() === targetId.toString()) || senderUser.blockedBy.some(id => id.toString() === targetId.toString())) {
                 return res.status(403).json({ success: false, message: "You cannot message this account." });
             }
 

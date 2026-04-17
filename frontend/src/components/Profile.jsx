@@ -408,11 +408,11 @@ const Profile = () => {
                     </div>
                     <div className='flex gap-2 items-center w-full sm:w-auto justify-center'>
                       {isLoggedInUserProfile ? (
-                        <div className="flex flex-col items-center gap-3 w-full sm:w-auto">
+                        <div className="flex flex-row items-center gap-3 w-full sm:w-auto">
                           <div className="flex items-center gap-3 w-full justify-center">
                             <Button
                               onClick={() => setEditProfileOpen(true)}
-                              className='bg-[#F0EDFF] hover:bg-[#E5E0FF] text-[#5849FF] h-10 px-8 sm:px-10 text-[14px] font-bold shadow-none rounded-full transition-all border-0 w-max'
+                              className='bg-[#F0EDFF] hover:bg-[#E5E0FF] text-[#5849FF] h-10 px-6 text-[14px] font-bold shadow-none rounded-full transition-all border-0 w-max'
                             >
                               Edit profile
                             </Button>
@@ -428,17 +428,9 @@ const Profile = () => {
                             >
                                <LogOut size={20} strokeWidth={2.5} />
                             </div>
+                            </div>
                           </div>
-                          
-                          <Button
-                            onClick={logoutHandler}
-                            className='hidden sm:flex bg-red-50 hover:bg-red-100 text-red-500 h-9 px-6 text-[13px] font-bold shadow-none rounded-full transition-all border-0 w-max'
-                          >
-                            <LogOut size={16} className="mr-2" />
-                            Logout
-                          </Button>
-                        </div>
-                      ) : (
+                        ) : (
                         <>
                           <Button onClick={handleButtonClick} className={`h-9 px-6 text-[14px] font-bold shadow-none rounded-[13px] transition-all ${buttonState === 'Following' || buttonState === 'Requested' ? 'bg-[#efefef] hover:bg-[#dbdbdb] text-[#262626]' : 'bg-[#0095F6] hover:bg-[#1877F2] text-white'}`}>
                             {buttonState}
