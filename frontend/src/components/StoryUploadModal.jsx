@@ -229,11 +229,11 @@ const StoryUploadModal = ({ isOpen, onClose, user, onUploadSuccess }) => {
     if (!isOpen) return null;
 
     return createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm sm:p-4 overflow-hidden">
             <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                className="bg-white dark:bg-zinc-950 w-full max-w-[450px] rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
+                initial={{ scale: window.innerWidth < 640 ? 1 : 0.9, y: window.innerWidth < 640 ? 50 : 0, opacity: 0 }}
+                animate={{ scale: 1, y: 0, opacity: 1 }}
+                className="bg-white dark:bg-zinc-950 w-full max-w-[450px] sm:rounded-2xl overflow-hidden shadow-2xl flex flex-col h-full sm:h-auto sm:max-h-[90vh] transition-all"
             >
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-zinc-800 bg-white dark:bg-zinc-950 sticky top-0 z-20">

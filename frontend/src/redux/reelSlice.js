@@ -4,8 +4,12 @@ const reelSlice = createSlice({
     name: 'reel',
     initialState: {
         reels: [],
+        isReelUploadOpen: false
     },
     reducers: {
+        setReelUploadOpen: (state, action) => {
+            state.isReelUploadOpen = action.payload;
+        },
         setReels: (state, action) => {
             state.reels = action.payload;
         },
@@ -71,6 +75,7 @@ const reelSlice = createSlice({
 });
 
 export const {
+    setReelUploadOpen,
     setReels,
     addReel,
     updateReelLikes,

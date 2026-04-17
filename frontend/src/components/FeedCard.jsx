@@ -170,9 +170,18 @@ const FeedCard = ({ item, type = 'post', onDelete }) => {
                 className='feed-card group cursor-pointer animate-soft-in rounded-xl overflow-hidden'
             >
                 {/* Media Area - Rounded inside the card */}
-                <div className='media-container rounded-lg overflow-hidden bg-gray-50'>
+                <div className='media-container rounded-lg overflow-hidden bg-gray-50 relative'>
+                    {/* Mobile Engagement Overlay (Only visible on mobile grid) */}
+                    <div className="absolute inset-0 z-20 flex items-center justify-center gap-4 bg-black/20 opacity-0 active:opacity-100 sm:hidden pointer-events-none">
+                        <div className="flex items-center gap-1 text-white text-[10px] font-bold">
+                           <Heart size={14} className={liked ? 'fill-white' : ''} /> {likeCount}
+                        </div>
+                        <div className="flex items-center gap-1 text-white text-[10px] font-bold">
+                           <MessageCircle size={14} /> {commentCount}
+                        </div>
+                    </div>
                     {isReel ? (
-                        <div className='relative w-full aspect-[3.5/5] sm:aspect-[3/4.5] overflow-hidden bg-gray-900 flex items-center justify-center'>
+                        <div className='relative w-full aspect-[4/5] sm:aspect-[3/4.5] overflow-hidden bg-gray-900 flex items-center justify-center'>
                             <video
                                 src={item.videoUrl}
                                 poster={item.videoUrl?.replace(/\.[^/.]+$/, ".jpg")}
@@ -254,16 +263,16 @@ const FeedCard = ({ item, type = 'post', onDelete }) => {
                 </div>
 
                 {/* Info Area - Single Row (As per reference image) */}
-                <div className='p-3.5 bg-white'>
+                <div className='p-2.5 sm:p-3.5 bg-white info-area'>
                     <div className='flex items-center justify-between gap-2'>
                         <div className='flex items-center gap-2 overflow-hidden flex-1'>
-                            <Avatar className='w-7 h-7 ring-1 ring-gray-100'>
+                            <Avatar className='w-6 h-6 sm:w-7 sm:h-7 ring-1 ring-gray-100'>
                                 <AvatarImage src={author?.profilePicture} className="object-cover" />
-                                <AvatarFallback className={cn("font-bold text-xs uppercase", getAvatarColor(author?.username))}>
+                                <AvatarFallback className={cn("font-bold text-[10px] sm:text-xs uppercase", getAvatarColor(author?.username))}>
                                     {author?.username?.charAt(0).toUpperCase()}
                                 </AvatarFallback>
                             </Avatar>
-                            <span className='text-[13px] font-bold text-gray-900 truncate hover:text-indigo-600 transition-colors' onClick={(e) => { e.stopPropagation(); navigate(`/profile/${author?._id}`); }}>
+                            <span className='text-[12px] sm:text-[13px] font-bold text-gray-900 truncate hover:text-indigo-600 transition-colors' onClick={(e) => { e.stopPropagation(); navigate(`/profile/${author?._id}`); }}>
                                 {author?.username}
                             </span>
                         </div>

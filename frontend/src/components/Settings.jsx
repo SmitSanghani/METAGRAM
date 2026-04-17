@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { TrendingUp, BarChart2, User, Bell, Moon, Sun, ChevronRight, Activity as ActivityIcon, Key, UserX, Trash2, AlertTriangle, Loader2 } from 'lucide-react';
+import { TrendingUp, BarChart2, User, Bell, Moon, Sun, ChevronRight, Activity as ActivityIcon, Key, UserX, Trash2, AlertTriangle, Loader2, ArrowLeft } from 'lucide-react';
 import YourActivity from './YourActivity';
 import BlockedAccounts from './BlockedAccounts';
 import ReactECharts from 'echarts-for-react';
@@ -190,8 +190,8 @@ const Settings = () => {
     };
 
     return (
-        <div className='flex justify-center w-full min-h-screen bg-[#f8fafc] pt-8 px-4 md:px-8'>
-            <div className='flex w-full max-w-[1200px] bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100 mb-10'>
+        <div className='flex justify-center w-full min-h-screen bg-[#f8fafc] sm:pt-8 pt-0 px-0 sm:px-4 md:px-8'>
+            <div className='flex w-full max-w-[1200px] bg-white sm:rounded-3xl rounded-none sm:shadow-xl shadow-none overflow-hidden border-0 sm:border border-gray-100 mb-10'>
                 {/* Settings Sidebar */}
                 <div className='w-[320px] border-r border-gray-100 bg-gray-50/50 p-6 hidden md:block'>
                     <h2 className='text-xl font-bold text-gray-900 mb-8 px-2'>Settings</h2>
@@ -222,10 +222,18 @@ const Settings = () => {
                  {/* Main Content Area */}
                  <div className='flex-1 flex flex-col min-h-[700px] bg-white overflow-y-auto'>
                      {activeSection === 'danger' && (
-                         <div className='p-8 animate-in fade-in slide-in-from-right-4 duration-500'>
-                             <div className='mb-8'>
-                                 <h1 className='text-2xl font-bold text-gray-900'>Danger Zone</h1>
-                                 <p className='text-gray-500 text-sm'>Irreversible actions and account deletion.</p>
+                         <div className='p-4 sm:p-8 animate-in fade-in slide-in-from-right-4 duration-500'>
+                             <div className='mb-8 flex items-center gap-4'>
+                                 <button 
+                                     onClick={() => navigate(-1)}
+                                     className='md:hidden p-2 rounded-full bg-gray-100 text-gray-600 active:scale-95 transition-all'
+                                 >
+                                     <ArrowLeft size={20} />
+                                 </button>
+                                 <div>
+                                     <h1 className='text-2xl font-bold text-gray-900'>Danger Zone</h1>
+                                     <p className='text-gray-500 text-sm'>Irreversible actions and account deletion.</p>
+                                 </div>
                              </div>
  
                              <div className='max-w-2xl'>
@@ -304,27 +312,35 @@ const Settings = () => {
                          </Dialog>
                      )}
                     {activeSection === 'insights' && (
-                        <div className='p-8 animate-in fade-in slide-in-from-right-4 duration-500'>
-                            <div className='mb-8'>
-                                <h1 className='text-2xl font-bold text-gray-900'>Follower Insights</h1>
-                                <p className='text-gray-500 text-sm'>Understand your audience and growth.</p>
+                        <div className='p-4 sm:p-8 animate-in fade-in slide-in-from-right-4 duration-500'>
+                            <div className='mb-6 sm:mb-8 flex items-center gap-4'>
+                                <button 
+                                    onClick={() => navigate(-1)}
+                                    className='md:hidden p-2 rounded-full bg-gray-100 text-gray-600 active:scale-95 transition-all'
+                                >
+                                    <ArrowLeft size={20} />
+                                </button>
+                                <div>
+                                    <h1 className='text-2xl font-bold text-gray-900'>Follower Insights</h1>
+                                    <p className='text-gray-500 text-sm'>Understand your audience and growth.</p>
+                                </div>
                             </div>
 
-                            <div className='grid grid-cols-1 lg:grid-cols-2 gap-8'>
+                            <div className='grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8'>
                                 {/* Growth Chart */}
-                                <div className='p-6 bg-white border border-gray-100 rounded-3xl shadow-sm hover:shadow-md transition-shadow'>
+                                <div className='p-4 sm:p-6 bg-white border border-gray-100 rounded-[20px] sm:rounded-3xl shadow-sm hover:shadow-md transition-shadow'>
                                     <ReactECharts 
                                         option={getFollowersOption()} 
-                                        style={{ height: '350px', width: '100%' }}
+                                        style={{ height: '300px', sm: { height: '350px' }, width: '100%' }}
                                         opts={{ renderer: 'svg' }}
                                     />
                                 </div>
 
                                 {/* Distribution Chart */}
-                                <div className='p-6 bg-white border border-gray-100 rounded-3xl shadow-sm hover:shadow-md transition-shadow'>
+                                <div className='p-4 sm:p-6 bg-white border border-gray-100 rounded-[20px] sm:rounded-3xl shadow-sm hover:shadow-md transition-shadow'>
                                     <ReactECharts 
                                         option={getDistributionOption()} 
-                                        style={{ height: '350px', width: '100%' }}
+                                        style={{ height: '300px', sm: { height: '350px' }, width: '100%' }}
                                         opts={{ renderer: 'svg' }}
                                     />
                                 </div>
@@ -350,16 +366,30 @@ const Settings = () => {
                     )}
 
                     {activeSection === 'activity' && (
-                        <div className='animate-in fade-in slide-in-from-right-4 duration-500'>
+                        <div className='animate-in fade-in slide-in-from-right-4 duration-500 relative'>
+                            <button 
+                                onClick={() => navigate(-1)}
+                                className='md:hidden fixed top-3 left-4 z-[60] p-2 rounded-full bg-white/80 backdrop-blur-md text-gray-600 shadow-md active:scale-95 transition-all'
+                            >
+                                <ArrowLeft size={20} />
+                            </button>
                             <YourActivity inSettings={true} />
                         </div>
                     )}
 
                     {activeSection === 'account' && (
-                        <div className='p-8 animate-in fade-in slide-in-from-right-4 duration-500'>
-                            <div className='mb-8'>
-                                <h1 className='text-2xl font-bold text-gray-900'>Account Settings</h1>
-                                <p className='text-gray-500 text-sm'>Manage your account security and privacy.</p>
+                        <div className='p-4 sm:p-8 animate-in fade-in slide-in-from-right-4 duration-500'>
+                            <div className='mb-8 flex items-center gap-4'>
+                                <button 
+                                    onClick={() => navigate(-1)}
+                                    className='md:hidden p-2 rounded-full bg-gray-100 text-gray-600 active:scale-95 transition-all'
+                                >
+                                    <ArrowLeft size={20} />
+                                </button>
+                                <div>
+                                    <h1 className='text-2xl font-bold text-gray-900'>Account Settings</h1>
+                                    <p className='text-gray-500 text-sm'>Manage your account security and privacy.</p>
+                                </div>
                             </div>
 
                             <div className='flex flex-col gap-6 max-w-2xl'>

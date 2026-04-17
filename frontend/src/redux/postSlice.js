@@ -4,9 +4,13 @@ const postSlice = createSlice({
     name: "post",
     initialState: {
         posts: [],
-        selectedPost: null
+        selectedPost: null,
+        isCreatePostOpen: false
     },
     reducers: {
+        setCreatePostOpen(state, action) {
+            state.isCreatePostOpen = action.payload;
+        },
         //actions
         setPosts(state, action) {
             state.posts = action.payload;
@@ -69,5 +73,5 @@ const postSlice = createSlice({
     }
 });
 
-export const { setPosts, setSelectedPost, updatePostCommentLikes, deletePostComment, addPostComment, updatePostLikes } = postSlice.actions;
+export const { setCreatePostOpen, setPosts, setSelectedPost, updatePostCommentLikes, deletePostComment, addPostComment, updatePostLikes } = postSlice.actions;
 export default postSlice.reducer;

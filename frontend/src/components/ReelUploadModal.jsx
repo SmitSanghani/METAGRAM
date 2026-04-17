@@ -91,10 +91,24 @@ const ReelUploadModal = ({ open, setOpen }) => {
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogContent className="bg-white rounded-[32px] p-0 border-none shadow-2xl overflow-hidden max-w-sm max-h-[95vh] flex flex-col">
                 <DialogHeader className='relative flex-none items-center justify-center py-5 border-b border-[#efefef] m-0 bg-white'>
+                    {/* Persistent Close Button for Mobile/Desktop */}
+                    <button 
+                        onClick={() => setOpen(false)}
+                        className="absolute left-4 p-2 rounded-full hover:bg-gray-50 text-gray-500 transition-colors"
+                        aria-label="Close"
+                    >
+                        <X size={20} strokeWidth={2.5} />
+                    </button>
+
                     <h2 className='text-center font-black text-[14px] text-[#262626] uppercase tracking-widest'>Create new reel</h2>
+                    
                     {videoPreview && (
-                        <Button variant="ghost" className="absolute right-4 p-2 h-auto rounded-full hover:bg-gray-50" onClick={() => { setVideoPreview(""); setFile(null); }}>
-                            <X size={18} />
+                        <Button 
+                            variant="ghost" 
+                            className="absolute right-4 p-2 h-auto rounded-full hover:bg-gray-50 text-rose-500 font-bold text-[11px]" 
+                            onClick={() => { setVideoPreview(""); setFile(null); }}
+                        >
+                            CLEAR
                         </Button>
                     )}
                 </DialogHeader>

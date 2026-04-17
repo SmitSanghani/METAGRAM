@@ -96,8 +96,8 @@ const Posts = ({ activeTab = 'Latest' }) => {
                     </div>
                 </div>
 
-                {/* Mobile view splitting */}
-                <div className="flex sm:hidden w-full flex-col gap-6">
+                {/* Mobile view - Single column with significant padding to make cards feel smaller and contained */}
+                <div className="flex sm:hidden w-full flex-col gap-6 px-6 pb-10">
                     {feedItems.map(item => <FeedCard key={item._id} item={item} type={item.feedType} />)}
                 </div>
             </div>

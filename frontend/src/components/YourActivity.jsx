@@ -84,7 +84,7 @@ const YourActivity = ({ inSettings = false }) => {
     };
 
     return (
-        <div className={`max-w-4xl mx-auto py-10 px-4 min-h-screen ${inSettings ? 'bg-transparent py-4' : 'bg-white'}`}>
+        <div className={`max-w-4xl mx-auto sm:py-10 py-4 px-2 sm:px-4 min-h-screen ${inSettings ? 'bg-transparent py-4' : 'bg-white'}`}>
             {!inSettings && (
                 <div className="mb-8">
                     <h1 className="text-2xl font-bold text-gray-900">Your Activity</h1>
@@ -96,7 +96,7 @@ const YourActivity = ({ inSettings = false }) => {
             <div className="flex border-b border-gray-100 mb-6">
                 <button
                     onClick={() => setActiveTab('likes')}
-                    className={`flex items-center gap-2 px-6 py-3 text-sm font-semibold transition-all border-b-2 ${
+                    className={`flex items-center gap-2 px-4 sm:px-6 py-3 text-sm font-semibold transition-all border-b-2 ${
                         activeTab === 'likes' 
                         ? 'border-[#3b82f6] text-[#3b82f6]' 
                         : 'border-transparent text-gray-400 hover:text-gray-600'
@@ -107,7 +107,7 @@ const YourActivity = ({ inSettings = false }) => {
                 </button>
                 <button
                     onClick={() => setActiveTab('comments')}
-                    className={`flex items-center gap-2 px-6 py-3 text-sm font-semibold transition-all border-b-2 ${
+                    className={`flex items-center gap-2 px-4 sm:px-6 py-3 text-sm font-semibold transition-all border-b-2 ${
                         activeTab === 'comments' 
                         ? 'border-[#3b82f6] text-[#3b82f6]' 
                         : 'border-transparent text-gray-400 hover:text-gray-600'

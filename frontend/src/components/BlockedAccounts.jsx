@@ -6,7 +6,8 @@ import { toast } from 'sonner';
 import api from '@/api';
 import { useDispatch, useSelector } from 'react-redux';
 import { setAuthUser } from '@/redux/authSlice';
-import { Loader2, UserX } from 'lucide-react';
+import { Loader2, UserX, ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const BlockedAccounts = () => {
     const [blockedUsers, setBlockedUsers] = useState([]);
@@ -16,6 +17,7 @@ const BlockedAccounts = () => {
     const [isUnblocking, setIsUnblocking] = useState(false);
     const { user } = useSelector(store => store.auth);
     const dispatch = useDispatch();
+    const navigate = useNavigate();
 
     useEffect(() => {
         fetchBlockedUsers();
@@ -77,10 +79,18 @@ const BlockedAccounts = () => {
     }
 
     return (
-        <div className='p-8 animate-in fade-in slide-in-from-right-4 duration-500'>
-            <div className='mb-8'>
-                <h1 className='text-2xl font-bold text-gray-900'>Blocked Accounts</h1>
-                <p className='text-gray-500 text-sm'>Manage the people you've blocked.</p>
+        <div className='p-4 sm:p-8 animate-in fade-in slide-in-from-right-4 duration-500'>
+            <div className='mb-8 flex items-center gap-4'>
+                <button 
+                    onClick={() => navigate(-1)}
+                    className='md:hidden p-2 rounded-full bg-gray-100 text-gray-600 active:scale-95 transition-all'
+                >
+                    <ArrowLeft size={20} />
+                </button>
+                <div>
+                    <h1 className='text-2xl font-bold text-gray-900'>Blocked Accounts</h1>
+                    <p className='text-gray-500 text-sm'>Manage the people you've blocked.</p>
+                </div>
             </div>
 
             {blockedUsers.length === 0 ? (

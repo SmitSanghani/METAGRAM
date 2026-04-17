@@ -259,7 +259,7 @@ const ActiveCallOverlay = ({ localStream, remoteStream, onEndCall, isConnecting 
 
             {/* Local Video Preview (Picture-in-Pip) */}
             {callType === 'video' && (
-                <div className="absolute top-8 right-8 w-40 h-56 rounded-[24px] overflow-hidden border-2 border-white/20 shadow-2xl bg-black z-20">
+                <div className="absolute top-4 right-4 sm:top-8 sm:right-8 w-28 h-40 sm:w-40 sm:h-56 rounded-[16px] sm:rounded-[24px] overflow-hidden border-2 border-white/20 shadow-2xl bg-black z-20">
                     {localStream ? (
                         <>
                             <video
@@ -270,29 +270,29 @@ const ActiveCallOverlay = ({ localStream, remoteStream, onEndCall, isConnecting 
                                 className={cn("w-full h-full object-cover -scale-x-100", isVideoOff && "hidden")}
                             />
                             {isVideoOff && (
-                                <div className="w-full h-full flex items-center justify-center bg-gray-900 text-white font-bold">
+                                <div className="w-full h-full flex items-center justify-center bg-gray-900 text-white font-bold text-xs sm:text-base">
                                     Off
                                 </div>
                             )}
                         </>
                     ) : (
                         <div className="w-full h-full flex items-center justify-center bg-gray-900 border-2 border-dashed border-white/10">
-                            <div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-white animate-spin"></div>
+                            <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full border-2 border-white/20 border-t-white animate-spin"></div>
                         </div>
                     )}
                 </div>
             )}
 
             {/* Call Info Overlay */}
-            <div className="absolute top-12 left-0 right-0 flex flex-col items-center pointer-events-none z-30">
-                <h2 className="text-white text-[32px] font-black tracking-tight mb-2 drop-shadow-md">
+            <div className="absolute top-8 sm:top-12 left-0 right-0 flex flex-col items-center pointer-events-none z-30">
+                <h2 className="text-white text-2xl sm:text-[32px] font-black tracking-tight mb-2 drop-shadow-md px-4 text-center">
                     {remoteUser?.username}
                 </h2>
-                <div className="px-4 py-1.5 bg-white/10 backdrop-blur-md rounded-full border border-white/10 shadow-lg">
-                    <span className="text-white/90 font-black text-[14px] tracking-widest uppercase flex items-center gap-2">
+                <div className="px-3 py-1 sm:px-4 sm:py-1.5 bg-white/10 backdrop-blur-md rounded-full border border-white/10 shadow-lg">
+                    <span className="text-white/90 font-black text-[10px] sm:text-[14px] tracking-widest uppercase flex items-center gap-2">
                         {isConnecting ? (
                             <>
-                                <span className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse"></span>
+                                <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-yellow-400 animate-pulse"></span>
                                 CONNECTING...
                             </>
                         ) : (
@@ -303,33 +303,33 @@ const ActiveCallOverlay = ({ localStream, remoteStream, onEndCall, isConnecting 
             </div>
 
             {/* Controls Bar */}
-            <div className="absolute bottom-16 left-0 right-0 flex justify-center items-center gap-8 animate-in slide-in-from-bottom-10 duration-700 z-30">
+            <div className="absolute bottom-10 sm:bottom-16 left-0 right-0 flex justify-center items-center gap-4 sm:gap-8 animate-in slide-in-from-bottom-10 duration-700 z-30">
                 <button
                     onClick={toggleMute}
                     className={cn(
-                        "w-16 h-16 rounded-full flex items-center justify-center transition-all active:scale-90",
+                        "w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center transition-all active:scale-90",
                         isMuted ? "bg-red-500 text-white" : "bg-white/10 backdrop-blur-xl text-white border border-white/20 hover:bg-white/20"
                     )}
                 >
-                    {isMuted ? <MicOff size={28} /> : <Mic size={28} />}
+                    {isMuted ? <MicOff size={24} className="sm:w-7 sm:h-7" /> : <Mic size={24} className="sm:w-7 sm:h-7" />}
                 </button>
 
                 <button
                     onClick={() => onEndCall(remoteUser?._id)}
-                    className="w-20 h-20 rounded-full bg-red-600 flex items-center justify-center text-white shadow-2xl shadow-red-500/40 hover:bg-red-700 active:scale-90 transition-all"
+                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-red-600 flex items-center justify-center text-white shadow-2xl shadow-red-500/40 hover:bg-red-700 active:scale-90 transition-all"
                 >
-                    <PhoneOff size={32} />
+                    <PhoneOff size={28} className="sm:w-8 sm:h-8" />
                 </button>
 
                 {callType === 'video' && (
                     <button
                         onClick={toggleVideo}
                         className={cn(
-                            "w-16 h-16 rounded-full flex items-center justify-center transition-all active:scale-90",
+                            "w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center transition-all active:scale-90",
                             isVideoOff ? "bg-red-500 text-white" : "bg-white/10 backdrop-blur-xl text-white border border-white/20 hover:bg-white/20"
                         )}
                     >
-                        {isVideoOff ? <VideoOff size={28} /> : <Video size={28} />}
+                        {isVideoOff ? <VideoOff size={24} className="sm:w-7 sm:h-7" /> : <Video size={24} className="sm:w-7 sm:h-7" />}
                     </button>
                 )}
             </div>

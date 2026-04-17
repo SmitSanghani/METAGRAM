@@ -13,10 +13,16 @@ const servers = {
         { urls: 'stun:stun2.l.google.com:19302' },
         { urls: 'stun:stun3.l.google.com:19302' },
         { urls: 'stun:stun4.l.google.com:19302' },
+        { urls: 'stun:stun.google.com:19302' },
         { urls: 'stun:stun.cloudflare.com:3478' },
-        { urls: 'stun:stun.metered.ca:80' },
+        { urls: 'stun:stun.iphone-dev.com:3478' },
         {
             urls: 'turn:openrelay.metered.ca:80',
+            username: 'openrelayproject',
+            credential: 'openrelayproject'
+        },
+        {
+            urls: 'turn:openrelay.metered.ca:3478',
             username: 'openrelayproject',
             credential: 'openrelayproject'
         },
@@ -31,7 +37,7 @@ const servers = {
             credential: 'openrelayproject'
         }
     ],
-    iceCandidatePoolSize: 0, // Reduced to 0 to prevent candidate flooding on some networks
+    iceCandidatePoolSize: 2, // Pre-gather at least one to speed up laptop sync
     bundlePolicy: 'max-bundle',
     rtcpMuxPolicy: 'require',
     iceTransportPolicy: 'all'
@@ -65,6 +71,7 @@ const preferOpus = (sdp) => {
         return sdp;
     }
 };
+
 
 export const WebRTCProvider = ({ children }) => {
     const dispatch = useDispatch();
@@ -313,6 +320,29 @@ export const WebRTCProvider = ({ children }) => {
             }
         };
 
+        currentPc.onnegotiationneeded = async () => {
+            console.log("[WebRTC] Negotiation needed - state:", currentPc.signalingState);
+            // Only re-negotiate if we are already in a stable call (restarts/network changes)
+            if (currentPc.signalingState !== 'stable') return;
+            
+            try {
+                const offer = await currentPc.createOffer();
+                await currentPc.setLocalDescription(offer);
+                socket.emit("call-user", {
+                    to: remoteId,
+                    offer: currentPc.localDescription,
+                    type: callType,
+                    callerInfo: {
+                        _id: user?._id,
+                        username: user?.username,
+                        profilePicture: user?.profilePicture
+                    }
+                });
+            } catch (err) {
+                console.error("[WebRTC] Renegotiation failed:", err);
+            }
+        };
+
         currentPc.ontrack = (event) => {
             console.log("[WebRTC] Received remote track:", event.track.kind);
             
@@ -346,14 +376,22 @@ export const WebRTCProvider = ({ children }) => {
                 if (localStreamRef.current && remoteStreamRef.current) {
                     startRecording(localStreamRef.current, remoteStreamRef.current);
                 }
-            } else if (state === 'failed' || state === 'disconnected' || iceState === 'failed') {
-                // If disconnected/failed, wait a bit before ending to allow for ICE restart/recovery
+            } else if (state === 'failed' || iceState === 'failed' || state === 'disconnected') {
+                // If it failed or disconnected, try to restart ICE before giving up
+                if (state === 'failed' || iceState === 'failed') {
+                    console.log("[WebRTC] Connection failed, attempting ICE restart...");
+                    currentPc.restartIce(); // Modern browsers support this
+                }
+
+                // Wait longer (6s) before ending to allow for TURN relay establishment
                 setTimeout(() => {
-                    if (pc.current === currentPc && (currentPc.connectionState === 'failed' || currentPc.iceConnectionState === 'failed' || currentPc.connectionState === 'disconnected')) {
-                         console.log("[WebRTC] Connection recovery failed, ending call.");
+                    const latestState = currentPc.connectionState;
+                    const latestIceState = currentPc.iceConnectionState;
+                    if (pc.current === currentPc && (latestState === 'failed' || latestIceState === 'failed' || latestState === 'disconnected')) {
+                         console.log("[WebRTC] Connection recovery failed after timeout, ending call.");
                          endCallRef.current?.(remoteId);
                     }
-                }, state === 'failed' || iceState === 'failed' ? 3000 : 10000);
+                }, 6000);
             }
         };
 

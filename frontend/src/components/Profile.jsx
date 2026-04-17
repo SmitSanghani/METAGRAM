@@ -6,7 +6,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
-import { AtSign, Heart, MessageCircle, UserPlus, MoreHorizontal, Grid, PlaySquare, Contact, Link, ChevronDown, Trash2, Bookmark, Plus } from 'lucide-react'
+import { AtSign, Heart, MessageCircle, UserPlus, MoreHorizontal, Grid, PlaySquare, Contact, Link, ChevronDown, Trash2, Bookmark, Plus, Settings, Search, CheckCircle2, Mic, Lightbulb } from 'lucide-react'
 import api from '@/api';
 import { cn, getAvatarColor } from '@/lib/utils';
 import StoryViewer from './StoryViewer'
@@ -312,7 +312,7 @@ const Profile = () => {
             : userProfile?.posts;
 
   return (
-    <div className='min-h-screen bg-[rgb(248,252,252)] py-10 px-4'>
+    <div className='min-h-screen bg-[rgb(248,252,252)] py-4 sm:py-10 px-2 sm:px-4'>
       {isProfileLoading ? (
         <div className="max-w-5xl mx-auto flex flex-col items-center justify-center py-40 bg-white rounded-[13px] border border-[#efefef] shadow-sm">
            <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
@@ -334,13 +334,28 @@ const Profile = () => {
         </div>
       ) : (
         <>
-          <div className='max-w-5xl mx-auto flex flex-col gap-6'>
+            {/* Mobile Specialized Header */}
+            <div className='flex sm:hidden items-center justify-between px-4 py-3 bg-white border-b border-[#efefef] fixed top-0 left-0 right-0 z-[50]'>
+                <h1 className='text-[20px] font-bold text-[#262626] font-display tracking-tight'>The Gallery</h1>
+                <div className='flex items-center gap-4'>
+                    <div className='relative ring-2 ring-transparent hover:ring-indigo-100 ring-offset-1 rounded-full p-[1px] transition-all cursor-pointer'>
+                      <Avatar className='w-8 h-8'>
+                          <AvatarImage src={user?.profilePicture} className="object-cover" />
+                          <AvatarFallback className='bg-indigo-50 text-indigo-500 font-bold text-[10px]'>{user?.username?.charAt(0).toUpperCase()}</AvatarFallback>
+                      </Avatar>
+                      <div className='absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-indigo-500 rounded-full border-2 border-white flex items-center justify-center' />
+                    </div>
+                    <Search size={22} className='text-[#262626] cursor-pointer' />
+                </div>
+            </div>
+
+            <div className='max-w-5xl mx-auto flex flex-col gap-6 sm:mt-0 mt-14'>
 
             {/* Section 1 & 2: Header & Highlights Combined Card */}
-            <div className='bg-white rounded-[13px] border border-[#efefef] p-6 shadow-sm flex flex-col gap-10'>
-              <div className='flex items-start gap-12 md:gap-20'>
+            <div className='bg-white rounded-none sm:rounded-[13px] border-b sm:border border-[#efefef] p-0 sm:p-6 shadow-none sm:shadow-sm flex flex-col gap-0 sm:gap-10'>
+              <div className='flex flex-col sm:flex-row items-center sm:items-start gap-6 sm:gap-12 md:gap-20 pt-8 sm:pt-0 pb-6 sm:pb-0'>
                 {/* Avatar Section */}
-                <section className='flex items-center justify-center shrink-0'>
+                <section className='flex items-center justify-center shrink-0 relative'>
                   <div
                     className="relative group cursor-pointer"
                     onClick={() => ((isLoggedInUserProfile || isFollowing) && userStories.length > 0) && setIsStoryViewerOpen(true)}
@@ -349,36 +364,48 @@ const Profile = () => {
                       user={userProfile}
                       currentUser={user}
                       stories={(isLoggedInUserProfile || isFollowing) ? userStories : []}
-                      size={window.innerWidth < 768 ? 100 : 168}
+                      size={window.innerWidth < 768 ? 120 : 168}
                       isYourStory={isLoggedInUserProfile}
                       strokeWidth={4}
                     />
+                    {/* Verified Badge for Mobile (Bottom Right of Avatar) */}
+                    <div className='absolute bottom-4 right-6 sm:hidden bg-indigo-600 rounded-full p-1.5 border-[3px] border-white shadow-lg'>
+                      <CheckCircle2 size={14} className='text-white fill-current' strokeWidth={3} />
+                    </div>
                   </div>
                 </section>
 
                 {/* Profile Info Section */}
-                <section className='flex flex-col w-full'>
+                <section className='flex flex-col w-full items-center sm:items-start px-6 sm:px-0'>
                   {/* Header Row: Username + Actions */}
-                  <div className='flex flex-wrap items-center gap-4 mb-5 pt-2'>
+                  <div className='flex flex-col sm:flex-row items-center gap-4 mb-4 sm:mb-5'>
                     <div className="flex items-center gap-3">
-                      <h1 className='text-[28px] font-bold text-[#262626]'>{userProfile?.username}</h1>
+                      <h1 className='text-[32px] sm:text-[28px] font-bold text-[#262626] tracking-tight'>{userProfile?.username}</h1>
                       {!isLoggedInUserProfile && (
                         <div
                           onClick={() => setIsOptionsMenuOpen(true)}
-                          className="cursor-pointer p-2 hover:bg-gray-100 rounded-full transition-colors"
+                          className="cursor-pointer p-2 hover:bg-gray-100 rounded-full transition-colors order-first sm:order-last"
                         >
                           <MoreHorizontal size={24} className="text-[#262626]" />
                         </div>
                       )}
                     </div>
-                    <div className='flex gap-2 items-center ml-2'>
+                    <div className='flex gap-2 items-center w-full sm:w-auto justify-center'>
                       {isLoggedInUserProfile ? (
-                        <Button
-                          onClick={() => setEditProfileOpen(true)}
-                          className='bg-[#efefef] hover:bg-[#dbdbdb] text-[#262626] h-9 px-6 text-[14px] font-bold shadow-none rounded-[13px] transition-all border-0'
-                        >
-                          Edit profile
-                        </Button>
+                        <div className="flex flex-col items-center gap-4 w-full sm:w-auto">
+                          <Button
+                            onClick={() => setEditProfileOpen(true)}
+                            className='bg-[#F0EDFF] hover:bg-[#E5E0FF] text-[#5849FF] h-10 px-10 text-[14px] font-bold shadow-none rounded-full transition-all border-0 w-max'
+                          >
+                            Edit profile
+                          </Button>
+                          <div 
+                             onClick={() => navigate('/settings')}
+                             className='sm:hidden w-12 h-12 rounded-full bg-[#f8f6ff] flex items-center justify-center cursor-pointer hover:scale-105 active:scale-95 transition-all text-[#5849FF] border border-[#eee]'
+                          >
+                             <Settings size={22} strokeWidth={2.5} />
+                          </div>
+                        </div>
                       ) : (
                         <>
                           <Button onClick={handleButtonClick} className={`h-9 px-6 text-[14px] font-bold shadow-none rounded-[13px] transition-all ${buttonState === 'Following' || buttonState === 'Requested' ? 'bg-[#efefef] hover:bg-[#dbdbdb] text-[#262626]' : 'bg-[#0095F6] hover:bg-[#1877F2] text-white'}`}>
@@ -401,21 +428,29 @@ const Profile = () => {
                   </div>
 
                   {/* Stats Row */}
-                  <div className='flex items-center gap-8 mb-6'>
-                    <div className='flex items-center gap-1.5'><span className='font-bold text-[16px] text-[#262626]'>{userProfile?.posts?.length || 0}</span><span className='text-[#8e8e8e] text-[15px]'>Posts</span></div>
-                    <div className='flex items-center gap-1.5'><span className='font-bold text-[16px] text-[#262626]'>{userProfile?.reels?.length || 0}</span><span className='text-[#8e8e8e] text-[15px]'>Reels</span></div>
-                    <div onClick={() => setShowFollowers(true)} className='flex items-center gap-1.5 cursor-pointer'><span className='font-bold text-[16px] text-[#262626]'>{userProfile?.followers?.length || 0}</span><span className='text-[#8e8e8e] text-[15px]'>Followers</span></div>
-                    <div onClick={() => setShowFollowing(true)} className='flex items-center gap-1.5 cursor-pointer'><span className='font-bold text-[16px] text-[#262626]'>{userProfile?.following?.length || 0}</span><span className='text-[#8e8e8e] text-[15px]'>Following</span></div>
+                  <div className='flex items-center justify-center sm:justify-start gap-8 sm:gap-8 mb-6 w-full'>
+                    <div className='flex flex-col items-center sm:flex-row gap-0 sm:gap-1.5'>
+                      <span className='font-bold text-[20px] sm:text-[16px] text-[#262626]'>{userProfile?.posts?.length || 0}</span>
+                      <span className='text-[#8e8e8e] text-[11px] sm:text-[15px] uppercase font-bold tracking-wider sm:normal-case sm:font-normal'>Posts</span>
+                    </div>
+                    <div className='flex flex-col items-center sm:flex-row gap-0 sm:gap-1.5'>
+                      <span className='font-bold text-[20px] sm:text-[16px] text-[#262626]'>{userProfile?.reels?.length || 0}</span>
+                      <span className='text-[#8e8e8e] text-[11px] sm:text-[15px] uppercase font-bold tracking-wider sm:normal-case sm:font-normal'>Reels</span>
+                    </div>
+                    <div onClick={() => setShowFollowers(true)} className='flex flex-col items-center sm:flex-row gap-0 sm:gap-1.5 cursor-pointer'>
+                      <span className='font-bold text-[20px] sm:text-[16px] text-[#262626]'>{userProfile?.followers?.length || 0}</span>
+                      <span className='text-[#8e8e8e] text-[11px] sm:text-[15px] uppercase font-bold tracking-wider sm:normal-case sm:font-normal'>Followers</span>
+                    </div>
                   </div>
 
                   {/* Bio Section */}
-                  <div className='flex flex-col gap-1.5 text-[15px] text-[#262626]'>
-                    <p className='text-[#262626] leading-relaxed max-w-[500px] font-medium'>
+                  <div className='flex flex-col items-center sm:items-start gap-1.5 text-[15px] text-[#262626] mb-8 sm:mb-0'>
+                    <p className='text-[#777] leading-relaxed max-w-[500px] font-medium text-center sm:text-left'>
                       {userProfile?.bio || 'No bio yet.'}
                     </p>
 
                     {userProfile?.link && (
-                      <div className='flex items-center gap-1.5 text-[#0095F6] font-semibold cursor-pointer hover:underline mt-1'>
+                      <div className='flex items-center gap-1.5 text-[#5849FF] font-semibold cursor-pointer hover:underline mt-1'>
                         <Link size={14} strokeWidth={2.5} />
                         <span className="text-[14px]">{userProfile?.link}</span>
                       </div>
@@ -425,16 +460,27 @@ const Profile = () => {
               </div>
 
               {/* Highlights Sub-section within the same card */}
-              <div className='border-t border-[#efefef] pt-8'>
-                <div className='flex items-center space-x-12 px-2 overflow-x-auto no-scrollbar'>
-                  {['Blog', 'Podcast', 'Tips', 'Updates', 'Features', 'Events'].map((item, idx) => (
-                    <div key={idx} className='flex flex-col items-center gap-2 shrink-0 cursor-pointer group'>
-                      <div className='w-[77px] h-[77px] rounded-full p-[3px] bg-white border border-[#dbdbdb] group-hover:bg-gray-50 transition-colors'>
-                        <div className={`w-full h-full rounded-full flex items-center justify-center text-3xl bg-[#fafafa] border border-[#efefef] shadow-inner`}>
-                          {['💻', '🎙️', '💡', '📱', '🚀', '📅'][idx]}
+              <div className='border-t border-[#efefef] pt-8 pb-10 sm:pb-0'>
+                <div className='flex items-center space-x-6 sm:space-x-12 px-6 overflow-x-auto no-scrollbar'>
+                  {[
+                    { label: 'Blog', icon: <Grid size={24} />, color: '#F8F6FF' },
+                    { label: 'Podcast', icon: <Mic size={24} />, color: '#F0EDFF' },
+                    { label: 'Tips', icon: <Lightbulb size={24} />, color: '#F8F6FF' },
+                    { label: 'New', icon: <Plus size={24} />, color: '#FFFFFF', dashed: true }
+                  ].map((item, idx) => (
+                    <div key={idx} className='flex flex-col items-center gap-3 shrink-0 cursor-pointer group'>
+                      <div className={cn(
+                        'w-[70px] h-[70px] sm:w-[77px] sm:h-[77px] rounded-full p-[2px] bg-white border border-[#eee] group-hover:bg-gray-50 transition-colors shadow-sm',
+                        item.dashed && 'border-dashed border-2'
+                      )}>
+                        <div 
+                          className='w-full h-full rounded-full flex items-center justify-center bg-[#F8F6FF] border border-[#f0f0f0] shadow-inner text-[#5849FF]'
+                          style={{ backgroundColor: item.color }}
+                        >
+                          {item.icon}
                         </div>
                       </div>
-                      <span className='text-[12px] font-semibold text-[#262626]'>{item}</span>
+                      <span className='text-[12px] font-bold text-[#262626] tracking-tight'>{item.label}</span>
                     </div>
                   ))}
                 </div>
@@ -442,40 +488,40 @@ const Profile = () => {
             </div>
 
             {/* Section 3: Posts Section */}
-            <div className='bg-white rounded-[13px] border border-[#efefef] p-6 shadow-sm mb-10'>
+            <div className='bg-white sm:rounded-[13px] border-t sm:border border-[#efefef] p-0 sm:p-6 sm:shadow-sm mb-10'>
               {/* Tabs */}
-              <div className='flex items-center justify-center gap-12 mb-8 border-b border-[#efefef]'>
+              <div className='flex items-center sm:justify-center justify-start gap-8 sm:gap-12 sm:mb-8 border-b border-[#efefef] overflow-x-auto no-scrollbar px-4 sm:px-0'>
                 <div
-                  className={`pb-3 cursor-pointer flex items-center gap-2 transition-all border-b-2 ${activeTab === 'posts' ? 'border-[#262626] text-[#262626]' : 'border-transparent text-[#8e8e8e] hover:text-[#262626]'}`}
+                  className={`pb-3 shrink-0 cursor-pointer flex items-center gap-2 transition-all border-b-2 ${activeTab === 'posts' ? 'border-[#262626] text-[#262626]' : 'border-transparent text-[#8e8e8e] hover:text-[#262626]'}`}
                   onClick={() => handleTabChange('posts')}
                 >
-                  <Grid size={14} strokeWidth={activeTab === 'posts' ? 2.5 : 2} />
-                  <span className='text-[12px] font-bold tracking-[1px] uppercase'>Posts</span>
+                  <Grid size={16} strokeWidth={activeTab === 'posts' ? 2.5 : 2} />
+                  <span className='text-[13px] font-bold tracking-[0.5px] uppercase'>Posts</span>
                 </div>
 
                 <div
-                  className={`pb-3 cursor-pointer flex items-center gap-2 transition-all border-b-2 ${activeTab === 'reels' ? 'border-[#262626] text-[#262626]' : 'border-transparent text-[#8e8e8e] hover:text-[#262626]'}`}
+                  className={`pb-3 shrink-0 cursor-pointer flex items-center gap-2 transition-all border-b-2 ${activeTab === 'reels' ? 'border-[#262626] text-[#262626]' : 'border-transparent text-[#8e8e8e] hover:text-[#262626]'}`}
                   onClick={() => setActiveTab('reels')}
                 >
-                  <PlaySquare size={14} strokeWidth={activeTab === 'reels' ? 2.5 : 2} />
-                  <span className='text-[12px] font-bold tracking-[1px] uppercase'>Reels</span>
+                  <PlaySquare size={16} strokeWidth={activeTab === 'reels' ? 2.5 : 2} />
+                  <span className='text-[13px] font-bold tracking-[0.5px] uppercase'>Reels</span>
                 </div>
 
                 {isLoggedInUserProfile && (
                   <>
                     <div
-                      className={`pb-3 cursor-pointer flex items-center gap-2 transition-all border-b-2 ${activeTab === 'saved' ? 'border-[#262626] text-[#262626]' : 'border-transparent text-[#8e8e8e] hover:text-[#262626]'}`}
+                      className={`pb-3 shrink-0 cursor-pointer flex items-center gap-2 transition-all border-b-2 ${activeTab === 'saved' ? 'border-[#262626] text-[#262626]' : 'border-transparent text-[#8e8e8e] hover:text-[#262626]'}`}
                       onClick={() => setActiveTab('saved')}
                     >
-                      <Grid size={14} strokeWidth={activeTab === 'saved' ? 2.5 : 2} />
-                      <span className='text-[12px] font-bold tracking-[1px] uppercase'>Saved Posts</span>
+                      <Grid size={16} strokeWidth={activeTab === 'saved' ? 2.5 : 2} />
+                      <span className='text-[13px] font-bold tracking-[0.5px] uppercase truncate max-w-[100px]'>Saved Posts</span>
                     </div>
                     <div
-                      className={`pb-3 cursor-pointer flex items-center gap-2 transition-all border-b-2 ${activeTab === 'saved_reels' ? 'border-[#262626] text-[#262626]' : 'border-transparent text-[#8e8e8e] hover:text-[#262626]'}`}
+                      className={`pb-3 shrink-0 cursor-pointer flex items-center gap-2 transition-all border-b-2 ${activeTab === 'saved_reels' ? 'border-[#262626] text-[#262626]' : 'border-transparent text-[#8e8e8e] hover:text-[#262626]'}`}
                       onClick={() => setActiveTab('saved_reels')}
                     >
-                      <Bookmark size={14} strokeWidth={activeTab === 'saved_reels' ? 2.5 : 2} />
-                      <span className='text-[12px] font-bold tracking-[1px] uppercase'>Saved Reels</span>
+                      <Bookmark size={16} strokeWidth={activeTab === 'saved_reels' ? 2.5 : 2} />
+                      <span className='text-[13px] font-bold tracking-[0.5px] uppercase truncate max-w-[100px]'>Saved Reels</span>
                     </div>
                   </>
                 )}
@@ -491,7 +537,7 @@ const Profile = () => {
                   <p className="text-gray-500 font-medium">Follow this account to see their photos and videos.</p>
                 </div>
               ) : (
-                <div className={`grid gap-6 ${(activeTab === 'reels' || activeTab === 'saved_reels') ? 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4' : 'grid-cols-2 md:grid-cols-3'}`}>
+                <div className={`grid gap-[2px] sm:gap-6 profile-posts-grid ${(activeTab === 'reels' || activeTab === 'saved_reels') ? 'grid-cols-3 md:grid-cols-3 lg:grid-cols-4' : 'grid-cols-3 md:grid-cols-3'}`}>
                   {
                     displayedPost?.map((item) => (
                       <FeedCard 

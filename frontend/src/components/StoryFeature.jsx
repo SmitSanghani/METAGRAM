@@ -98,14 +98,14 @@ const StoryFeature = () => {
         : null;
 
     return (
-        <div className="w-full max-w-full mb-1">
+        <div className="w-full max-w-full px-0">
             <Swiper
                 spaceBetween={12}
                 slidesPerView="auto"
                 className="w-full pb-2"
             >
                 {/* Your Story Bubble */}
-                <SwiperSlide className="w-[72px] !w-auto flex flex-col items-center gap-2 cursor-pointer mt-1 first:pl-2">
+                <SwiperSlide className="w-[60px] sm:w-[72px] !w-auto flex flex-col items-center gap-1.5 cursor-pointer mt-1 first:pl-2">
                     <div
                         className="relative group transition-all"
                         onClick={() => myStoryGroup ? openStoryViewer(user._id) : setIsUploadModalOpen(true)}
@@ -115,22 +115,22 @@ const StoryFeature = () => {
                             currentUser={user}
                             stories={myStoryGroup?.stories || []}
                             isYourStory={true}
-                            size={64}
+                            size={window.innerWidth < 640 ? 44 : 64}
                         />
                         {/* Blue Plus Button */}
                         <div
-                            className="absolute bottom-[6px] right-[6px] p-[2px] bg-white rounded-full shadow-sm cursor-pointer transition-transform z-10"
+                            className="absolute bottom-[2px] right-[2px] p-[2px] bg-white rounded-full shadow-sm cursor-pointer transition-transform z-10"
                             onClick={(e) => {
                                 e.stopPropagation();
                                 setIsUploadModalOpen(true);
                             }}
                         >
-                            <div className="bg-[#0095F6] rounded-full p-[3px] flex items-center justify-center border-[2px] border-white">
-                                <Plus size={12} strokeWidth={5} className="text-white" />
+                            <div className="bg-[#0095F6] rounded-full p-[2px] flex items-center justify-center border-[2px] border-white">
+                                <Plus size={10} strokeWidth={5} className="text-white" />
                             </div>
                         </div>
                     </div>
-                    <p className="w-full text-center px-1 text-[12px] font-bold truncate text-zinc-400 mt-0.5">
+                    <p className="w-full text-center px-1 text-[11px] font-medium truncate text-zinc-400 mt-0.5">
                         Your story
                     </p>
                 </SwiperSlide>
@@ -146,7 +146,7 @@ const StoryFeature = () => {
                             user={group.userId}
                             currentUser={user}
                             stories={group.stories}
-                            size={64}
+                            size={window.innerWidth < 640 ? 44 : 64}
                         />
                         <p className="w-full text-center px-1 text-[12px] font-bold truncate text-gray-800">
                             {group.userId.username}

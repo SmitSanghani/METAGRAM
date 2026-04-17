@@ -10,7 +10,7 @@ const Home = () => {
     useGetSuggestedUsers();
     return (
         <div className='flex justify-center w-full min-h-screen'>
-            <div className='flex w-full max-w-[1400px] gap-12 pt-8 justify-between'>
+            <div className='flex w-full max-w-[1400px] gap-12 sm:pt-8 pt-2 justify-between'>
                 {/* Feed Section */}
                 <div className='flex-1 lg:max-w-none'>
                     <Feed />
