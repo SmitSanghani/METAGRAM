@@ -136,27 +136,27 @@ const PostModal = ({ open, setOpen, post: initialPost, onOpenComment }) => {
     return (
         <>
             <Dialog open={open} onOpenChange={setOpen}>
-                <DialogContent hideClose className='max-w-[500px] w-[95vw] md:w-full p-0 flex flex-col bg-white max-h-[90vh] overflow-hidden rounded-[15px] sm:rounded-[24px] border-none shadow-2xl animate-in zoom-in-95 duration-300'>
+                <DialogContent hideClose className='max-w-[500px] w-full sm:w-[95vw] md:w-full p-0 flex flex-col bg-white h-[100dvh] sm:h-auto sm:max-h-[90vh] overflow-hidden rounded-none sm:rounded-[24px] border-none shadow-2xl animate-in zoom-in-95 duration-300'>
                     <DialogTitle className="sr-only">Post by {post?.author?.username}</DialogTitle>
                     <DialogDescription className="sr-only">Viewing shared post media and caption</DialogDescription>
                     
                     {/* Header */}
-                    <div className='flex items-center justify-between px-5 py-4 border-b border-gray-50 shrink-0'>
+                    <div className='flex items-center justify-between px-5 py-3 sm:py-4 border-b border-gray-50 shrink-0'>
                         <div className='flex items-center gap-3'>
-                            <Avatar className="w-10 h-10 border border-gray-100 p-[1px] bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600">
+                            <Avatar className="w-8 h-8 sm:w-10 sm:h-10 border border-gray-100 p-[1px] bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600">
                                 <AvatarImage src={post?.author?.profilePicture} className="object-cover rounded-full" />
-                                <AvatarFallback className="bg-gray-100 font-bold">{post?.author?.username?.charAt(0)}</AvatarFallback>
+                                <AvatarFallback className="bg-gray-100 font-bold text-[10px]">{post?.author?.username?.charAt(0)}</AvatarFallback>
                             </Avatar>
                             <div className='flex flex-col'>
-                                <span className='font-bold text-[14px] text-gray-900'>{post?.author?.username}</span>
-                                {post?.location && <span className='text-[10px] text-gray-400 font-medium'>{post.location}</span>}
+                                <span className='font-bold text-[13px] sm:text-[14px] text-gray-900'>{post?.author?.username}</span>
+                                {post?.location && <span className='text-[9px] sm:text-[10px] text-gray-400 font-medium'>{post.location}</span>}
                             </div>
                         </div>
                         <div className="flex items-center gap-1">
                             <Dialog open={showMoreOptions} onOpenChange={setShowMoreOptions}>
                                 <DialogTrigger asChild>
                                     <button className="p-2 hover:bg-gray-50 rounded-full text-gray-400 hover:text-gray-900 transition-colors cursor-pointer">
-                                        <MoreHorizontal size={20} />
+                                        <MoreHorizontal size={18} />
                                     </button>
                                 </DialogTrigger>
                                 <DialogContent className="p-0 border-none bg-white rounded-3xl overflow-hidden max-w-[400px] shadow-2xl flex flex-col items-center text-sm text-center">

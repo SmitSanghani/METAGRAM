@@ -262,7 +262,7 @@ const ReelCommentsModal = ({ reelId, comments: initialComments = [], open, setOp
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            <DialogContent className="sm:max-w-md h-[85vh] flex flex-col p-0 border-none bg-white rounded-t-[15px] sm:rounded-[20px] overflow-hidden focus:outline-none shadow-[0_32px_100px_rgba(0,0,0,0.3)] animate-in slide-in-from-bottom-[100%] duration-700">
+            <DialogContent className="sm:max-w-md h-[100dvh] sm:h-[85vh] w-full sm:w-auto flex flex-col p-0 border-none bg-white rounded-none sm:rounded-[20px] overflow-hidden focus:outline-none shadow-[0_32px_100px_rgba(0,0,0,0.3)] animate-in slide-in-from-bottom-[100%] duration-700">
                 <DialogHeader className="px-8 py-6 border-b border-gray-50 flex-none bg-white/90 backdrop-blur-xl sticky top-0 z-20">
                     <div className="flex items-center justify-between w-full">
                         <div className="flex flex-col">

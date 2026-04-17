@@ -287,16 +287,14 @@ const FeedCard = ({ item, type = 'post', onDelete }) => {
                                 <MessageCircle size={14} />
                                 <span className='text-[12px] font-bold text-gray-600'>{commentCount.toLocaleString()}</span>
                             </div>
-                            {!isReel && (
-                                <div
-                                    onClick={(e) => { e.stopPropagation(); setOpenShare(true); }}
-                                    className='flex items-center gap-1 text-gray-400 hover:text-indigo-600 transition-colors'
-                                >
-                                    <Send size={14} className="-rotate-12" />
-                                </div>
-                            )}
+                            <div
+                                onClick={(e) => { e.stopPropagation(); setOpenShare(true); }}
+                                className='flex items-center gap-1 text-gray-400 hover:text-indigo-600 transition-colors'
+                            >
+                                <Send size={16} className="-rotate-12" />
+                            </div>
                             {isReel && (
-                                <div className='flex items-center gap-1 text-gray-400'>
+                                <div className='hidden sm:flex items-center gap-1 text-gray-400'>
                                     <Eye size={12} />
                                     <span className='text-[12px] font-bold text-gray-600'>{viewCount.toLocaleString()}</span>
                                 </div>

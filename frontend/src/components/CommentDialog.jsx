@@ -348,7 +348,7 @@ const CommentDialog = ({ open, setOpen }) => {
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            <DialogContent hideClose onInteractOutside={() => { setOpen(false); setReplyingTo(null); }} className='max-w-5xl p-0 flex flex-col bg-white overflow-hidden rounded-[15px] border-none shadow-[0_32px_64px_-15px_rgba(0,0,0,0.2)] sm:max-h-[88vh] max-h-[95vh] w-[98vw] sm:w-[90vw] transition-all duration-500'>
+            <DialogContent hideClose onInteractOutside={() => { setOpen(false); setReplyingTo(null); }} className='max-w-5xl p-0 flex flex-col bg-white overflow-hidden sm:rounded-[15px] rounded-none border-none shadow-[0_32px_64px_-15px_rgba(0,0,0,0.2)] sm:max-h-[88vh] h-[100dvh] sm:h-auto w-full sm:w-[90vw] transition-all duration-300'>
                 <DialogTitle className="sr-only">Post by {selectedPost?.author?.username}</DialogTitle>
                 <DialogDescription className="sr-only">Post details and comments</DialogDescription>
                 <div className='flex flex-col sm:flex-row flex-1 overflow-hidden'>
@@ -360,7 +360,7 @@ const CommentDialog = ({ open, setOpen }) => {
                                 controls
                                 autoPlay
                                 loop
-                                className='w-full h-full object-contain sm:max-h-[88vh] max-h-[50vh]'
+                                className='w-full h-full object-contain sm:max-h-[88vh] max-h-[40vh] py-2'
                             />
                         ) : (
                             selectedPost?.images && selectedPost.images.length > 1 ? (
@@ -411,7 +411,7 @@ const CommentDialog = ({ open, setOpen }) => {
                                 <img
                                     src={selectedPost?.image || (selectedPost?.images && selectedPost.images[0])}
                                     alt="post_img"
-                                    className='w-full h-full object-contain sm:max-h-[88vh] max-h-[50vh] transition-transform duration-700 group-hover:scale-[1.02]'
+                                    className='w-full h-full object-contain sm:max-h-[88vh] max-h-[40vh] py-2 transition-transform duration-700 group-hover:scale-[1.02]'
                                 />
                             )
                         )}
@@ -421,23 +421,23 @@ const CommentDialog = ({ open, setOpen }) => {
                     {/* Comments Section */}
                     <div className='w-full sm:w-[45%] flex flex-col bg-white overflow-hidden relative'>
                         {/* Header */}
-                        <div className='flex items-center justify-between px-6 py-5 border-b border-gray-50 bg-white/80 backdrop-blur-md sticky top-0 z-20'>
-                            <div className='flex gap-4 items-center'>
+                        <div className='flex items-center justify-between px-6 py-4 border-b border-gray-50 bg-white/80 backdrop-blur-md sticky top-0 z-20'>
+                            <div className='flex gap-3 sm:gap-4 items-center'>
                                 <Link to={`/profile/${selectedPost?.author?._id}`}>
-                                    <div className="relative p-[1.5px] rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600 transition-transform">
-                                        <Avatar className="w-9 h-9 border-2 border-white">
+                                    <div className="relative p-[1px] rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600 transition-transform">
+                                        <Avatar className="w-8 h-8 sm:w-9 sm:h-9 border-2 border-white">
                                             <AvatarImage src={selectedPost?.author?.profilePicture} className="object-cover" />
-                                            <AvatarFallback className={cn("font-black text-xs uppercase", getAvatarColor(selectedPost?.author?.username))}>
+                                            <AvatarFallback className={cn("font-black text-[10px] uppercase", getAvatarColor(selectedPost?.author?.username))}>
                                                 {selectedPost?.author?.username?.charAt(0)?.toUpperCase()}
                                             </AvatarFallback>
                                         </Avatar>
                                     </div>
                                 </Link>
                                 <div className="flex flex-col -gap-0.5">
-                                    <Link to={`/profile/${selectedPost?.author?._id}`} className='font-black text-[14px] text-gray-900 hover:text-indigo-600 transition-colors'>
+                                    <Link to={`/profile/${selectedPost?.author?._id}`} className='font-black text-[13px] sm:text-[14px] text-gray-900 hover:text-indigo-600 transition-colors'>
                                         {selectedPost?.author?.username}
                                     </Link>
-                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Original Post</span>
+                                    <span className="text-[9px] sm:text-[10px] font-bold text-gray-400 uppercase tracking-widest">Original Post</span>
                                 </div>
                             </div>
 
@@ -445,7 +445,7 @@ const CommentDialog = ({ open, setOpen }) => {
                                 <Dialog>
                                     <DialogTrigger asChild>
                                         <div className="p-2 hover:bg-gray-50 rounded-full cursor-pointer transition-colors group">
-                                            <MoreHorizontal className='text-gray-400 group-hover:text-black transition-colors' size={20} />
+                                            <MoreHorizontal className='text-gray-400 group-hover:text-black transition-colors' size={18} />
                                         </div>
                                     </DialogTrigger>
                                     <DialogContent className="flex flex-col items-center text-sm text-center sm:rounded-3xl p-0 overflow-hidden border-none shadow-2xl">
@@ -462,10 +462,10 @@ const CommentDialog = ({ open, setOpen }) => {
                                         setReplyingTo(null);
                                     }}
                                     type="button"
-                                    className="rounded-full h-10 w-10 flex items-center justify-center text-gray-400 hover:text-black hover:bg-gray-100 transition-all active:scale-95 focus:outline-none relative z-[100] cursor-pointer"
+                                    className="rounded-full h-8 w-8 sm:h-10 sm:w-10 flex items-center justify-center text-gray-400 hover:text-black hover:bg-gray-100 transition-all active:scale-95 focus:outline-none relative z-[100] cursor-pointer"
                                     aria-label="Close dialog"
                                 >
-                                    <X size={24} strokeWidth={3} />
+                                    <X size={20} strokeWidth={3} />
                                 </button>
                             </div>
                         </div>
@@ -573,9 +573,9 @@ const CommentDialog = ({ open, setOpen }) => {
 
                                 <form
                                     onSubmit={(e) => { e.preventDefault(); sendMessageHandler(); }}
-                                    className={`flex items-center gap-3 bg-gray-50/80 p-1.5 rounded-[24px] pl-5 border-2 border-transparent transition-all duration-300 group focus-within:bg-white focus-within:border-indigo-600/20 focus-within:shadow-[0_10px_30px_-10px_rgba(79,70,229,0.15)] w-full`}
+                                    className={`flex items-center gap-2 sm:gap-3 bg-gray-50/80 p-1 sm:p-1.5 rounded-[24px] pl-4 sm:pl-5 border-2 border-transparent transition-all duration-300 group focus-within:bg-white focus-within:border-indigo-600/20 focus-within:shadow-[0_10px_30px_-10px_rgba(79,70,229,0.15)] w-full`}
                                 >
-                                    <Avatar className="w-8 h-8 shrink-0 hidden sm:block grayscale hover:grayscale-0 transition-all duration-500">
+                                    <Avatar className="w-8 h-8 shrink-0 hidden md:block grayscale hover:grayscale-0 transition-all duration-500">
                                         <AvatarImage src={user?.profilePicture} />
                                         <AvatarFallback className={cn("text-[10px] font-black uppercase", getAvatarColor(user?.username))}>
                                             {user?.username?.charAt(0)?.toUpperCase()}
@@ -593,12 +593,12 @@ const CommentDialog = ({ open, setOpen }) => {
                                             }
                                         }}
                                         placeholder={replyingTo ? `Reply to ${replyingTo.author?.username}...` : 'Write a comment...'}
-                                        className='flex-1 bg-transparent outline-none text-[14px] placeholder:text-gray-400 text-gray-800 font-medium py-2'
+                                        className='flex-1 bg-transparent outline-none text-[13px] sm:text-[14px] placeholder:text-gray-400 text-gray-800 font-medium py-2'
                                     />
                                     <button
                                         type="submit"
                                         disabled={!text.trim()}
-                                        className='bg-indigo-600 hover:bg-indigo-700 text-white font-black h-10 px-8 rounded-full text-[11px] tracking-[0.1em] uppercase disabled:opacity-30 active:scale-95 transition-all shadow-lg shadow-indigo-200 disabled:shadow-none'
+                                        className='bg-indigo-600 hover:bg-indigo-700 text-white font-black h-9 sm:h-10 px-6 sm:px-8 rounded-full text-[10px] sm:text-[11px] tracking-[0.1em] uppercase disabled:opacity-30 active:scale-95 transition-all shadow-lg shadow-indigo-200 disabled:shadow-none'
                                     >
                                         Post
                                     </button>
