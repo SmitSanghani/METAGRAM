@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { cn, getAvatarColor } from '@/lib/utils';
 import api from '@/api';
 import { toast } from 'sonner';
-import { setAuthUser, updateSuggestedUser } from '@/redux/authSlice';
+import { setAuthUser, setSuggestedUsers } from '@/redux/authSlice';
 import Swal from 'sweetalert2';
 import { Loader2 } from 'lucide-react';
 import UserListModal from './UserListModal';
